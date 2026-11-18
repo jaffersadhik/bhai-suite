@@ -1,6 +1,6 @@
 /* MBill service worker — keeps the app shell on the phone so it opens (and works) without internet.
    /api/* is never touched here: offline data lives in IndexedDB (offline.js). Bump VER when the shell file list changes. */
-const VER="mbill-shell-v7", RUNTIME="mbill-run-v1";
+const VER="mbill-shell-v8", RUNTIME="mbill-run-v1";
 const SHELL=["./","index.html","offline.js","i18n.js","manifest.json","i18n/languages.json","i18n/en.json","i18n/labels.json","vendor/jspdf.umd.min.js","vendor/html2canvas.min.js","vendor/zxing.min.js","icons/icon-192.png","icons/icon-512.png"];
 self.addEventListener("install",e=>{
   e.waitUntil(caches.open(VER).then(c=>Promise.all(SHELL.map(u=>c.add(new Request(u,{cache:"reload"})).catch(()=>{})))).then(()=>self.skipWaiting()));

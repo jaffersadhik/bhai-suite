@@ -15,31 +15,31 @@
   "code": "hi",
   "native": "हिन्दी",
   "english": "Hindi",
-  "coverage": 24
+  "coverage": 21
  },
  {
   "code": "te",
   "native": "తెలుగు",
   "english": "Telugu",
-  "coverage": 24
+  "coverage": 21
  },
  {
   "code": "kn",
   "native": "ಕನ್ನಡ",
   "english": "Kannada",
-  "coverage": 24
+  "coverage": 21
  },
  {
   "code": "ml",
   "native": "മലയാളം",
   "english": "Malayalam",
-  "coverage": 24
+  "coverage": 21
  },
  {
   "code": "ar",
   "native": "العربية",
   "english": "Arabic",
-  "coverage": 100,
+  "coverage": 0,
   "rtl": true
  }
 ]

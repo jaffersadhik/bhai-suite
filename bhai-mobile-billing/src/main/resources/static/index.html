@@ -1161,6 +1161,7 @@ function renderView(){
       <button class="admin" id="openPending"><span class="pl" aria-hidden="true">⏳</span><div><b>Pending பில்கள் <span class="pbadge" id="pendHomeN">${pendCount}</span></b><small>சேமித்து வைத்த பில்கள் · மொபைல் எண் வாரியாக · ஒரே பில்லாக அனுப்பலாம்</small></div></button>
       <div class="bar-bc"><input id="bcIn" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="🔢 Barcode எண்ணை type செய்யவும் (scan இல்லாமல்)" aria-label="Barcode number"><button id="bcGo">திற</button></div>
       <button class="admin" id="scanHome"><span class="pl" aria-hidden="true">📷</span><div><b>Barcode Scan செய்து பில் போடு</b><small>Mobile camera அல்லது USB / Bluetooth scanner · ஒவ்வொரு scan-உம் பில்லில் சேரும்</small></div></button>
+      <button class="admin" id="voiceHome"><span class="pl" aria-hidden="true">🎤</span><div><b>Voice-ல் சொல்லி பில் போடு</b><small>பொருள் பெயர், ரேட், எண்ணிக்கை சொல்லுங்கள் · ஐட்டம் பட்டியலில் சேமிக்காமல் நேரடியாக பில்லில் சேரும்</small></div></button>
       ${manualBtn("பட்டியலில் இல்லாத பொருளை பெயர், சைஸ், ரேட் கொடுத்து சேர்க்கவும்")}
       <button class="admin" id="billHist"><span class="pl" aria-hidden="true">🧾</span><div><b>பில் வரலாறு (Bills)</b><small>இந்த கம்பெனியின் பில்கள், இன்றைய விற்பனை, மீண்டும் WhatsApp</small></div></button>
       ${isSales()?"":`<button class="admin" id="mParties"><span class="pl" aria-hidden="true">📒</span><div><b>Wholesale — Retailers</b><small>கடைகளுக்கு Invoice (கடன் / GST) · நிலுவை · பணம் பெற்றது</small></div></button>`}
@@ -1268,6 +1269,7 @@ function openBill(pre){
     <h2>உங்கள் பில்</h2><p class="sub">${esc(company.name)} · ஐட்டம், சைஸ், எண்ணிக்கை, ரேட்</p>
     <div class="box" id="billList"></div>
     <div class="two-b" style="margin-top:12px"><button class="cta leaf" id="scanBill" style="margin-top:0">📷 Barcode Scan</button><button class="cta ghost" id="addCustomBill" style="margin-top:0">➕ Custom item</button></div>
+    <button class="cta ghost" id="voiceBill" style="margin-top:10px;color:#b91c1c;border-color:#f3c4c4">🎤 Voice-ல் சொல்லி சேர்</button>
     <div class="sum"><div><span>மொத்த எண்ணிக்கை</span><span id="sumPcs"></span></div><div class="gt"><span>மொத்த தொகை</span><span id="sumTot"></span></div></div>
     ${payModes.length?`<div class="box"><h3>பணம் செலுத்தும் முறை (Payment) *</h3><div class="paysel" id="paySel">${payModes.map(m=>`<button type="button" data-pay="${esc(m.id)}" class="${m.id===payPick?"on":""}"><span>${PAY_ICON[m.kind]||"🧾"}</span>${esc(m.name)}</button>`).join("")}</div></div>`:""}
     <div class="box"><h3>வாடிக்கையாளர் விவரம்</h3>
@@ -4822,6 +4824,219 @@ document.addEventListener("keydown",e=>{ if(e.key==="Enter" && e.target.id==="st
 
 /* ================= START ================= */
 if("serviceWorker" in navigator && location.protocol!=="file:") addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+/* VOICE-PARSER-BEGIN  (pure functions, no DOM: tested with node) */
+const V_CUR=new Set(["ரூபாய்","ரூபாய்க்கு","ரூபா","ரூ","rs","rs.","rupee","rupees","rupay","rupaye","inr","₹","रुपये","रुपए","रुपया","रु"]);
+const V_QTY=new Set(["பீஸ்","பீஸ","பீசு","நம்பர்","நம்பர்ஸ்","எண்","எண்ணம்","எண்கள்","pcs","pc","piece","pieces","nos","no","numbers","number","नग","पीस"]);
+const V_RATEK=new Set(["rate","ரேட்","விலை","price","@","at","दाम","भाव","रेट"]);
+const V_QTYK=new Set(["qty","quantity","எண்ணிக்கை","x","×","संख्या","मात्रा"]);
+const V_ADDW=new Set(["add","ஆட்","ஆடு","ஆட","சேர்","சேர்க்க","சேர்க்கவும்","जोड़ें","जोड़"]);
+const V_SEP=new Set(["next","அடுத்து","அடுத்தது","அடுத்த","then","பிறகு","அப்புறம்","अगला","फिर"]);
+const V_IGN=new Set(["only","மட்டும்","ஒன்லி","and","மற்றும்","plus","each","தலா","के","का","की","है","of","for"]);
+const V_NUM={zero:0,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,eleven:11,twelve:12,thirteen:13,fourteen:14,fifteen:15,sixteen:16,seventeen:17,eighteen:18,nineteen:19,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90,hundred:100,thousand:1000,
+ "ஒன்று":1,"ஒரு":1,"ஒன்னு":1,"இரண்டு":2,"ரெண்டு":2,"இரு":2,"மூன்று":3,"மூணு":3,"நான்கு":4,"நாலு":4,"ஐந்து":5,"அஞ்சு":5,"ஆறு":6,"ஏழு":7,"எட்டு":8,"ஒன்பது":9,"ஒம்போது":9,"பத்து":10,"பதினொன்று":11,"பன்னிரண்டு":12,"பதினைந்து":15,"இருபது":20,"முப்பது":30,"நாற்பது":40,"நாப்பது":40,"ஐம்பது":50,"அம்பது":50,"அறுபது":60,"எழுபது":70,"எண்பது":80,"தொண்ணூறு":90,"நூறு":100,"நூற்று":100,"இருநூறு":200,"முந்நூறு":300,"நானூறு":400,"ஐநூறு":500,"ஐந்நூறு":500,"அறுநூறு":600,"எழுநூறு":700,"எண்ணூறு":800,"தொள்ளாயிரம்":900,"ஆயிரம்":1000,"ஆயிரத்து":1000,
+ "एक":1,"दो":2,"तीन":3,"चार":4,"पांच":5,"पाँच":5,"छह":6,"सात":7,"आठ":8,"नौ":9,"दस":10,"बीस":20,"तीस":30,"चालीस":40,"पचास":50,"साठ":60,"सत्तर":70,"अस्सी":80,"नब्बे":90,"सौ":100,"हज़ार":1000,"हजार":1000};
+const vIsNum=t=>/^\d+(\.\d+)?$/.test(t);
+function vDigits(s){ return s.replace(/[௦-௯]/g,c=>String(c.charCodeAt(0)-0x0BE6)).replace(/[०-९]/g,c=>String(c.charCodeAt(0)-0x0966)); }
+function vTokens(s){
+  s=vDigits(String(s||"").normalize("NFC")).toLowerCase();
+  s=s.replace(/₹/g," ₹ ").replace(/\brs\.(?=\s*\d)/g,"rs ").replace(/(\d)\s*,\s*(\d{3})(?!\d)/g,"$1$2")
+     .replace(/(\d)([^\d\s.,])/g,"$1 $2").replace(/([^\d\s.,])(\d)/g,"$1 $2")
+     .replace(/[,;।|\n]+/g," , ").replace(/\.(?!\d)/g," , ");
+  return s.split(/\s+/).map(t=>t.replace(/^[-:()"'!?]+|[-:()"'!?]+$/g,"")).filter(Boolean);
+}
+function vCanJoin(last,v){
+  if(v===100||v===1000) return true;
+  if(last===100||last===1000) return true;
+  if(last>=20&&last<100&&v<10) return true;
+  if(last>=200&&v<100) return true;
+  return false;
+}
+function vMergeNums(tok){
+  const out=[]; let run=[];
+  const flush=()=>{ if(!run.length) return; let total=0,cur=0;
+    for(const v of run){ if(v===1000){ total+=(cur||1)*1000; cur=0; } else if(v===100){ cur=(cur||1)*100; } else cur+=v; }
+    out.push(String(total+cur)); run=[]; };
+  for(const t of tok){
+    if(Object.prototype.hasOwnProperty.call(V_NUM,t)){
+      const v=V_NUM[t];
+      if(run.length&&!vCanJoin(run[run.length-1],v)) flush();
+      run.push(v);
+    } else { flush(); out.push(t); }
+  }
+  flush(); return out;
+}
+const vSpecial=t=>V_CUR.has(t)||V_QTY.has(t)||V_RATEK.has(t)||V_QTYK.has(t)||V_IGN.has(t)||vIsNum(t);
+/* one utterance chunk may hold several items without separators: "shirt 500 rupees 5 pant 800 rupees 2" */
+function vSplit(seg){
+  const out=[]; let cur=[], rateDone=false;
+  for(let i=0;i<seg.length;i++){ const t=seg[i];
+    if(!vSpecial(t)&&rateDone&&cur.some(x=>!vSpecial(x))&&!cur.includes(t)&&seg.slice(i+1).some(vIsNum)){ out.push(cur); cur=[]; rateDone=false; }
+    cur.push(t);
+    if(V_CUR.has(t)&&i>0&&vIsNum(seg[i-1])) rateDone=true;
+    if(vIsNum(t)&&i>0&&(V_CUR.has(seg[i-1])||V_RATEK.has(seg[i-1]))) rateDone=true;
+  }
+  if(cur.length) out.push(cur);
+  return out;
+}
+function vItem(seg){
+  const T=seg.map(t=>({t,n:vIsNum(t)?parseFloat(t):null})), L=T.length;
+  let rate=null,qty=null,rateIdx=-1; const used=new Set();
+  for(let i=0;i<L&&rate==null;i++){ if(T[i].n==null) continue;
+    if((i+1<L&&V_CUR.has(T[i+1].t))||(i>0&&(V_CUR.has(T[i-1].t)||V_RATEK.has(T[i-1].t)))){ rate=T[i].n; rateIdx=i; used.add(i); } }
+  for(let i=0;i<L&&qty==null;i++){ if(T[i].n==null||used.has(i)) continue;
+    if((i+1<L&&(V_QTY.has(T[i+1].t)||T[i+1].t==="x"||T[i+1].t==="×"))||(i>0&&V_QTYK.has(T[i-1].t))){ qty=T[i].n; used.add(i); } }
+  const firstWord=T.findIndex(x=>x.n==null&&!vSpecial(x.t));
+  const un=()=>T.map((x,i)=>i).filter(i=>T[i].n!=null&&!used.has(i));
+  if(rate!=null&&qty==null){
+    const a=un().find(i=>i>rateIdx); if(a!=null){ qty=T[a].n; used.add(a); }
+    else { const l=un().find(i=>i<firstWord); if(l!=null){ qty=T[l].n; used.add(l); } }
+  } else if(rate==null){
+    const rem=un(), lead=rem.filter(i=>i<firstWord), trail=rem.filter(i=>i>firstWord);
+    if(trail.length>=2){ const a=trail[trail.length-2],b=trail[trail.length-1]; rate=T[a].n; rateIdx=a; if(qty==null) qty=T[b].n; used.add(a); used.add(b); }
+    else if(trail.length===1){ rate=T[trail[0]].n; rateIdx=trail[0]; used.add(trail[0]); if(qty==null&&lead.length){ qty=T[lead[lead.length-1]].n; used.add(lead[lead.length-1]); } }
+    else if(lead.length===1&&firstWord<0){ rate=T[lead[0]].n; rateIdx=lead[0]; used.add(lead[0]); }
+  }
+  let lastNum=-1; used.forEach(i=>{ if(i>lastNum) lastNum=i; });
+  const name=[];
+  T.forEach((x,i)=>{
+    if(used.has(i)||V_CUR.has(x.t)||V_QTY.has(x.t)||V_RATEK.has(x.t)||V_QTYK.has(x.t)||V_IGN.has(x.t)) return;
+    if(i>lastNum&&x.n==null&&name.some(w=>w.toLowerCase()===x.t)) return;      // "ஷேட் 1 500 ரூபாய் 5 ஷேட்" : trailing repeat of the name
+    name.push(x.t);
+  });
+  let nm=name.join(" ").trim().slice(0,60);
+  if(!nm&&rate==null) return null;
+  if(!nm) nm="Item";
+  nm=nm.charAt(0).toUpperCase()+nm.slice(1);
+  return {name:nm,rate:rate!=null&&rate>0?Math.round(rate*100)/100:"",qty:qty!=null&&qty>=1?Math.min(999,Math.round(qty)):1};
+}
+/* text -> {items:[{name,rate,qty}], addNow:boolean (spoken "add"/"ஆட்" at the end), onlyAdd:boolean (just the word "add")} */
+function voiceParse(text){
+  const toks=vMergeNums(vTokens(text));
+  const nonSep=toks.filter(t=>t!==",");
+  const last=nonSep[nonSep.length-1];
+  const onlyAdd=nonSep.length>0&&nonSep.every(t=>V_ADDW.has(t)||V_SEP.has(t));
+  const addNow=!!last&&V_ADDW.has(last);
+  const items=[]; let chunk=[];
+  const push=()=>{ if(chunk.length) vSplit(chunk).forEach(s=>{ const it=vItem(s); if(it) items.push(it); }); chunk=[]; };
+  for(const t of toks){ if(t===","||V_ADDW.has(t)||V_SEP.has(t)) push(); else chunk.push(t); }
+  push();
+  return {items:onlyAdd?[]:items,addNow:addNow&&!onlyAdd,onlyAdd};
+}
+/* VOICE-PARSER-END */
+
+/* ================= VOICE BILLING (🎤) =================
+   Say:  "ஷேட் 500 ரூபாய் 5 ஆட்"  /  "shirt 500 rupees 5 add"  — name, rate, quantity; the word add / ஆட் at the end adds it to the bill.
+   Several items can be said in one go (separate with add / next / அடுத்து, or just say them one after the other).
+   Items are NOT saved in the item list: they go to the bill as custom items (same as "Custom item"). */
+const VS={from:"home",on:false,rec:null,cards:[],auto:false,lang:"ta-IN",lastFinal:"",lastAt:0,seq:0};
+try{ VS.lang=localStorage.getItem("bmb_vlang")||"ta-IN"; VS.auto=localStorage.getItem("bmb_vauto")==="1"; }catch(e){}
+const V_LANGS=[["ta-IN","தமிழ்"],["en-IN","English"],["hi-IN","हिन्दी"],["te-IN","తెలుగు"],["kn-IN","ಕನ್ನಡ"],["ml-IN","മലയാളം"]];
+const vSR=()=>window.SpeechRecognition||window.webkitSpeechRecognition;
+
+function openVoice(from){
+  VS.from=from||"home"; vStop();
+  const sup=!!vSR();
+  $("#sheetBody").innerHTML=`
+    <h2>🎤 Voice பில்</h2><p class="sub">பொருள் பெயர், ரேட், எண்ணிக்கை சொல்லுங்கள் · எ.கா. “ஷேட் 500 ரூபாய் 5 ஆட்” · ஒவ்வொன்றும் பில்லில் சேரும்</p>
+    <div class="box">
+      <label class="fld">Voice மொழி<select id="vbLang">${V_LANGS.map(l=>`<option value="${l[0]}"${l[0]===VS.lang?" selected":""}>${l[1]}</option>`).join("")}</select></label>
+      ${sup?`<button class="cta" id="vbMic" style="background:#dc2626">🎤 பேச தொடங்கு</button>`:`<p class="hint" style="color:#b45309">இந்த browser-ல் voice வசதி இல்லை. Chrome (HTTPS) பயன்படுத்தவும். கீழே type செய்தும் சேர்க்கலாம்.</p>`}
+      <div id="vbLive" class="hint" style="min-height:20px" aria-live="polite"></div>
+      <label class="row" style="display:flex;gap:8px;align-items:center;margin-top:8px;font-size:13px"><input type="checkbox" id="vbAuto"${VS.auto?" checked":""} style="width:20px;height:20px"><span>பேசியவுடன் தானாக பில்லில் சேர்</span></label>
+      <label class="fld">அல்லது type செய்யவும்<input id="vbText" autocomplete="off" placeholder="எ.கா. shirt 500 rupees 5, pant 800 rupees 2"></label>
+      <button class="cta ghost" id="vbParse" style="margin-top:10px">⬇ பட்டியலாக மாற்று</button>
+    </div>
+    <div id="vbCards"></div>
+    <div class="two-b"><button class="cta ghost" id="vbAll">➕ அனைத்தையும் சேர்</button><button class="cta" id="vbBill" style="background:var(--leaf)">🧾 பில்லை பார்</button></div>
+    <p class="hint">சொல்லும் வரிசை: <b>பெயர் → ரேட் → எண்ணிக்கை</b> (பிறகு “ஆட்”). தவறாக இருந்தால் கீழே திருத்தலாம். இவை ஐட்டம் பட்டியலில் சேமிக்கப்படாது, பில்லில் மட்டும் வரும்.</p>`;
+  vCards(); showSheet();
+}
+function vLive(t){ const e=$("#vbLive"); if(e) e.textContent=t||""; }
+function vMic(on){ const b=$("#vbMic"); if(!b) return; b.textContent=on?"⏹ நிறுத்து (கேட்கிறது…)":"🎤 பேச தொடங்கு"; b.style.background=on?"#7f1d1d":"#dc2626"; }
+function vStart(){
+  const SR=vSR(); if(!SR) return;
+  vStop(); const r=new SR(); VS.rec=r; VS.on=true;
+  r.lang=VS.lang; r.continuous=true; r.interimResults=true; r.maxAlternatives=1;
+  r.onresult=e=>{ let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){ const res=e.results[i], tx=res[0].transcript;
+      if(res.isFinal){ const now=Date.now(); if(tx.trim()===VS.lastFinal&&now-VS.lastAt<2000) continue; VS.lastFinal=tx.trim(); VS.lastAt=now; vHear(tx); } else interim+=tx; }
+    vLive(interim?("🎙 "+interim):""); };
+  r.onerror=e=>{
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){ VS.on=false; vLive("📵 Microphone அனுமதி இல்லை. Browser-ல் 🔒 → Microphone → Allow செய்யவும் (HTTPS தேவை)."); }
+    else if(e.error==="network"){ VS.on=false; vLive("📶 Internet தேவை (voice recognition online-ல் நடக்கும்)."); }
+    else if(e.error!=="no-speech"&&e.error!=="aborted") vLive("🎤 "+e.error); };
+  r.onend=()=>{ if(VS.on&&VS.rec===r){ try{ r.start(); }catch(x){ setTimeout(()=>{ if(VS.on&&VS.rec===r) try{ r.start(); }catch(y){ VS.on=false; vMic(false); } },300); } } else vMic(false); };
+  try{ r.start(); vMic(true); vLive("🎙 சொல்லுங்கள்…"); }catch(x){ VS.on=false; vMic(false); }
+}
+function vStop(){ VS.on=false; const r=VS.rec; VS.rec=null; if(r){ try{ r.onend=null; r.stop(); }catch(e){} } vMic(false); }
+/* a recognised sentence (or typed text) */
+function vHear(text){
+  const p=voiceParse(text);
+  if(p.onlyAdd){ vAddAll(); return; }
+  if(!p.items.length){ vLive("🤷 புரியவில்லை: “"+text+"” — மீண்டும் சொல்லுங்கள்"); beep(false); return; }
+  let added=0;
+  p.items.forEach(it=>{ if((VS.auto||p.addNow)&&it.name&&it.rate>0&&it.qty>0){ vAdd(it); added++; } else VS.cards.push({id:++VS.seq,name:it.name,rate:it.rate,qty:it.qty,said:text}); });
+  vLive("✔ “"+text+"”"+(added?` → ${added} சேர்க்கப்பட்டது`:""));
+  vCards();
+}
+/* adds one item to the bill (custom item = not in the database) */
+function vAdd(it){
+  const name=String(it.name).trim().slice(0,60), rate=money(Number(it.rate)), qty=Math.max(1,Math.min(999,Number(it.qty)|0));
+  let id=Object.keys(customs).find(i=>{ const c=customs[i]; return !c.wt&&c.name.toLowerCase()===name.toLowerCase()&&!c.size&&c.rate===rate; });
+  if(id) customs[id].qty=Math.min(999,customs[id].qty+qty);
+  else { id="x"+Date.now().toString(36)+Math.floor(Math.random()*1000); customs[id]={name,size:"",rate,qty,cat:"",code:""}; }
+  save(); renderDock(); beep(true);
+  toast("பில்லில் சேர்க்கப்பட்டது: "+name+" · "+qty+" × "+inr(rate));
+}
+function vCards(){
+  const box=$("#vbCards"); if(!box) return;
+  box.innerHTML=VS.cards.map(c=>`<div class="box" data-vc="${c.id}">
+    <label class="fld">பொருள் பெயர்<input data-vf="name" maxlength="60" autocomplete="off" value="${esc(c.name)}"></label>
+    <div class="two-b"><label class="fld">ரேட் (₹)<input data-vf="rate" inputmode="decimal" autocomplete="off" value="${esc(c.rate)}" placeholder="0"></label>
+    <label class="fld">எண்ணிக்கை<input data-vf="qty" inputmode="numeric" autocomplete="off" value="${esc(c.qty)}"></label></div>
+    <div class="row" style="display:flex;justify-content:space-between;margin-top:8px"><span class="hint" style="margin:0">மொத்தம்</span><b data-vtot>${inr(money((Number(c.rate)||0)*(Number(c.qty)||0)))}</b></div>
+    <div class="two-b"><button class="cta" data-vadd="${c.id}" style="height:46px">➕ சேர்</button><button class="cta ghost" data-vdel="${c.id}" style="height:46px">✕ நீக்கு</button></div></div>`).join("");
+}
+function vCard(id){ return VS.cards.find(c=>c.id==id); }
+function vOk(c){ return c&&String(c.name).trim()&&Number(c.rate)>0&&(Number(c.qty)|0)>=1; }
+function vAddCard(id){
+  const c=vCard(id); if(!c) return;
+  if(!vOk(c)){ const el=document.querySelector(`[data-vc="${c.id}"]`); if(el) el.style.outline="2px solid #dc2626"; toast("பெயர், ரேட், எண்ணிக்கை சரியாக உள்ளிடவும்"); beep(false); return; }
+  vAdd(c); VS.cards=VS.cards.filter(x=>x!==c); vCards();
+}
+function vAddAll(){
+  const ok=VS.cards.filter(vOk), bad=VS.cards.length-ok.length;
+  if(!ok.length){ toast(VS.cards.length?"ரேட் / எண்ணிக்கை சரியாக இல்லை":"சேர்க்க எதுவும் இல்லை"); return; }
+  ok.forEach(vAdd); VS.cards=VS.cards.filter(c=>!vOk(c)); vCards();
+  if(bad) toast(bad+" பொருளில் ரேட் இல்லை — திருத்தி சேர்க்கவும்");
+}
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,[data-vadd],[data-vdel]"); if(!t) return;
+  if(t.id==="voiceHome") return openVoice("home");
+  if(t.id==="voiceBill") return openVoice("bill");
+  if(!$("#vbCards")) return;
+  if(t.id==="vbMic") return VS.on?vStop():vStart();
+  if(t.id==="vbParse"){ const i=$("#vbText"); if(i&&i.value.trim()){ vHear(i.value); i.value=""; } return; }
+  if(t.id==="vbAll") return vAddAll();
+  if(t.id==="vbBill"){ vStop(); return openBill(); }
+  if(t.dataset.vadd) return vAddCard(t.dataset.vadd);
+  if(t.dataset.vdel){ VS.cards=VS.cards.filter(c=>c.id!=t.dataset.vdel); vCards(); return; }
+});
+document.addEventListener("input",e=>{
+  const t=e.target; if(!t.dataset||!t.dataset.vf) return;
+  const card=t.closest("[data-vc]"), c=card&&vCard(card.dataset.vc); if(!c) return;
+  c[t.dataset.vf]=t.value; card.style.outline="";
+  const tot=card.querySelector("[data-vtot]"); if(tot) tot.textContent=inr(money((Number(c.rate)||0)*(Number(c.qty)||0)));
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target&&e.target.id==="vbText"){ e.preventDefault(); $("#vbParse").click(); } });
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.id==="vbLang"){ VS.lang=t.value; try{ localStorage.setItem("bmb_vlang",VS.lang); }catch(x){} if(VS.on) vStart(); }
+  if(t.id==="vbAuto"){ VS.auto=t.checked; try{ localStorage.setItem("bmb_vauto",VS.auto?"1":"0"); }catch(x){} }
+});
+{ const _closeSheetV=closeSheet; closeSheet=function(){ vStop(); _closeSheetV(); }; }
+
+
 (async function start(){
   $("#lApp").innerHTML="<span>M</span>Bill";
   $("#lAppTa").textContent=APP_NAME_TA;
