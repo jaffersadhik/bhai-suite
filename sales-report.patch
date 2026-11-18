@@ -1,0 +1,654 @@
+diff --git a/README.md b/README.md
+index 161a8f3..0cf06da 100644
+--- a/README.md
++++ b/README.md
+@@ -56,6 +56,20 @@ WantedBy=multi-user.target
+ ```
+ `sudo systemctl enable --now bmb` — put Nginx/Apache with HTTPS in front of port 8080.
+ 
++## Sales report / statistics (விற்பனை அறிக்கை)
++
++Open from the home screen (📊 விற்பனை அறிக்கை), the ☰ menu, or directly at `/#report`.
++Admin panel shows all-company sales at the top; 📊 next to a company opens that company's report.
++
++| API | Who | Returns |
++|---|---|---|
++| `GET /api/report?date=yyyy-MM-dd` | customer (own company), admin (opened company) | today / selected day / month totals, growth vs yesterday and vs same days last month, month-end projection, day-wise trend, hour-wise sales, top items (day + month), size-wise, staff-wise, unique customers, bills of the selected day with lines |
++| `GET /api/admin/sales?date=yyyy-MM-dd` | admin only | today / selected day / month count + total for every company, plus grand totals |
++
++`date` is optional (default today in `bmb.zone`); future dates and dates before 2020 return 400.
++Company is always taken from the session, never from the request. No schema change — uses the
++existing `idx_bills_company_date` index. Report page lets you share the summary on WhatsApp, copy it, or print.
++
+ ## Tables (src/main/resources/db/schema.sql)
+ | Table | Holds | Company separation |
+ |---|---|---|
+diff --git a/src/main/java/com/bhai/billing/core/BillingService.java b/src/main/java/com/bhai/billing/core/BillingService.java
+index 1446024..fe3e6ee 100644
+--- a/src/main/java/com/bhai/billing/core/BillingService.java
++++ b/src/main/java/com/bhai/billing/core/BillingService.java
+@@ -10,6 +10,7 @@ import java.time.LocalDate;
+ import java.time.LocalDateTime;
+ import java.time.ZoneId;
+ import java.time.format.DateTimeFormatter;
++import java.time.format.DateTimeParseException;
+ import java.time.temporal.ChronoUnit;
+ import java.util.ArrayList;
+ import java.util.Base64;
+@@ -368,6 +369,21 @@ public class BillingService {
+         Ctx c = ctx(auth);
+         String cid = requireCompany(c);
+         List<Map<String, Object>> rows = db.query("SELECT * FROM bills WHERE company_id = ? ORDER BY id DESC LIMIT 100", cid);
++        List<Object> list = billList(cid, rows);
++        LocalDateTime day = LocalDate.now(zone).atStartOfDay();
++        Map<String, Object> td = db.one("SELECT COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?",
++                cid, day, day.plusDays(1));
++        Map<String, Object> today = new LinkedHashMap<>();
++        today.put("count", lng(td.get("cnt")));
++        today.put("total", round2(dbl(td.get("tot"))));
++        Map<String, Object> o = new LinkedHashMap<>();
++        o.put("bills", list);
++        o.put("today", today);
++        return o;
++    }
++
++    /** Bills with their lines, in the JSON shape used by the app (bill history, WhatsApp re-send, report). */
++    private List<Object> billList(String cid, List<Map<String, Object>> rows) {
+         Map<Long, List<Object>> lines = new LinkedHashMap<>();
+         if (!rows.isEmpty()) {
+             StringBuilder in = new StringBuilder();
+@@ -403,18 +419,220 @@ public class BillingService {
+             b.put("total", dbl(r.get("total")));
+             list.add(b);
+         }
+-        LocalDateTime day = LocalDate.now(zone).atStartOfDay();
+-        Map<String, Object> td = db.one("SELECT COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?",
+-                cid, day, day.plusDays(1));
+-        Map<String, Object> today = new LinkedHashMap<>();
+-        today.put("count", lng(td.get("cnt")));
+-        today.put("total", round2(dbl(td.get("tot"))));
++        return list;
++    }
++
++    // ================================================================ sales report / statistics
++    static final int REPORT_BILL_LIMIT = 500;
++
++    /** "2026-11-02" -> date; blank -> today. Future dates and dates before 2020 are refused. */
++    private LocalDate reportDate(String s) {
++        LocalDate today = LocalDate.now(zone);
++        if (blank(s)) return today;
++        LocalDate d;
++        try { d = LocalDate.parse(s.trim()); } catch (DateTimeParseException e) { throw new ApiException(400, "தவறான தேதி (Invalid date)"); }
++        if (d.isAfter(today)) throw new ApiException(400, "எதிர்கால தேதி அனுமதி இல்லை (Future date)");
++        if (d.getYear() < 2020) throw new ApiException(400, "தவறான தேதி (Invalid date)");
++        return d;
++    }
++
++    /** count / total / avg / max / pieces of bills in [from, to) */
++    private Map<String, Object> salesSummary(String cid, LocalDateTime from, LocalDateTime to) {
++        Map<String, Object> r = db.one("SELECT COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot, COALESCE(MAX(total), 0) AS mx, "
++                + "COALESCE(SUM(pieces), 0) AS pcs FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?", cid, from, to);
++        long cnt = lng(r.get("cnt"));
++        double tot = round2(dbl(r.get("tot")));
+         Map<String, Object> o = new LinkedHashMap<>();
+-        o.put("bills", list);
+-        o.put("today", today);
++        o.put("count", cnt);
++        o.put("total", tot);
++        o.put("avg", cnt == 0 ? 0.0 : round2(tot / cnt));
++        o.put("max", round2(dbl(r.get("mx"))));
++        o.put("pieces", lng(r.get("pcs")));
+         return o;
+     }
+ 
++    private static Double growth(double cur, double prev) {
++        if (prev <= 0) return null;                  // no base to compare
++        return Math.round((cur - prev) * 1000.0 / prev) / 10.0;
++    }
++
++    /**
++     * Sales statistics of the company in the session (customer: own company, admin: the opened company).
++     * date = the selected day (yyyy-MM-dd, default today). Month figures are for the month of that day.
++     */
++    public Map<String, Object> report(String auth, String date) {
++        Ctx c = ctx(auth);
++        String cid = requireCompany(c);
++        LocalDate today = LocalDate.now(zone);
++        LocalDate sel = reportDate(date);
++        LocalDateTime dFrom = sel.atStartOfDay(), dTo = sel.plusDays(1).atStartOfDay();
++        LocalDate m1 = sel.withDayOfMonth(1);
++        LocalDateTime mFrom = m1.atStartOfDay(), mTo = m1.plusMonths(1).atStartOfDay();
++        LocalDateTime pFrom = m1.minusMonths(1).atStartOfDay();
++        boolean curMonth = m1.equals(today.withDayOfMonth(1));
++        // same-period comparison: 1..N of previous month when the current month is still running
++        LocalDateTime pSameTo = curMonth ? pFrom.plusDays(Math.min(today.getDayOfMonth(), m1.minusMonths(1).lengthOfMonth())) : mFrom;
++
++        Map<String, Object> o = new LinkedHashMap<>();
++        o.put("date", sel.toString());
++        o.put("today", today.toString());
++        o.put("month", m1.toString().substring(0, 7));
++
++        Map<String, Object> todayS = salesSummary(cid, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
++        Map<String, Object> yest = salesSummary(cid, today.minusDays(1).atStartOfDay(), today.atStartOfDay());
++        todayS.put("growth", growth(dbl(todayS.get("total")), dbl(yest.get("total"))));
++        todayS.put("yesterday", yest.get("total"));
++        o.put("todaySales", todayS);
++        o.put("daySales", salesSummary(cid, dFrom, dTo));
++
++        Map<String, Object> monthS = salesSummary(cid, mFrom, mTo);
++        Map<String, Object> prevS = salesSummary(cid, pFrom, mFrom);
++        Map<String, Object> prevSame = curMonth ? salesSummary(cid, pFrom, pSameTo) : prevS;
++        int days = curMonth ? today.getDayOfMonth() : m1.lengthOfMonth();
++        monthS.put("days", days);
++        monthS.put("perDay", round2(dbl(monthS.get("total")) / days));
++        monthS.put("prevTotal", prevS.get("total"));
++        monthS.put("prevSamePeriod", prevSame.get("total"));
++        monthS.put("growth", growth(dbl(monthS.get("total")), dbl(prevSame.get("total"))));
++        if (curMonth) monthS.put("projected", round2(dbl(monthS.get("total")) / days * m1.lengthOfMonth()));
++        o.put("monthSales", monthS);
++
++        // day-wise trend of the month (every day present, 0 when no sale)
++        Map<String, double[]> byDay = new LinkedHashMap<>();
++        for (Map<String, Object> r : db.query("SELECT DATE(created_at) AS d, COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills "
++                + "WHERE company_id = ? AND created_at >= ? AND created_at < ? GROUP BY DATE(created_at)", cid, mFrom, mTo))
++            byDay.put(str(r.get("d")).substring(0, 10), new double[]{lng(r.get("cnt")), dbl(r.get("tot"))});
++        List<Object> trend = new ArrayList<>();
++        Map<String, Object> best = null;
++        for (int i = 1; i <= days; i++) {
++            String k = m1.withDayOfMonth(i).toString();
++            double[] v = byDay.getOrDefault(k, new double[2]);
++            Map<String, Object> p = new LinkedHashMap<>();
++            p.put("d", k);
++            p.put("count", (long) v[0]);
++            p.put("total", round2(v[1]));
++            trend.add(p);
++            if (v[1] > 0 && (best == null || v[1] > dbl(best.get("total")))) best = p;
++        }
++        o.put("trend", trend);
++        o.put("bestDay", best);
++
++        // hour-wise sales of the selected day
++        long[] hc = new long[24];
++        double[] ht = new double[24];
++        for (Map<String, Object> r : db.query("SELECT HOUR(created_at) AS h, COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills "
++                + "WHERE company_id = ? AND created_at >= ? AND created_at < ? GROUP BY HOUR(created_at)", cid, dFrom, dTo)) {
++            int h = (int) lng(r.get("h"));
++            hc[h] = lng(r.get("cnt"));
++            ht[h] = round2(dbl(r.get("tot")));
++        }
++        List<Object> hours = new ArrayList<>();
++        for (int h = 0; h < 24; h++) {
++            if (hc[h] == 0) continue;
++            Map<String, Object> p = new LinkedHashMap<>();
++            p.put("h", h);
++            p.put("count", hc[h]);
++            p.put("total", ht[h]);
++            hours.add(p);
++        }
++        o.put("hours", hours);
++
++        o.put("topItemsDay", topItems(cid, dFrom, dTo, 5));
++        o.put("topItemsMonth", topItems(cid, mFrom, mTo, 10));
++        o.put("sizesMonth", rows("SELECT l.size_label AS k, SUM(l.qty) AS qty, SUM(l.amount) AS amt FROM bill_lines l JOIN bills b ON b.company_id = l.company_id AND b.id = l.bill_id "
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ? AND l.size_label <> '' GROUP BY l.size_label ORDER BY qty DESC LIMIT 8", cid, mFrom, mTo));
++        o.put("staffMonth", rows("SELECT CASE WHEN billed_by_name = '' THEN billed_by_user ELSE billed_by_name END AS k, COUNT(*) AS qty, SUM(total) AS amt FROM bills "
++                + "WHERE company_id = ? AND created_at >= ? AND created_at < ? GROUP BY k ORDER BY amt DESC", cid, mFrom, mTo));
++        Map<String, Object> cust = db.one("SELECT COUNT(DISTINCT NULLIF(customer_phone, '')) AS uniq, SUM(customer_phone <> '') AS withPhone, COUNT(*) AS cnt "
++                + "FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?", cid, mFrom, mTo);
++        Map<String, Object> cu = new LinkedHashMap<>();
++        cu.put("unique", lng(cust.get("uniq")));
++        cu.put("withPhone", lng(cust.get("withphone")));
++        cu.put("bills", lng(cust.get("cnt")));
++        o.put("customersMonth", cu);
++
++        List<Map<String, Object>> billRows = db.query("SELECT * FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ? ORDER BY id DESC LIMIT " + REPORT_BILL_LIMIT,
++                cid, dFrom, dTo);
++        o.put("bills", billList(cid, billRows));
++        o.put("billsTruncated", billRows.size() >= REPORT_BILL_LIMIT);
++        return o;
++    }
++
++    private List<Object> topItems(String cid, LocalDateTime from, LocalDateTime to, int limit) {
++        return rows("SELECT l.item_name AS k, MAX(l.item_name_en) AS en, SUM(l.qty) AS qty, SUM(l.amount) AS amt FROM bill_lines l "
++                + "JOIN bills b ON b.company_id = l.company_id AND b.id = l.bill_id "
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ? GROUP BY l.item_name ORDER BY amt DESC LIMIT " + limit, cid, from, to);
++    }
++
++    /** rows of k / en / qty / amt as JSON maps */
++    private List<Object> rows(String sql, Object... args) {
++        List<Object> out = new ArrayList<>();
++        for (Map<String, Object> r : db.query(sql, args)) {
++            Map<String, Object> p = new LinkedHashMap<>();
++            p.put("name", str(r.get("k")));
++            if (r.containsKey("en")) p.put("en", str(r.get("en")));
++            p.put("qty", lng(r.get("qty")));
++            p.put("amt", round2(dbl(r.get("amt"))));
++            out.add(p);
++        }
++        return out;
++    }
++
++    /** Admin: today / selected day / month sales of every company, plus grand totals. */
++    public Map<String, Object> adminSales(String auth, String date) {
++        admin(auth);
++        LocalDate today = LocalDate.now(zone);
++        LocalDate sel = reportDate(date);
++        LocalDate m1 = sel.withDayOfMonth(1);
++        Object[] a = {today.atStartOfDay(), today.plusDays(1).atStartOfDay(), sel.atStartOfDay(), sel.plusDays(1).atStartOfDay(),
++                m1.atStartOfDay(), m1.plusMonths(1).atStartOfDay()};
++        List<Object> list = new ArrayList<>();
++        double[] g = new double[6];
++        for (Map<String, Object> r : db.query("SELECT c.id, c.name, c.city, "
++                + "SUM(b.created_at >= ? AND b.created_at < ?) AS t_cnt, COALESCE(SUM(CASE WHEN b.created_at >= ? AND b.created_at < ? THEN b.total END), 0) AS t_tot, "
++                + "SUM(b.created_at >= ? AND b.created_at < ?) AS d_cnt, COALESCE(SUM(CASE WHEN b.created_at >= ? AND b.created_at < ? THEN b.total END), 0) AS d_tot, "
++                + "SUM(b.created_at >= ? AND b.created_at < ?) AS m_cnt, COALESCE(SUM(CASE WHEN b.created_at >= ? AND b.created_at < ? THEN b.total END), 0) AS m_tot "
++                + "FROM companies c LEFT JOIN bills b ON b.company_id = c.id AND b.created_at >= ? AND b.created_at < ? "
++                + "WHERE c.archived = 0 GROUP BY c.id, c.name, c.city ORDER BY m_tot DESC, c.name",
++                a[0], a[1], a[0], a[1], a[2], a[3], a[2], a[3], a[4], a[5], a[4], a[5],
++                earliest(a[0], a[2], a[4]), latest(a[1], a[3], a[5]))) {
++            Map<String, Object> p = new LinkedHashMap<>();
++            p.put("id", str(r.get("id")));
++            p.put("name", str(r.get("name")));
++            p.put("city", str(r.get("city")));
++            String[] keys = {"t_cnt", "t_tot", "d_cnt", "d_tot", "m_cnt", "m_tot"};
++            String[] out = {"todayCount", "todayTotal", "dayCount", "dayTotal", "monthCount", "monthTotal"};
++            for (int i = 0; i < 6; i++) {
++                double v = i % 2 == 0 ? lng(r.get(keys[i])) : round2(dbl(r.get(keys[i])));
++                g[i] += v;
++                p.put(out[i], i % 2 == 0 ? (Object) (long) v : (Object) v);
++            }
++            list.add(p);
++        }
++        Map<String, Object> tot = new LinkedHashMap<>();
++        String[] out = {"todayCount", "todayTotal", "dayCount", "dayTotal", "monthCount", "monthTotal"};
++        for (int i = 0; i < 6; i++) tot.put(out[i], i % 2 == 0 ? (Object) (long) g[i] : (Object) round2(g[i]));
++        Map<String, Object> o = new LinkedHashMap<>();
++        o.put("date", sel.toString());
++        o.put("today", today.toString());
++        o.put("month", m1.toString().substring(0, 7));
++        o.put("companies", list);
++        o.put("totals", tot);
++        return o;
++    }
++
++    private static LocalDateTime earliest(Object... t) {
++        LocalDateTime m = null;
++        for (Object o : t) if (m == null || ((LocalDateTime) o).isBefore(m)) m = (LocalDateTime) o;
++        return m;
++    }
++
++    private static LocalDateTime latest(Object... t) {
++        LocalDateTime m = null;
++        for (Object o : t) if (m == null || ((LocalDateTime) o).isAfter(m)) m = (LocalDateTime) o;
++        return m;
++    }
++
+     // ================================================================ admin
+     private Ctx admin(String auth) {
+         Ctx c = ctx(auth);
+diff --git a/src/main/java/com/bhai/billing/web/ApiController.java b/src/main/java/com/bhai/billing/web/ApiController.java
+index 6253fd8..9f713e2 100644
+--- a/src/main/java/com/bhai/billing/web/ApiController.java
++++ b/src/main/java/com/bhai/billing/web/ApiController.java
+@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PutMapping;
+ import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.RequestHeader;
+ import org.springframework.web.bind.annotation.RequestMapping;
++import org.springframework.web.bind.annotation.RequestParam;
+ import org.springframework.web.bind.annotation.RestController;
+ 
+ /** REST API used by the app page (static/index.html). The session token comes in the X-Auth header. */
+@@ -64,7 +65,17 @@ public class ApiController {
+     public ResponseEntity<Object> addBill(@RequestHeader(value = AUTH, required = false) String auth,
+                                           @RequestBody(required = false) Map<String, Object> body) { return run(() -> svc.addBill(auth, nn(body))); }
+ 
++    /** Sales report / statistics of the session company. ?date=yyyy-MM-dd (default today) */
++    @GetMapping("/report")
++    public ResponseEntity<Object> report(@RequestHeader(value = AUTH, required = false) String auth,
++                                         @RequestParam(value = "date", required = false) String date) { return run(() -> svc.report(auth, date)); }
++
+     // ---- admin
++    /** Today / selected day / month sales of all companies. ?date=yyyy-MM-dd (default today) */
++    @GetMapping("/admin/sales")
++    public ResponseEntity<Object> adminSales(@RequestHeader(value = AUTH, required = false) String auth,
++                                             @RequestParam(value = "date", required = false) String date) { return run(() -> svc.adminSales(auth, date)); }
++
+     @GetMapping("/admin/overview")
+     public ResponseEntity<Object> overview(@RequestHeader(value = AUTH, required = false) String auth) { return run(() -> svc.overview(auth)); }
+ 
+diff --git a/src/main/resources/static/index.html b/src/main/resources/static/index.html
+index 5a6cf21..428dbe8 100644
+--- a/src/main/resources/static/index.html
++++ b/src/main/resources/static/index.html
+@@ -280,6 +280,67 @@ footer .pw-by b{color:var(--leaf)}
+ .dl dd{font-weight:600;word-break:break-word}
+ .cta:disabled{opacity:.6}
+ .ok .tick{font-size:30px}
++
++/* ---- sales report ---- */
++.rp-date{display:flex;align-items:center;gap:6px;margin-top:4px}
++.rp-date input{flex:1;min-width:0;height:44px;border-radius:12px;border:1.5px solid var(--line);background:#fff;padding:0 10px;font-size:15px;font-weight:700}
++.rp-date .nav{width:44px;height:44px;border-radius:12px;background:#fff;border:1.5px solid var(--line);font-size:18px;font-weight:800;flex:none}
++.rp-date .nav:disabled{opacity:.35}
++.rp-date .chip{height:44px;padding:0 12px;border-radius:12px;background:var(--gold-l);border:1.5px solid var(--gold);color:var(--leaf-d);font-weight:800;font-size:13px;flex:none}
++.rp-hero{background:linear-gradient(135deg,var(--leaf),var(--leaf-d));color:#fff;border-radius:20px;padding:16px;margin-top:12px;position:relative;overflow:hidden}
++.rp-hero:after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:rgba(233,180,49,.18)}
++.rp-hero .l{font-size:12.5px;font-weight:700;color:var(--gold-l)}
++.rp-hero .v{font-family:var(--head);font-size:34px;font-weight:800;line-height:1.1;margin-top:2px}
++.rp-hero .row{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;font-size:12.5px;font-weight:600;opacity:.95}
++.rp-hero .row b{display:block;font-size:16px;font-family:var(--head)}
++.rp-chg{display:inline-block;margin-top:8px;font-size:12px;font-weight:800;border-radius:20px;padding:3px 10px;background:rgba(255,255,255,.16)}
++.rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
++.rp-k{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px}
++.rp-k .l{font-size:11.5px;color:var(--muted);font-weight:700}
++.rp-k .v{font-family:var(--head);font-size:21px;font-weight:800;color:var(--leaf-d);margin-top:2px;line-height:1.15}
++.rp-k .s{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
++.rp-k.wide{grid-column:1/-1}
++.up{color:#137a3f!important}.down{color:var(--bad)!important}
++.rp-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;margin-top:10px}
++.rp-card h3{font-size:14px;font-weight:800;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
++.rp-card h3 small{font-size:11.5px;color:var(--muted);font-weight:600}
++.rp-chart{width:100%;height:auto;display:block}
++.rp-chart .bar{fill:var(--leaf);cursor:pointer}
++.rp-chart .bar.sel{fill:var(--gold)}
++.rp-chart .bar.zero{fill:var(--line)}
++.rp-chart text{font-size:9px;fill:var(--muted);font-family:var(--body)}
++.rp-chart .avg{stroke:var(--gold);stroke-dasharray:4 3;stroke-width:1.2}
++.rp-hb{display:grid;grid-template-columns:auto 1fr auto;gap:6px 8px;align-items:center;font-size:12.5px;font-weight:600}
++.rp-hb .t{height:10px;border-radius:6px;background:var(--leaf-l);overflow:hidden}
++.rp-hb .t i{display:block;height:100%;background:var(--leaf);border-radius:6px}
++.rp-hb .n{white-space:nowrap;color:var(--leaf-d);font-weight:800}
++.rp-hb .k{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
++.rp-seg{display:inline-flex;background:var(--leaf-l);border-radius:10px;padding:3px;gap:2px}
++.rp-seg button{font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:8px;color:var(--leaf-d)}
++.rp-seg button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.1)}
++.rp-share{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px}
++.rp-share button{height:44px;border-radius:12px;background:#fff;border:1.5px solid var(--line);font-weight:800;font-size:12.5px}
++.rp-share .wa{background:var(--wa);color:#fff;border-color:var(--wa)}
++.bh .lines{font-size:12px;color:var(--ink);margin-top:6px;background:var(--bg);border-radius:10px;padding:6px 8px;display:none}
++.bh.open .lines{display:block}
++.bh .lines div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
++.adm-sales{background:linear-gradient(135deg,var(--leaf),var(--leaf-d));color:#fff;border-radius:18px;padding:14px;margin-top:12px}
++.adm-sales .top{display:grid;grid-template-columns:1fr 1fr;gap:10px}
++.adm-sales .l{font-size:11.5px;color:var(--gold-l);font-weight:700}
++.adm-sales .v{font-family:var(--head);font-size:24px;font-weight:800;line-height:1.15}
++.adm-sales .s{font-size:11.5px;opacity:.85;font-weight:600}
++.adm-sales table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12.5px}
++.adm-sales th{font-size:11px;color:var(--gold-l);text-align:right;font-weight:700;padding:4px 2px}
++.adm-sales th:first-child,.adm-sales td:first-child{text-align:left}
++.adm-sales td{padding:7px 2px;border-top:1px solid rgba(255,255,255,.14);text-align:right;font-weight:700}
++.adm-sales td small{display:block;font-size:10.5px;opacity:.75;font-weight:600}
++.adm-sales .go{color:var(--gold);font-weight:800;font-size:12px;text-decoration:underline;padding:0}
++@media print{
++  body{background:#fff}.app{box-shadow:none;max-width:none;padding:0}
++  .bar,.find,.dock,footer,.rp-date,.rp-share,.acts,.rp-seg,#busy,#toast{display:none!important}
++  .rp-hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
++  .bh .lines{display:block}
++}
+ </style>
+ </head>
+ <body>
+@@ -475,6 +536,7 @@ function view(){
+   const h=location.hash.slice(1);
+   if(h==="admin" && isAdmin()) return "admin";
+   if(!company) return isAdmin() ? "admin" : "nocompany";
++  if(h==="report") return "report";
+   if(!catalog.setup) return "setup";
+   if(catById[h]) return "cat";
+   return "home";
+@@ -498,6 +560,7 @@ function renderBar(){
+   let left;
+   if(c) left=`<button class="back" id="back" aria-label="Back">←</button><div><h1>${esc(c[1])}</h1><small>${esc(c[2])}</small></div>`;
+   else if(v==="admin") left=`${company?`<button class="back" id="toHome" aria-label="Back to billing">←</button>`:`<div class="mark" aria-hidden="true">⚙</div>`}<div><span class="appline">${esc(APP_NAME)}</span><h1 class="co">Admin Panel</h1></div>`;
++  else if(v==="report") left=`<button class="back" id="toHome" aria-label="Back">←</button><div><span class="appline">${esc(company.name)}</span><h1 class="co">📊 விற்பனை அறிக்கை</h1></div>`;
+   else left=`<div class="mark" aria-hidden="true">${esc(coMark())}</div><div><span class="appline">${esc(APP_NAME)}</span><h1 class="co">${esc(company?company.name:APP_NAME)}</h1></div>`;
+   $("#bar").innerHTML = left + (me?`<button class="out" id="menuBtn" aria-label="Menu"><span aria-hidden="true">☰</span><em>${esc(me.user)}</em></button>`:"");
+   $("#findBox").hidden = !(v==="home"||v==="cat");
+@@ -534,6 +597,7 @@ function renderView(){
+   let html="";
+   if(v==="none") html="";
+   else if(v==="admin") html=renderAdmin();
++  else if(v==="report") html=renderReport();
+   else if(v==="nocompany") html=`<div class="none"><b>🏬</b>உங்கள் கணக்கில் கம்பெனி இணைக்கப்படவில்லை.<br>Admin-ஐ தொடர்பு கொள்ளவும்.</div>`;
+   else if(v==="setup"){
+     html = heroHtml()+pwWarn()+`<h2 class="h2">தொடங்குவோம் 👋</h2>
+@@ -561,6 +625,7 @@ function renderView(){
+         <li><i>3</i>பில் பார்த்து WhatsApp-ல் அனுப்புங்கள்</li></ol></div>
+       ${manualBtn("பட்டியலில் இல்லாத பொருளை பெயர், சைஸ், ரேட் கொடுத்து சேர்க்கவும்")}
+       <button class="admin" id="billHist"><span class="pl" aria-hidden="true">🧾</span><div><b>பில் வரலாறு (Bills)</b><small>இந்த கம்பெனியின் பில்கள், இன்றைய விற்பனை, மீண்டும் WhatsApp</small></div></button>
++      <button class="admin" id="openReport"><span class="pl" aria-hidden="true">📊</span><div><b>விற்பனை அறிக்கை (Sales Report)</b><small>இன்றைய / தேதி வாரியான / மாத விற்பனை, அதிகம் விற்ற பொருட்கள்</small></div></button>
+       <h2 class="h2">என்ன வேண்டும்?</h2>
+       ${CATS.length?"":`<p class="hint" style="margin:-4px 0 10px">முதலில் ஒரு குரூப் உருவாக்கவும் (எ.கா. சேலை, நைட்டி)</p>`}
+       <div class="tiles">${CATS.map(cc=>{
+@@ -671,6 +736,7 @@ async function sendBill(){
+   try{ window.open(url,"_blank","noopener"); }catch(e){}
+ }
+ let billCache=[];
++let repData=null, repDate=null, repCo=null, repTop="month", repLoading=false;
+ async function openBills(){
+   $("#sheetBody").innerHTML=`<h2>பில் வரலாறு</h2><p class="sub">${esc(company.name)}</p><div class="box"><p class="sub">ஏற்றுகிறது…</p></div>`; showSheet();
+   try{
+@@ -917,7 +983,7 @@ async function setupCompany(mode){
+ function openMenu(){
+   $("#sheetBody").innerHTML=`<h2>${esc(me.name)}</h2>
+     <p class="sub">@${esc(me.user)} · ${isAdmin()?"⚙ Admin":"🏬 Customer"}${company?" · "+esc(company.name):""}</p>
+-    ${company?`<button class="mrow" id="mBills">🧾 பில் வரலாறு (Bills)</button><button class="mrow" id="mCompany">🏬 கம்பெனி விவரம் (Company)</button>`:""}
++    ${company?`<button class="mrow" id="mBills">🧾 பில் வரலாறு (Bills)</button><button class="mrow" id="mReport">📊 விற்பனை அறிக்கை (Report)</button><button class="mrow" id="mCompany">🏬 கம்பெனி விவரம் (Company)</button>`:""}
+     ${isAdmin()?`<button class="mrow" id="mAdmin">⚙ Admin Panel — Users / Companies</button>`:""}
+     <button class="mrow" id="mPw">🔑 கடவுச்சொல் மாற்று (Password)</button>
+     <button class="mrow warnr" id="mLogout">⏻ வெளியேறு (Logout)</button>`;
+@@ -951,14 +1017,14 @@ async function savePw(){
+ 
+ /* ================= ADMIN PANEL ================= */
+ async function loadAdmin(){
+-  try{ adminData=await api("admin/overview"); }
++  try{ const [ov,sl]=await Promise.all([api("admin/overview"),api("admin/sales").catch(()=>null)]); adminData=ov; adminData.sales=sl; }
+   catch(e){ apiErr(e); if(!adminData) adminData={companies:[],users:[]}; }
+   if(view()==="admin") renderView();
+ }
+ function renderAdmin(){
+   if(!adminData) return `<div class="none"><b>⏳</b>ஏற்றுகிறது…</div>`;
+   const cs=adminData.companies, us=adminData.users;
+-  return `${pwWarn()}
++  return `${pwWarn()}${adminSalesHtml(adminData.sales)}
+     <div class="adm-head"><h2 class="h2">கம்பெனிகள் · ${cs.length}</h2><button class="gbtn" id="addCompany">➕ புது கம்பெனி</button></div>
+     ${cs.length?`<div class="list">${cs.map(c=>`<article class="acard">
+         <div class="r1"><div><b>${esc(c.name)}</b><small>${esc([c.owner,c.city].filter(Boolean).join(" · ")||c.tagline||"")}</small></div>${company&&company.id===c.id?`<span class="tag on">திறந்துள்ளது</span>`:""}</div>
+@@ -1081,13 +1147,15 @@ async function deleteUser(id){
+   try{ await api("admin/user/"+encodeURIComponent(id),"DELETE"); await loadAdmin(); toast("User நீக்கப்பட்டது"); }
+   catch(e){ apiErr(e); } finally{ busy(false); }
+ }
+-async function openCompanyBilling(id){
++async function openCompanyBilling(id,go){
+   busy(true);
+   try{
+     const s=await api("admin/open","POST",{companyId:id}); company=s.company;
+     await loadData(); loadCart(); cameFromHome=false; $("#q").value="";
+-    if(location.hash) location.hash=""; else renderAll(true);
+-    toast(company.name+" — billing திறக்கப்பட்டது");
++    repData=null;
++    const want=go?"#"+go:"";
++    if(location.hash!==want) location.hash=want; else renderAll(true);
++    toast(company.name+(go==="report"?" — அறிக்கை":" — billing திறக்கப்பட்டது"));
+   }catch(e){ apiErr(e); } finally{ busy(false); }
+ }
+ 
+@@ -1129,13 +1197,170 @@ async function logout(){
+ $("#loginForm").addEventListener("submit",doLogin);
+ $("#lEye").addEventListener("click",()=>{ const i=$("#lPass"), show=i.type==="password"; i.type=show?"text":"password"; $("#lEye").textContent=show?"🙈":"👁"; });
+ 
++
++/* ================= SALES REPORT ================= */
++const TA_MONTHS=["ஜனவரி","பிப்ரவரி","மார்ச்","ஏப்ரல்","மே","ஜூன்","ஜூலை","ஆகஸ்ட்","செப்டம்பர்","அக்டோபர்","நவம்பர்","டிசம்பர்"];
++const TA_DAYS=["ஞாயிறு","திங்கள்","செவ்வாய்","புதன்","வியாழன்","வெள்ளி","சனி"];
++const ymd = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
++const dParse = s => new Date(String(s).slice(0,10)+"T00:00:00");
++const dLabel = s => { const d=dParse(s); return `${d.getDate()} ${TA_MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
++const dShort = s => { const d=dParse(s); return `${d.getDate()} ${TA_MONTHS[d.getMonth()].slice(0,3)}`; };
++const mLabel = s => { const [y,m]=String(s).split("-"); return `${TA_MONTHS[Number(m)-1]} ${y}`; };
++const inr0 = v => "₹"+Math.round(Number(v)||0).toLocaleString("en-IN");
++const hLabel = h => { const a=h%12||12; return a+(h<12?" AM":" PM"); };
++function chg(g,base){
++  if(g==null) return `<span class="s">${base?esc(base):"ஒப்பிட தரவு இல்லை"}</span>`;
++  const up=g>=0;
++  return `<span class="s ${up?"up":"down"}">${up?"▲":"▼"} ${Math.abs(g)}%${base?" · "+esc(base):""}</span>`;
++}
++
++async function loadReport(date){
++  if(!company) return;
++  if(repLoading) return;
++  repLoading=true; busy(true);
++  try{
++    repData=await api("report"+(date?"?date="+encodeURIComponent(date):""));
++    repDate=repData.date; repCo=company.id; billCache=repData.bills||[];
++    if(view()==="report") renderView();
++  }catch(e){ apiErr(e); if(!repData) { repData={error:e.message}; if(view()==="report") renderView(); } }
++  finally{ repLoading=false; busy(false); }
++}
++
++function trendSvg(r){
++  const pts=r.trend||[]; if(!pts.length) return "";
++  const W=440,H=150,pl=34,pb=18,pt=8, cw=(W-pl-4)/pts.length, bw=Math.max(3,cw*.7);
++  const max=Math.max(1,...pts.map(p=>p.total)), sc=v=>(H-pb-pt)*v/max;
++  const ticks=[0,.5,1].map(f=>max*f);
++  const avg=r.monthSales.perDay||0;
++  let g=ticks.map(v=>`<text x="${pl-4}" y="${H-pb-sc(v)+3}" text-anchor="end">${v>=1000?Math.round(v/1000)+"k":Math.round(v)}</text><line x1="${pl}" x2="${W}" y1="${H-pb-sc(v)}" y2="${H-pb-sc(v)}" stroke="#eef2ef"/>`).join("");
++  g+=pts.map((p,i)=>{ const x=pl+i*cw+(cw-bw)/2, h=Math.max(p.total>0?2:1.5,sc(p.total)), dn=Number(p.d.slice(8));
++    const cls=p.d===r.date?"bar sel":(p.total>0?"bar":"bar zero");
++    return `<rect class="${cls}" data-rday="${p.d}" x="${x.toFixed(1)}" y="${(H-pb-h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="2"><title>${dShort(p.d)}: ${inr0(p.total)} · ${p.count} பில்</title></rect>`
++      +((dn===1||dn%5===0||p.d===r.date)?`<text x="${(x+bw/2).toFixed(1)}" y="${H-5}" text-anchor="middle"${p.d===r.date?' style="fill:var(--leaf-d);font-weight:800"':""}>${dn}</text>`:"");
++  }).join("");
++  if(avg>0) g+=`<line class="avg" x1="${pl}" x2="${W}" y1="${(H-pb-sc(avg)).toFixed(1)}" y2="${(H-pb-sc(avg)).toFixed(1)}"/>`;
++  return `<svg class="rp-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Daily sales chart">${g}</svg>`;
++}
++
++function hbars(list,valKey,fmt,labelFn){
++  if(!list||!list.length) return `<p class="hint" style="margin:4px 0">தரவு இல்லை</p>`;
++  const max=Math.max(1,...list.map(x=>x[valKey]));
++  return `<div class="rp-hb">${list.map(x=>`<span class="k">${labelFn(x)}</span><span class="t"><i style="width:${Math.max(2,x[valKey]*100/max).toFixed(1)}%"></i></span><span class="n">${fmt(x)}</span>`).join("")}</div>`;
++}
++
++function renderReport(){
++  if(!repData || repCo!==company.id){ if(!repLoading) setTimeout(()=>loadReport(repCo===company.id?repDate:null),0); return `<div class="none"><b>⏳</b>அறிக்கை ஏற்றுகிறது…</div>`; }
++  if(repData.error) return `<div class="none"><b>⚠️</b>${esc(repData.error)}<br><button class="gbtn" id="rToday" style="margin-top:12px">மீண்டும் முயற்சி</button></div>`;
++  const r=repData, T=r.todaySales, D=r.daySales, M=r.monthSales, isToday=r.date===r.today;
++  const dd=dParse(r.date);
++  const top=repTop==="day"?r.topItemsDay:r.topItemsMonth;
++  const cu=r.customersMonth||{};
++  return `
++  <div class="rp-date">
++    <button class="nav" data-rnav="-1" aria-label="Previous day">‹</button>
++    <input type="date" id="rDate" value="${r.date}" max="${r.today}" aria-label="Select date">
++    <button class="nav" data-rnav="1" aria-label="Next day" ${isToday?"disabled":""}>›</button>
++    ${isToday?"":`<button class="chip" id="rToday">இன்று</button>`}
++  </div>
++
++  <section class="rp-hero">
++    <div class="l">இன்றைய விற்பனை · ${dLabel(r.today)}</div>
++    <div class="v">${inr(T.total)}</div>
++    <div class="row"><div><b>${T.count}</b>பில்கள்</div><div><b>${T.pieces}</b>பீஸ்</div><div><b>${inr0(T.avg)}</b>சராசரி பில்</div><div><b>${inr0(T.max)}</b>அதிகபட்சம்</div></div>
++    <span class="rp-chg">${T.growth==null?"நேற்று விற்பனை இல்லை":(T.growth>=0?"▲ ":"▼ ")+Math.abs(T.growth)+"% நேற்றுடன் ("+inr0(T.yesterday)+")"}</span>
++  </section>
++
++  ${isToday?"":`<h2 class="h2">📅 ${dLabel(r.date)} · ${TA_DAYS[dd.getDay()]}</h2>
++  <div class="rp-grid">
++    <div class="rp-k"><div class="l">அன்றைய விற்பனை</div><div class="v">${inr(D.total)}</div><div class="s">${D.count} பில் · ${D.pieces} பீஸ்</div></div>
++    <div class="rp-k"><div class="l">சராசரி / அதிகபட்ச பில்</div><div class="v">${inr0(D.avg)}</div><div class="s">அதிகபட்சம் ${inr0(D.max)}</div></div>
++  </div>`}
++
++  <h2 class="h2">🗓 ${mLabel(r.month)} விற்பனை</h2>
++  <div class="rp-grid">
++    <div class="rp-k wide"><div class="l">மாத மொத்த விற்பனை</div><div class="v" style="font-size:28px">${inr(M.total)}</div>
++      ${chg(M.growth, M.projected!=null?"கடந்த மாதம் இதே நாட்கள் ("+inr0(M.prevSamePeriod)+")":"கடந்த மாதம் ("+inr0(M.prevTotal)+")")}</div>
++    <div class="rp-k"><div class="l">பில்கள் / பீஸ்</div><div class="v">${M.count}</div><div class="s">${M.pieces} பீஸ் விற்பனை</div></div>
++    <div class="rp-k"><div class="l">நாள் சராசரி</div><div class="v">${inr0(M.perDay)}</div><div class="s">${M.days} நாட்கள்</div></div>
++    <div class="rp-k"><div class="l">சராசரி பில்</div><div class="v">${inr0(M.avg)}</div><div class="s">அதிகபட்சம் ${inr0(M.max)}</div></div>
++    <div class="rp-k"><div class="l">${M.projected!=null?"மாத இறுதி கணிப்பு":"கடந்த மாதம்"}</div><div class="v">${inr0(M.projected!=null?M.projected:M.prevTotal)}</div><div class="s">${M.projected!=null?"இதே வேகத்தில்":mLabel(ymd(new Date(dParse(r.month+"-01").setMonth(dParse(r.month+"-01").getMonth()-1))).slice(0,7))}</div></div>
++    ${r.bestDay?`<div class="rp-k wide"><div class="l">🏆 சிறந்த நாள்</div><div class="v">${dShort(r.bestDay.d)} · ${inr(r.bestDay.total)}</div><div class="s">${r.bestDay.count} பில்கள் · ${TA_DAYS[dParse(r.bestDay.d).getDay()]}</div></div>`:""}
++  </div>
++
++  <div class="rp-card"><h3>தினசரி விற்பனை <small>பாரை தொட்டால் அந்த நாள் திறக்கும்</small></h3>${trendSvg(r)}
++    <p class="hint" style="margin-top:4px">— — நாள் சராசரி ${inr0(M.perDay)}</p></div>
++
++  ${r.hours&&r.hours.length?`<div class="rp-card"><h3>நேர வாரியாக <small>${dShort(r.date)}</small></h3>${hbars(r.hours,"total",x=>inr0(x.total)+" · "+x.count,x=>hLabel(x.h))}</div>`:""}
++
++  <div class="rp-card"><h3>அதிகம் விற்ற பொருட்கள்
++    <span class="rp-seg"><button data-rtop="day" class="${repTop==="day"?"on":""}">அன்று</button><button data-rtop="month" class="${repTop==="month"?"on":""}">மாதம்</button></span></h3>
++    ${hbars(top,"amt",x=>inr0(x.amt)+" · "+x.qty+" pcs",x=>esc(x.name))}</div>
++
++  ${r.sizesMonth&&r.sizesMonth.length?`<div class="rp-card"><h3>சைஸ் வாரியாக <small>${mLabel(r.month)}</small></h3>${hbars(r.sizesMonth,"qty",x=>x.qty+" pcs",x=>esc(x.name))}</div>`:""}
++  ${r.staffMonth&&r.staffMonth.length>1?`<div class="rp-card"><h3>பில் போட்டவர் வாரியாக <small>${mLabel(r.month)}</small></h3>${hbars(r.staffMonth,"amt",x=>inr0(x.amt)+" · "+x.qty+" பில்",x=>"👤 "+esc(x.name||"-"))}</div>`:""}
++  <div class="rp-grid">
++    <div class="rp-k"><div class="l">தனி வாடிக்கையாளர்கள்</div><div class="v">${cu.unique||0}</div><div class="s">மொபைல் எண் அடிப்படையில்</div></div>
++    <div class="rp-k"><div class="l">WhatsApp பில்</div><div class="v">${cu.bills?Math.round((cu.withPhone||0)*100/cu.bills):0}%</div><div class="s">${cu.withPhone||0} / ${cu.bills||0} பில்கள்</div></div>
++  </div>
++
++  <div class="rp-share"><button class="wa" id="rShare">📤 WhatsApp</button><button id="rCopy">📋 Copy</button><button id="rPrint">🖨 Print</button></div>
++
++  <h2 class="h2">🧾 ${dLabel(r.date)} பில்கள் · ${r.bills.length}</h2>
++  <div class="box" style="margin-top:0">${r.bills.length?r.bills.map((b,i)=>`<div class="bh">
++      <div class="r1"><b>${esc(b.no)}</b><b class="amt">${inr(b.total)}</b></div>
++      <div class="meta">${esc(fmtDate(b.at))} · ${b.pieces} pcs${b.customer?" · "+esc(b.customer):""}${b.phone?" · "+esc(b.phone):""}${b.by?" · 👤 "+esc(b.by):""}</div>
++      <div class="lines">${(b.lines||[]).map(l=>`<div><span>${esc(l.name)}${l.size?" ("+esc(l.size)+")":""} × ${l.qty}</span><b>${inr(l.amt)}</b></div>`).join("")}</div>
++      <div class="acts"><button class="mini" data-rbill="${i}">விவரம்</button><button class="mini" data-bwa="${i}">WhatsApp</button><button class="mini" data-bcopy="${i}">Copy</button></div></div>`).join("")
++    :`<p class="sub" style="margin:6px 0">இந்த தேதியில் பில்கள் இல்லை</p>`}
++    ${r.billsTruncated?`<p class="hint">முதல் ${r.bills.length} பில்கள் மட்டும் காட்டப்படுகிறது</p>`:""}</div>`;
++}
++
++function reportText(r){
++  const T=r.todaySales, D=r.daySales, M=r.monthSales, L=[];
++  L.push(`*${company.name}*`, `📊 விற்பனை அறிக்கை`, ``);
++  L.push(`*இன்று (${dLabel(r.today)})*`, `விற்பனை: ${inr(T.total)}`, `பில்கள்: ${T.count} · பீஸ்: ${T.pieces}`);
++  if(r.date!==r.today) L.push(``, `*${dLabel(r.date)}*`, `விற்பனை: ${inr(D.total)}`, `பில்கள்: ${D.count} · பீஸ்: ${D.pieces}`);
++  L.push(``, `*${mLabel(r.month)}*`, `மொத்தம்: ${inr(M.total)}`, `பில்கள்: ${M.count} · நாள் சராசரி: ${inr0(M.perDay)}`);
++  if(M.growth!=null) L.push(`கடந்த மாதத்துடன்: ${M.growth>=0?"▲":"▼"} ${Math.abs(M.growth)}%`);
++  if(r.bestDay) L.push(`சிறந்த நாள்: ${dShort(r.bestDay.d)} (${inr0(r.bestDay.total)})`);
++  if(r.topItemsMonth&&r.topItemsMonth.length){ L.push(``, `*அதிகம் விற்றவை*`); r.topItemsMonth.slice(0,5).forEach((x,i)=>L.push(`${i+1}. ${x.name} — ${x.qty} pcs · ${inr0(x.amt)}`)); }
++  L.push(``, `— ${APP_NAME}`);
++  return L.join("\n");
++}
++
++function adminSalesHtml(s){
++  if(!s||!s.companies) return "";
++  const t=s.totals;
++  return `<section class="adm-sales">
++    <div class="top">
++      <div><div class="l">இன்றைய விற்பனை (எல்லா கம்பெனி)</div><div class="v">${inr0(t.todayTotal)}</div><div class="s">${t.todayCount} பில்கள்</div></div>
++      <div><div class="l">${mLabel(s.month)}</div><div class="v">${inr0(t.monthTotal)}</div><div class="s">${t.monthCount} பில்கள்</div></div>
++    </div>
++    ${s.companies.length?`<table><thead><tr><th>கம்பெனி</th><th>இன்று</th><th>மாதம்</th><th></th></tr></thead><tbody>
++      ${s.companies.map(c=>`<tr><td>${esc(c.name)}<small>${esc(c.city||"")}</small></td><td>${inr0(c.todayTotal)}<small>${c.todayCount} பில்</small></td><td>${inr0(c.monthTotal)}<small>${c.monthCount} பில்</small></td>
++        <td><button class="go" data-compreport="${esc(c.id)}">📊</button></td></tr>`).join("")}</tbody></table>`:""}
++  </section>`;
++}
++
+ /* ================= EVENTS ================= */
+ document.addEventListener("click",e=>{
++  const bar=e.target.closest&&e.target.closest("[data-rday]");
++  if(bar){ loadReport(bar.getAttribute("data-rday")); return; }
+   const t=e.target.closest("button"); if(!t) return;
+   const d=t.dataset;
+   /* menu & account */
+   if(t.id==="menuBtn") return openMenu();
+   if(t.id==="mBills"||t.id==="billHist") return openBills();
++  if(t.id==="openReport"||t.id==="mReport"){ closeSheet(); if(location.hash!=="#report") location.hash="report"; else loadReport(repDate); return; }
++  /* report */
++  if(d.rnav){ const dt=new Date(repDate+"T00:00:00"); dt.setDate(dt.getDate()+Number(d.rnav)); return loadReport(ymd(dt)); }
++  if(t.id==="rToday") return loadReport(null);
++  if(d.rtop){ repTop=d.rtop; renderView(); return; }
++  if(d.rbill!==undefined){ const h=t.closest(".bh"); if(h) h.classList.toggle("open"); return; }
++  if(t.id==="rShare"){ if(repData) window.open(waUrl("",reportText(repData)),"_blank","noopener"); return; }
++  if(t.id==="rCopy"){ if(repData) copyText(reportText(repData)); return; }
++  if(t.id==="rPrint"){ window.print(); return; }
++  if(d.compreport) return openCompanyBilling(d.compreport,"report");
+   if(t.id==="mCompany") return openCompanyInfo();
+   if(t.id==="mEditCompany"){ (adminData?Promise.resolve():loadAdmin()).then(()=>openCompanyForm(company.id)); return; }
+   if(t.id==="mAdmin"){ closeSheet(); if(location.hash!=="#admin") location.hash="admin"; else loadAdmin(); return; }
+@@ -1227,6 +1452,7 @@ document.addEventListener("change",e=>{
+   if(id==="cPerm") togglePerm();
+   if(id==="cCat"){ if(e.target.value==="__new"){ const d={name:$("#cName").value,size:$("#cSize").value,rate:$("#cRate").value,qty:customQty}; openGroupForm(null,{type:"custom",from:customFrom,draft:d}); } else customCat=e.target.value; }
+   if(id==="iCat"){ if(e.target.value==="__new"){ const d=itemDraft(); d.cat=iForm.cat; openGroupForm(null,{type:"item",draft:d}); } else iForm.cat=e.target.value; }
++  if(id==="rDate" && e.target.value) loadReport(e.target.value);
+   if(id==="uComp" && e.target.value==="__new"){ const d=userDraft(); d.companyId=""; openCompanyForm(null,{type:"user",draft:d}); }
+ });
+ window.addEventListener("hashchange",()=>{ $("#q").value=""; renderAll(true); if(view()==="admin") loadAdmin(); });

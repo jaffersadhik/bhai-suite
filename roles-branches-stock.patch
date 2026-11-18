@@ -1,0 +1,1222 @@
+diff --git a/src/main/java/com/bhai/billing/core/BillingService.java b/src/main/java/com/bhai/billing/core/BillingService.java
+index 22fa127..42c063f 100644
+--- a/src/main/java/com/bhai/billing/core/BillingService.java
++++ b/src/main/java/com/bhai/billing/core/BillingService.java
+@@ -35,6 +35,7 @@ public class BillingService {
+ 
+     static final Pattern ID = Pattern.compile("[A-Za-z0-9_-]{1,40}");
+     static final Pattern USERNAME = Pattern.compile("[a-z0-9._-]{3,30}");
++    static final Set<String> USER_TYPES = Set.of("admin", "owner", "sales", "stock");
+     static final Pattern MOBILE = Pattern.compile("[6-9][0-9]{9}");
+     static final Pattern GSTIN = Pattern.compile("[0-9]{2}[A-Z0-9]{13}");
+     static final Pattern EMAIL = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
+@@ -69,6 +70,14 @@ public class BillingService {
+ 
+         boolean admin() { return "admin".equals(str(user.get("user_type"))); }
+ 
++        String type() { return str(user.get("user_type")); }
++
++        /** owner: reports of the whole company only (no billing) */
++        boolean owner() { return "owner".equals(type()); }
++
++        /** stock: everything sales can do + stock maintenance */
++        boolean stock() { return "stock".equals(type()); }
++
+         String uid() { return str(user.get("id")); }
+     }
+ 
+@@ -79,10 +88,85 @@ public class BillingService {
+      * Safe to run at every start: each step checks information_schema first.
+      */
+     public void migrate() {
+-        if (db.one("SELECT 1 AS x FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'item_sizes' AND column_name = 'barcode'") == null)
++        if (!hasColumn("item_sizes", "barcode"))
+             db.update("ALTER TABLE item_sizes ADD COLUMN barcode VARCHAR(40) NULL AFTER rate");
+-        if (db.one("SELECT 1 AS x FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = 'item_sizes' AND index_name = 'uk_sizes_barcode'") == null)
++        if (!hasIndex("item_sizes", "uk_sizes_barcode"))
+             db.update("ALTER TABLE item_sizes ADD UNIQUE KEY uk_sizes_barcode (company_id, barcode)");
++
++        // user types: customer -> sales, new owner / stock
++        Map<String, Object> ut = db.one("SELECT column_type AS t FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'users' AND column_name = 'user_type'");
++        if (ut != null && !str(ut.get("t")).contains("'sales'")) {
++            if (db.one("SELECT 1 AS x FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = 'users' AND constraint_name = 'chk_users_company'") != null)
++                db.update("ALTER TABLE users DROP CONSTRAINT chk_users_company");
++            db.update("ALTER TABLE users MODIFY user_type ENUM('admin','customer','owner','sales','stock') NOT NULL");
++            db.update("UPDATE users SET user_type = 'sales' WHERE user_type = 'customer'");
++            db.update("ALTER TABLE users MODIFY user_type ENUM('admin','owner','sales','stock') NOT NULL");
++            db.update("ALTER TABLE users ADD CONSTRAINT chk_users_company CHECK ((user_type = 'admin' AND company_id IS NULL) OR (user_type <> 'admin' AND company_id IS NOT NULL))");
++        }
++        if (!hasColumn("users", "branch_id")) db.update("ALTER TABLE users ADD COLUMN branch_id VARCHAR(20) NULL AFTER company_id");
++        if (!hasColumn("bills", "branch_id")) db.update("ALTER TABLE bills ADD COLUMN branch_id VARCHAR(20) NULL AFTER company_id");
++        if (!hasIndex("bills", "idx_bills_branch_date")) db.update("ALTER TABLE bills ADD KEY idx_bills_branch_date (company_id, branch_id, created_at)");
++        if (!hasColumn("bill_lines", "item_id")) db.update("ALTER TABLE bill_lines ADD COLUMN item_id VARCHAR(40) NULL AFTER line_no");
++        ensureBranches(null);
++    }
++
++    private boolean hasColumn(String table, String col) {
++        return db.one("SELECT 1 AS x FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name = ?", table, col) != null;
++    }
++
++    private boolean hasIndex(String table, String idx) {
++        return db.one("SELECT 1 AS x FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? LIMIT 1", table, idx) != null;
++    }
++
++    /**
++     * Every company has at least one branch ("Main"); sales / stock users and bills without a branch go to the
++     * company's first branch. cid = one company, or null for all companies.
++     */
++    private void ensureBranches(String cid) {
++        List<Map<String, Object>> cs = cid == null ? db.query("SELECT id FROM companies") : db.query("SELECT id FROM companies WHERE id = ?", cid);
++        for (Map<String, Object> co : cs) {
++            String id = str(co.get("id"));
++            if (db.one("SELECT 1 AS x FROM branches WHERE company_id = ? LIMIT 1", id) == null)
++                db.update("INSERT INTO branches (company_id, id, name, sort_order, created_at) VALUES (?, ?, ?, 0, ?)", id, newId("b"), "Main", now());
++            String first = firstBranch(id);
++            db.update("UPDATE users SET branch_id = ? WHERE company_id = ? AND user_type IN ('sales','stock') AND (branch_id IS NULL OR branch_id NOT IN (SELECT id FROM branches WHERE company_id = ?))", first, id, id);
++            db.update("UPDATE bills SET branch_id = ? WHERE company_id = ? AND branch_id IS NULL", first, id);
++        }
++    }
++
++    private String firstBranch(String cid) {
++        Map<String, Object> r = db.one("SELECT id FROM branches WHERE company_id = ? ORDER BY sort_order, created_at, id LIMIT 1", cid);
++        return r == null ? null : str(r.get("id"));
++    }
++
++    private Map<String, Object> branchRow(String cid, String bid) {
++        return blank(bid) ? null : db.one("SELECT * FROM branches WHERE company_id = ? AND id = ?", cid, bid);
++    }
++
++    private List<Object> branchList(String cid) {
++        List<Object> out = new ArrayList<>();
++        for (Map<String, Object> r : db.query("SELECT id, name FROM branches WHERE company_id = ? ORDER BY sort_order, created_at, id", cid)) {
++            Map<String, Object> n = new LinkedHashMap<>();
++            n.put("id", str(r.get("id")));
++            n.put("name", str(r.get("name")));
++            out.add(n);
++        }
++        return out;
++    }
++
++    /** Branch where this user's bills and stock go: own branch for sales / stock, the first branch for admin. */
++    private String userBranch(Ctx c, String cid) {
++        if (!c.admin()) {
++            String b = str(c.user.get("branch_id"));
++            if (branchRow(cid, b) != null) return b;
++        }
++        return firstBranch(cid);
++    }
++
++    /** owner may only read reports */
++    private String requireBilling(Ctx c) {
++        if (c.owner()) throw new ApiException(403, "Owner கணக்கில் அறிக்கை மட்டுமே பார்க்கலாம் (Report only)");
++        return requireCompany(c);
+     }
+ 
+     public boolean ensureDefaultAdmin() {
+@@ -167,6 +251,10 @@ public class BillingService {
+         Map<String, Object> co = companyOf(c);
+         o.put("company", co == null ? null : pubCompany(co));
+         o.put("defaultPassword", bool(c.user.get("must_change")));
++        if (co != null && !c.admin() && !c.owner()) {
++            Map<String, Object> br = branchRow(str(co.get("id")), userBranch(c, str(co.get("id"))));
++            o.put("branch", br == null ? null : obj("name", str(br.get("name"))));
++        }
+         return o;
+     }
+ 
+@@ -186,7 +274,7 @@ public class BillingService {
+     // ================================================================ company data (groups / items)
+     public Map<String, Object> data(String auth) {
+         Ctx c = ctx(auth);
+-        String cid = requireCompany(c);
++        String cid = requireBilling(c);
+         Map<String, Object> o = new LinkedHashMap<>();
+         o.put("company", pubCompany(db.one("SELECT * FROM companies WHERE id = ?", cid)));
+         o.put("catalog", loadCatalog(db, cid));
+@@ -235,7 +323,7 @@ public class BillingService {
+     /** Saves the full list of groups + items of the caller's company (optimistic version check). */
+     public Map<String, Object> putCatalog(String auth, Map<String, Object> in) {
+         Ctx c = ctx(auth);
+-        String cid = requireCompany(c);
++        String cid = requireBilling(c);
+         long version = lng(in.get("version"));
+         CleanCatalog clean = cleanCatalog(in);
+         Map<String, Object> cat = db.tx(t -> {
+@@ -326,7 +414,8 @@ public class BillingService {
+     // ================================================================ bills
+     public Map<String, Object> addBill(String auth, Map<String, Object> in) {
+         Ctx c = ctx(auth);
+-        String cid = requireCompany(c);
++        String cid = requireBilling(c);
++        String branch = userBranch(c, cid);
+         String cust = clip(in.get("customer"), 60);
+         String phone = str(in.get("phone")).replaceAll("[^0-9]", "");
+         if (!phone.isEmpty() && !MOBILE.matcher(phone).matches()) throw new ApiException(400, "மொபைல் எண் தவறு");
+@@ -348,6 +437,8 @@ public class BillingService {
+             total += amt;
+             pcs += qty;
+             Map<String, Object> n = new LinkedHashMap<>();
++            String itemId = str(l.get("id"));
++            n.put("id", ID.matcher(itemId).matches() ? itemId : null);   // catalog item (custom items have none)
+             n.put("name", name);
+             n.put("en", clip(l.get("en"), 60));
+             n.put("size", clip(l.get("size"), 12));
+@@ -366,15 +457,27 @@ public class BillingService {
+             if (prefix.isEmpty()) prefix = "INV";
+             String no = prefix + "-" + String.format("%04d", seq);
+             t.update("UPDATE companies SET bill_seq = ? WHERE id = ?", seq, cid);
+-            long billId = t.insert("INSERT INTO bills (company_id, bill_seq, bill_no, created_at, customer_name, customer_phone, billed_by_user, billed_by_name, pieces, total) "
+-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+-                    cid, seq, no, at, cust, phone, str(c.user.get("username")), str(c.user.get("full_name")), pieces, BigDecimal.valueOf(billTotal));
+-            List<Object[]> rows = new ArrayList<>();
++            long billId = t.insert("INSERT INTO bills (company_id, branch_id, bill_seq, bill_no, created_at, customer_name, customer_phone, billed_by_user, billed_by_name, pieces, total) "
++                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
++                    cid, branch, seq, no, at, cust, phone, str(c.user.get("username")), str(c.user.get("full_name")), pieces, BigDecimal.valueOf(billTotal));
++            // only real catalog item + size pairs are linked (and reduce stock); anything else is a custom line
++            Set<String> known = new HashSet<>();
++            for (Map<String, Object> z : t.query("SELECT item_id, size_label FROM item_sizes WHERE company_id = ?", cid))
++                known.add(str(z.get("item_id")) + "|" + str(z.get("size_label")));
++            List<Object[]> rows = new ArrayList<>(), stockRows = new ArrayList<>();
+             int ln = 1;
+-            for (Map<String, Object> l : lines)
+-                rows.add(new Object[]{cid, billId, ln++, l.get("name"), l.get("en"), l.get("size"), l.get("qty"),
++            for (Map<String, Object> l : lines) {
++                String iid = (String) l.get("id");
++                if (iid != null && !known.contains(iid + "|" + l.get("size"))) { iid = null; l.put("id", null); }
++                rows.add(new Object[]{cid, billId, ln++, iid, l.get("name"), l.get("en"), l.get("size"), l.get("qty"),
+                         BigDecimal.valueOf((Double) l.get("rate")), BigDecimal.valueOf((Double) l.get("amt"))});
+-            t.batch("INSERT INTO bill_lines (company_id, bill_id, line_no, item_name, item_name_en, size_label, qty, rate, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", rows);
++                if (iid != null && branch != null)
++                    stockRows.add(new Object[]{cid, branch, iid, l.get("size"), -((Long) l.get("qty")), at, "bill " + no, l.get("qty"), at, "bill " + no});
++            }
++            t.batch("INSERT INTO bill_lines (company_id, bill_id, line_no, item_id, item_name, item_name_en, size_label, qty, rate, amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows);
++            if (!stockRows.isEmpty())
++                t.batch("INSERT INTO stock (company_id, branch_id, item_id, size_label, qty, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?) "
++                        + "ON DUPLICATE KEY UPDATE qty = qty - ?, updated_at = ?, updated_by = ?", stockRows);
+             Map<String, Object> b = new LinkedHashMap<>();
+             b.put("no", no);
+             b.put("seq", seq);
+@@ -392,12 +495,14 @@ public class BillingService {
+ 
+     public Map<String, Object> bills(String auth) {
+         Ctx c = ctx(auth);
+-        String cid = requireCompany(c);
+-        List<Map<String, Object>> rows = db.query("SELECT * FROM bills WHERE company_id = ? ORDER BY id DESC LIMIT 100", cid);
++        String cid = requireBilling(c);
++        String br = c.admin() ? null : userBranch(c, cid);       // sales / stock: own branch only
++        String bf = br == null ? "" : " AND branch_id = ?";
++        List<Map<String, Object>> rows = db.query("SELECT * FROM bills WHERE company_id = ?" + bf + " ORDER BY id DESC LIMIT 100", args(br, cid));
+         List<Object> list = billList(cid, rows);
+         LocalDateTime day = LocalDate.now(zone).atStartOfDay();
+-        Map<String, Object> td = db.one("SELECT COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?",
+-                cid, day, day.plusDays(1));
++        Map<String, Object> td = db.one("SELECT COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?" + bf,
++                args(br, cid, day, day.plusDays(1)));
+         Map<String, Object> today = new LinkedHashMap<>();
+         today.put("count", lng(td.get("cnt")));
+         today.put("total", round2(dbl(td.get("tot"))));
+@@ -461,10 +566,13 @@ public class BillingService {
+         return d;
+     }
+ 
+-    /** count / total / avg / max / pieces of bills in [from, to) */
+-    private Map<String, Object> salesSummary(String cid, LocalDateTime from, LocalDateTime to) {
++    /** query args with the optional branch filter appended (the filter is always the last condition) */
++    static Object[] args(String branch, Object... a) { return branch == null ? a : concat(a, branch); }
++
++    /** count / total / avg / max / pieces of bills in [from, to), optionally of one branch */
++    private Map<String, Object> salesSummary(String cid, String br, LocalDateTime from, LocalDateTime to) {
+         Map<String, Object> r = db.one("SELECT COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot, COALESCE(MAX(total), 0) AS mx, "
+-                + "COALESCE(SUM(pieces), 0) AS pcs FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?", cid, from, to);
++                + "COALESCE(SUM(pieces), 0) AS pcs FROM bills b WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + bf(br), args(br, cid, from, to));
+         long cnt = lng(r.get("cnt"));
+         double tot = round2(dbl(r.get("tot")));
+         Map<String, Object> o = new LinkedHashMap<>();
+@@ -476,18 +584,29 @@ public class BillingService {
+         return o;
+     }
+ 
++    private static String bf(String br) { return br == null ? "" : " AND b.branch_id = ?"; }
++
+     private static Double growth(double cur, double prev) {
+         if (prev <= 0) return null;                  // no base to compare
+         return Math.round((cur - prev) * 1000.0 / prev) / 10.0;
+     }
+ 
+     /**
+-     * Sales statistics of the company in the session (customer: own company, admin: the opened company).
++     * Sales statistics of the company in the session.
++     * owner / admin: whole company, or one branch with ?branch=; sales / stock: always their own branch.
+      * date = the selected day (yyyy-MM-dd, default today). Month figures are for the month of that day.
+      */
+-    public Map<String, Object> report(String auth, String date) {
++    public Map<String, Object> report(String auth, String date, String branch) {
+         Ctx c = ctx(auth);
+         String cid = requireCompany(c);
++        boolean wide = c.admin() || c.owner();
++        String br;
++        if (wide) {
++            br = blank(branch) ? null : branch.trim();
++            if (br != null && branchRow(cid, br) == null) throw new ApiException(404, "கிளை இல்லை (Branch not found)");
++        } else br = userBranch(c, cid);
++        String f = bf(br);
++
+         LocalDate today = LocalDate.now(zone);
+         LocalDate sel = reportDate(date);
+         LocalDateTime dFrom = sel.atStartOfDay(), dTo = sel.plusDays(1).atStartOfDay();
+@@ -502,17 +621,26 @@ public class BillingService {
+         o.put("date", sel.toString());
+         o.put("today", today.toString());
+         o.put("month", m1.toString().substring(0, 7));
+-
+-        Map<String, Object> todayS = salesSummary(cid, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+-        Map<String, Object> yest = salesSummary(cid, today.minusDays(1).atStartOfDay(), today.atStartOfDay());
++        List<Object> branches = branchList(cid);
++        Map<String, Object> scope = new LinkedHashMap<>();
++        scope.put("branch", br);
++        Map<String, Object> brRow = branchRow(cid, br);
++        scope.put("branchName", brRow == null ? "" : str(brRow.get("name")));
++        scope.put("canFilter", wide);
++        scope.put("branchCount", branches.size());
++        o.put("scope", scope);
++        if (wide) o.put("branches", branches);
++
++        Map<String, Object> todayS = salesSummary(cid, br, today.atStartOfDay(), today.plusDays(1).atStartOfDay());
++        Map<String, Object> yest = salesSummary(cid, br, today.minusDays(1).atStartOfDay(), today.atStartOfDay());
+         todayS.put("growth", growth(dbl(todayS.get("total")), dbl(yest.get("total"))));
+         todayS.put("yesterday", yest.get("total"));
+         o.put("todaySales", todayS);
+-        o.put("daySales", salesSummary(cid, dFrom, dTo));
++        o.put("daySales", salesSummary(cid, br, dFrom, dTo));
+ 
+-        Map<String, Object> monthS = salesSummary(cid, mFrom, mTo);
+-        Map<String, Object> prevS = salesSummary(cid, pFrom, mFrom);
+-        Map<String, Object> prevSame = curMonth ? salesSummary(cid, pFrom, pSameTo) : prevS;
++        Map<String, Object> monthS = salesSummary(cid, br, mFrom, mTo);
++        Map<String, Object> prevS = salesSummary(cid, br, pFrom, mFrom);
++        Map<String, Object> prevSame = curMonth ? salesSummary(cid, br, pFrom, pSameTo) : prevS;
+         int days = curMonth ? today.getDayOfMonth() : m1.lengthOfMonth();
+         monthS.put("days", days);
+         monthS.put("perDay", round2(dbl(monthS.get("total")) / days));
+@@ -524,8 +652,8 @@ public class BillingService {
+ 
+         // day-wise trend of the month (every day present, 0 when no sale)
+         Map<String, double[]> byDay = new LinkedHashMap<>();
+-        for (Map<String, Object> r : db.query("SELECT DATE(created_at) AS d, COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills "
+-                + "WHERE company_id = ? AND created_at >= ? AND created_at < ? GROUP BY DATE(created_at)", cid, mFrom, mTo))
++        for (Map<String, Object> r : db.query("SELECT DATE(b.created_at) AS d, COUNT(*) AS cnt, COALESCE(SUM(b.total), 0) AS tot FROM bills b "
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + f + " GROUP BY DATE(b.created_at)", args(br, cid, mFrom, mTo)))
+             byDay.put(str(r.get("d")).substring(0, 10), new double[]{lng(r.get("cnt")), dbl(r.get("tot"))});
+         List<Object> trend = new ArrayList<>();
+         Map<String, Object> best = null;
+@@ -545,8 +673,8 @@ public class BillingService {
+         // hour-wise sales of the selected day
+         long[] hc = new long[24];
+         double[] ht = new double[24];
+-        for (Map<String, Object> r : db.query("SELECT HOUR(created_at) AS h, COUNT(*) AS cnt, COALESCE(SUM(total), 0) AS tot FROM bills "
+-                + "WHERE company_id = ? AND created_at >= ? AND created_at < ? GROUP BY HOUR(created_at)", cid, dFrom, dTo)) {
++        for (Map<String, Object> r : db.query("SELECT HOUR(b.created_at) AS h, COUNT(*) AS cnt, COALESCE(SUM(b.total), 0) AS tot FROM bills b "
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + f + " GROUP BY HOUR(b.created_at)", args(br, cid, dFrom, dTo))) {
+             int h = (int) lng(r.get("h"));
+             hc[h] = lng(r.get("cnt"));
+             ht[h] = round2(dbl(r.get("tot")));
+@@ -562,31 +690,72 @@ public class BillingService {
+         }
+         o.put("hours", hours);
+ 
+-        o.put("topItemsDay", topItems(cid, dFrom, dTo, 5));
+-        o.put("topItemsMonth", topItems(cid, mFrom, mTo, 10));
++        o.put("topItemsDay", topItems(cid, br, dFrom, dTo, 5));
++        o.put("topItemsMonth", topItems(cid, br, mFrom, mTo, 10));
+         o.put("sizesMonth", rows("SELECT l.size_label AS k, SUM(l.qty) AS qty, SUM(l.amount) AS amt FROM bill_lines l JOIN bills b ON b.company_id = l.company_id AND b.id = l.bill_id "
+-                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ? AND l.size_label <> '' GROUP BY l.size_label ORDER BY qty DESC LIMIT 8", cid, mFrom, mTo));
+-        o.put("staffMonth", rows("SELECT CASE WHEN billed_by_name = '' THEN billed_by_user ELSE billed_by_name END AS k, COUNT(*) AS qty, SUM(total) AS amt FROM bills "
+-                + "WHERE company_id = ? AND created_at >= ? AND created_at < ? GROUP BY k ORDER BY amt DESC", cid, mFrom, mTo));
+-        Map<String, Object> cust = db.one("SELECT COUNT(DISTINCT NULLIF(customer_phone, '')) AS uniq, SUM(customer_phone <> '') AS withPhone, COUNT(*) AS cnt "
+-                + "FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ?", cid, mFrom, mTo);
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ? AND l.size_label <> ''" + f + " GROUP BY l.size_label ORDER BY qty DESC LIMIT 8", args(br, cid, mFrom, mTo)));
++
++        // branch-wise sales (selected day + month), whole company view only
++        if (wide && br == null) {
++            List<Object> bs = new ArrayList<>();
++            for (Map<String, Object> r : db.query("SELECT br.id, br.name, "
++                    + "COALESCE(SUM(b.created_at >= ? AND b.created_at < ?), 0) AS d_cnt, COALESCE(SUM(CASE WHEN b.created_at >= ? AND b.created_at < ? THEN b.total END), 0) AS d_tot, "
++                    + "COUNT(b.id) AS m_cnt, COALESCE(SUM(b.total), 0) AS m_tot "
++                    + "FROM branches br LEFT JOIN bills b ON b.company_id = br.company_id AND b.branch_id = br.id AND b.created_at >= ? AND b.created_at < ? "
++                    + "WHERE br.company_id = ? GROUP BY br.id, br.name, br.sort_order, br.created_at ORDER BY br.sort_order, br.created_at, br.id",
++                    dFrom, dTo, dFrom, dTo, mFrom, mTo, cid)) {
++                Map<String, Object> p = new LinkedHashMap<>();
++                p.put("id", str(r.get("id")));
++                p.put("name", str(r.get("name")));
++                p.put("dayCount", lng(r.get("d_cnt")));
++                p.put("dayTotal", round2(dbl(r.get("d_tot"))));
++                p.put("monthCount", lng(r.get("m_cnt")));
++                p.put("monthTotal", round2(dbl(r.get("m_tot"))));
++                bs.add(p);
++            }
++            o.put("branchSales", bs);
++        }
++
++        // user-wise bills (selected day + month)
++        List<Object> us = new ArrayList<>();
++        for (Map<String, Object> r : db.query("SELECT b.billed_by_user AS u, MAX(b.billed_by_name) AS n, MAX(br.name) AS bn, "
++                + "COALESCE(SUM(b.created_at >= ? AND b.created_at < ?), 0) AS d_cnt, COALESCE(SUM(CASE WHEN b.created_at >= ? AND b.created_at < ? THEN b.total END), 0) AS d_tot, "
++                + "COUNT(*) AS m_cnt, COALESCE(SUM(b.total), 0) AS m_tot, COALESCE(SUM(b.pieces), 0) AS m_pcs "
++                + "FROM bills b LEFT JOIN branches br ON br.company_id = b.company_id AND br.id = b.branch_id "
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + f + " GROUP BY b.billed_by_user ORDER BY m_tot DESC",
++                args(br, dFrom, dTo, dFrom, dTo, cid, mFrom, mTo))) {
++            Map<String, Object> p = new LinkedHashMap<>();
++            p.put("user", str(r.get("u")));
++            p.put("name", blank(str(r.get("n"))) ? str(r.get("u")) : str(r.get("n")));
++            p.put("branch", str(r.get("bn")));
++            p.put("dayCount", lng(r.get("d_cnt")));
++            p.put("dayTotal", round2(dbl(r.get("d_tot"))));
++            p.put("monthCount", lng(r.get("m_cnt")));
++            p.put("monthTotal", round2(dbl(r.get("m_tot"))));
++            p.put("monthPieces", lng(r.get("m_pcs")));
++            us.add(p);
++        }
++        o.put("userSales", us);
++
++        Map<String, Object> cust = db.one("SELECT COUNT(DISTINCT NULLIF(b.customer_phone, '')) AS uniq, COALESCE(SUM(b.customer_phone <> ''), 0) AS withPhone, COUNT(*) AS cnt "
++                + "FROM bills b WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + f, args(br, cid, mFrom, mTo));
+         Map<String, Object> cu = new LinkedHashMap<>();
+         cu.put("unique", lng(cust.get("uniq")));
+         cu.put("withPhone", lng(cust.get("withphone")));
+         cu.put("bills", lng(cust.get("cnt")));
+         o.put("customersMonth", cu);
+ 
+-        List<Map<String, Object>> billRows = db.query("SELECT * FROM bills WHERE company_id = ? AND created_at >= ? AND created_at < ? ORDER BY id DESC LIMIT " + REPORT_BILL_LIMIT,
+-                cid, dFrom, dTo);
++        List<Map<String, Object>> billRows = db.query("SELECT b.* FROM bills b WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + f
++                + " ORDER BY b.id DESC LIMIT " + REPORT_BILL_LIMIT, args(br, cid, dFrom, dTo));
+         o.put("bills", billList(cid, billRows));
+         o.put("billsTruncated", billRows.size() >= REPORT_BILL_LIMIT);
+         return o;
+     }
+ 
+-    private List<Object> topItems(String cid, LocalDateTime from, LocalDateTime to, int limit) {
++    private List<Object> topItems(String cid, String br, LocalDateTime from, LocalDateTime to, int limit) {
+         return rows("SELECT l.item_name AS k, MAX(l.item_name_en) AS en, SUM(l.qty) AS qty, SUM(l.amount) AS amt FROM bill_lines l "
+                 + "JOIN bills b ON b.company_id = l.company_id AND b.id = l.bill_id "
+-                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ? GROUP BY l.item_name ORDER BY amt DESC LIMIT " + limit, cid, from, to);
++                + "WHERE b.company_id = ? AND b.created_at >= ? AND b.created_at < ?" + bf(br) + " GROUP BY l.item_name ORDER BY amt DESC LIMIT " + limit, args(br, cid, from, to));
+     }
+ 
+     /** rows of k / en / qty / amt as JSON maps */
+@@ -603,6 +772,110 @@ public class BillingService {
+         return out;
+     }
+ 
++    // ================================================================ stock (branch-wise, item + size)
++    static final long STOCK_LIMIT = 999999;
++
++    /** stock users: own branch; admin: any branch of the opened company */
++    private String stockBranch(Ctx c, String cid, String requested) {
++        if (!c.admin() && !c.stock()) throw new ApiException(403, "Stock அனுமதி இல்லை (Stock users only)");
++        if (c.admin() && !blank(requested)) {
++            if (branchRow(cid, requested.trim()) == null) throw new ApiException(404, "கிளை இல்லை (Branch not found)");
++            return requested.trim();
++        }
++        String b = userBranch(c, cid);
++        if (b == null) throw new ApiException(400, "கிளை இல்லை (No branch)");
++        return b;
++    }
++
++    public Map<String, Object> stock(String auth, String branch) {
++        Ctx c = ctx(auth);
++        String cid = requireBilling(c);
++        String br = stockBranch(c, cid, branch);
++        List<Object> list = new ArrayList<>();
++        for (Map<String, Object> r : db.query("SELECT item_id, size_label, qty, updated_at, updated_by FROM stock WHERE company_id = ? AND branch_id = ?", cid, br)) {
++            Map<String, Object> n = new LinkedHashMap<>();
++            n.put("item", str(r.get("item_id")));
++            n.put("size", str(r.get("size_label")));
++            n.put("qty", lng(r.get("qty")));
++            n.put("at", iso(ldt(r.get("updated_at"))));
++            n.put("by", str(r.get("updated_by")));
++            list.add(n);
++        }
++        Map<String, Object> o = new LinkedHashMap<>();
++        Map<String, Object> b = branchRow(cid, br);
++        o.put("branch", br);
++        o.put("branchName", b == null ? "" : str(b.get("name")));
++        if (c.admin()) o.put("branches", branchList(cid));
++        o.put("stock", list);
++        return o;
++    }
++
++    /** {item, size, qty} sets the stock; {item, size, add} adds / subtracts. Negative stock is allowed. */
++    public Map<String, Object> setStock(String auth, Map<String, Object> in) {
++        Ctx c = ctx(auth);
++        String cid = requireBilling(c);
++        String br = stockBranch(c, cid, str(in.get("branch")));
++        String item = str(in.get("item")), size = str(in.get("size"));
++        if (db.one("SELECT 1 AS x FROM item_sizes WHERE company_id = ? AND item_id = ? AND size_label = ?", cid, item, size) == null)
++            throw new ApiException(404, "ஐட்டம் / சைஸ் இல்லை");
++        boolean add = in.containsKey("add") && in.get("add") != null;
++        double v = dbl(add ? in.get("add") : in.get("qty"));
++        if (Double.isNaN(v) || v != Math.floor(v) || Math.abs(v) > STOCK_LIMIT) throw new ApiException(400, "ஸ்டாக் எண் தவறு (whole number)");
++        long q = (long) v;
++        String by = str(c.user.get("full_name"));
++        if (by.isEmpty()) by = str(c.user.get("username"));
++        LocalDateTime now = now();
++        if (add)
++            db.update("INSERT INTO stock (company_id, branch_id, item_id, size_label, qty, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?) "
++                    + "ON DUPLICATE KEY UPDATE qty = qty + ?, updated_at = ?, updated_by = ?", cid, br, item, size, q, now, by, q, now, by);
++        else
++            db.update("INSERT INTO stock (company_id, branch_id, item_id, size_label, qty, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?) "
++                    + "ON DUPLICATE KEY UPDATE qty = ?, updated_at = ?, updated_by = ?", cid, br, item, size, q, now, by, q, now, by);
++        Map<String, Object> r = db.one("SELECT qty, updated_at, updated_by FROM stock WHERE company_id = ? AND branch_id = ? AND item_id = ? AND size_label = ?", cid, br, item, size);
++        Map<String, Object> n = new LinkedHashMap<>();
++        n.put("item", item);
++        n.put("size", size);
++        n.put("qty", lng(r.get("qty")));
++        n.put("at", iso(ldt(r.get("updated_at"))));
++        n.put("by", str(r.get("updated_by")));
++        return obj("stock", n);
++    }
++
++    // ================================================================ branches (admin)
++    public Map<String, Object> saveBranch(String auth, Map<String, Object> in) {
++        admin(auth);
++        String cid = str(in.get("companyId")), id = str(in.get("id"));
++        if (db.one("SELECT id FROM companies WHERE id = ? AND archived = 0", cid) == null) throw new ApiException(404, "கம்பெனி இல்லை");
++        String name = clip(in.get("name"), 40);
++        if (name.isEmpty()) throw new ApiException(400, "கிளை பெயர் தேவை");
++        Map<String, Object> dup = db.one("SELECT id FROM branches WHERE company_id = ? AND LOWER(name) = LOWER(?)", cid, name);
++        if (dup != null && !str(dup.get("id")).equals(id)) throw new ApiException(409, "இந்த பெயரில் கிளை ஏற்கனவே உள்ளது");
++        if (id.isEmpty()) {
++            long n = lng(db.one("SELECT COUNT(*) AS n FROM branches WHERE company_id = ?", cid).get("n"));
++            if (n >= 50) throw new ApiException(400, "அதிகபட்சம் 50 கிளைகள்");
++            id = newId("b");
++            db.update("INSERT INTO branches (company_id, id, name, sort_order, created_at) VALUES (?, ?, ?, ?, ?)", cid, id, name, n, now());
++        } else {
++            if (branchRow(cid, id) == null) throw new ApiException(404, "கிளை இல்லை");
++            db.update("UPDATE branches SET name = ? WHERE company_id = ? AND id = ?", name, cid, id);
++        }
++        return obj("branches", branchList(cid));
++    }
++
++    public Map<String, Object> deleteBranch(String auth, String cid, String id) {
++        admin(auth);
++        if (branchRow(cid, id) == null) throw new ApiException(404, "கிளை இல்லை");
++        if (lng(db.one("SELECT COUNT(*) AS n FROM branches WHERE company_id = ?", cid).get("n")) <= 1)
++            throw new ApiException(409, "கடைசி கிளையை நீக்க முடியாது");
++        if (db.one("SELECT 1 AS x FROM users WHERE company_id = ? AND branch_id = ? LIMIT 1", cid, id) != null)
++            throw new ApiException(409, "இந்த கிளையில் users உள்ளனர். முதலில் அவர்களை வேறு கிளைக்கு மாற்றவும்");
++        if (db.one("SELECT 1 AS x FROM bills WHERE company_id = ? AND branch_id = ? LIMIT 1", cid, id) != null)
++            throw new ApiException(409, "இந்த கிளையில் பில்கள் உள்ளன — அறிக்கைக்காக நீக்க முடியாது. பெயரை மாற்றலாம்");
++        db.update("DELETE FROM stock WHERE company_id = ? AND branch_id = ?", cid, id);
++        db.update("DELETE FROM branches WHERE company_id = ? AND id = ?", cid, id);
++        return obj("branches", branchList(cid));
++    }
++
+     /** Admin: today / selected day / month sales of every company, plus grand totals. */
+     public Map<String, Object> adminSales(String auth, String date) {
+         admin(auth);
+@@ -678,12 +951,24 @@ public class BillingService {
+             p.put("groupCount", lng(r.get("group_count")));
+             p.put("itemCount", lng(r.get("item_count")));
+             p.put("billCount", lng(r.get("bill_seq")));
++            List<Object> bl = new ArrayList<>();
++            for (Map<String, Object> b : db.query("SELECT br.id, br.name, (SELECT COUNT(*) FROM users u WHERE u.company_id = br.company_id AND u.branch_id = br.id) AS uc "
++                    + "FROM branches br WHERE br.company_id = ? ORDER BY br.sort_order, br.created_at, br.id", str(r.get("id")))) {
++                Map<String, Object> n = new LinkedHashMap<>();
++                n.put("id", str(b.get("id")));
++                n.put("name", str(b.get("name")));
++                n.put("userCount", lng(b.get("uc")));
++                bl.add(n);
++            }
++            p.put("branches", bl);
+             cs.add(p);
+         }
+         List<Object> us = new ArrayList<>();
+-        for (Map<String, Object> r : db.query("SELECT u.*, c.name AS company_name FROM users u LEFT JOIN companies c ON c.id = u.company_id ORDER BY u.created_at, u.username")) {
++        for (Map<String, Object> r : db.query("SELECT u.*, c.name AS company_name, br.name AS branch_name FROM users u LEFT JOIN companies c ON c.id = u.company_id "
++                + "LEFT JOIN branches br ON br.company_id = u.company_id AND br.id = u.branch_id ORDER BY u.created_at, u.username")) {
+             Map<String, Object> p = pubUser(r);
+             p.put("companyName", str(r.get("company_name")));
++            p.put("branchName", str(r.get("branch_name")));
+             us.add(p);
+         }
+         Map<String, Object> out = new LinkedHashMap<>();
+@@ -724,6 +1009,7 @@ public class BillingService {
+             db.update("UPDATE companies SET name = ?, tagline = ?, owner_name = ?, phone = ?, address = ?, city = ?, gstin = ?, email = ?, "
+                     + "bill_prefix = ?, show_bismillah = ?, bill_footer = ?, updated_at = ? WHERE id = ?", concat(f, id));
+         }
++        ensureBranches(id);
+         return obj("company", pubCompany(db.one("SELECT * FROM companies WHERE id = ?", id)));
+     }
+ 
+@@ -753,12 +1039,19 @@ public class BillingService {
+         String name = clip(in.get("name"), 60);
+         if (name.isEmpty()) throw new ApiException(400, "பெயர் தேவை");
+         String type = str(in.get("type"));
+-        if (!type.equals("admin") && !type.equals("customer")) throw new ApiException(400, "User type: admin / customer");
+-        String cid = null;
+-        if (type.equals("customer")) {
++        if (type.equals("customer")) type = "sales";               // old app versions
++        if (!USER_TYPES.contains(type)) throw new ApiException(400, "User type: admin / owner / sales / stock");
++        String cid = null, bid = null;
++        if (!type.equals("admin")) {
+             cid = str(in.get("companyId"));
+             if (db.one("SELECT id FROM companies WHERE id = ? AND archived = 0", cid) == null)
+-                throw new ApiException(400, "Customer-க்கு கம்பெனி தேவை");
++                throw new ApiException(400, "இந்த user-க்கு கம்பெனி தேவை");
++            if (!type.equals("owner")) {                            // sales / stock work in one branch
++                ensureBranches(cid);
++                bid = str(in.get("branchId"));
++                if (blank(bid)) bid = firstBranch(cid);
++                if (branchRow(cid, bid) == null) throw new ApiException(400, "கிளையை தேர்வு செய்யவும்");
++            }
+         }
+         boolean active = !(in.get("active") instanceof Boolean) || (Boolean) in.get("active");
+         String pw = rawStr(in.get("password"));
+@@ -773,11 +1066,14 @@ public class BillingService {
+         if (u == null) {
+             id = newId("u");
+             byte[] salt = bytes(16);
+-            db.update("INSERT INTO users (id, username, full_name, user_type, company_id, pass_salt, pass_hash, active, must_change, created_at, updated_at) "
+-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)", id, un, name, type, cid, b64(salt), hash(pw, salt), active, now, now);
++            db.update("INSERT INTO users (id, username, full_name, user_type, company_id, branch_id, pass_salt, pass_hash, active, must_change, created_at, updated_at) "
++                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)", id, un, name, type, cid, bid, b64(salt), hash(pw, salt), active, now, now);
+         } else {
+-            db.update("UPDATE users SET username = ?, full_name = ?, user_type = ?, company_id = ?, active = ?, updated_at = ? WHERE id = ?",
+-                    un, name, type, cid, active, now, id);
++            boolean roleChanged = !type.equals(str(u.get("user_type"))) || !java.util.Objects.equals(cid, nz(u.get("company_id")))
++                    || !java.util.Objects.equals(bid, nz(u.get("branch_id")));
++            db.update("UPDATE users SET username = ?, full_name = ?, user_type = ?, company_id = ?, branch_id = ?, active = ?, updated_at = ? WHERE id = ?",
++                    un, name, type, cid, bid, active, now, id);
++            if (!self && roleChanged) db.update("DELETE FROM auth_tokens WHERE user_id = ?", id);   // new rights from the next login
+             if (!pw.isEmpty()) {
+                 byte[] salt = bytes(16);
+                 db.update("UPDATE users SET pass_salt = ?, pass_hash = ?, must_change = 0 WHERE id = ?", b64(salt), hash(pw, salt), id);
+@@ -820,6 +1116,7 @@ public class BillingService {
+         p.put("name", str(u.get("full_name")));
+         p.put("type", str(u.get("user_type")));
+         p.put("companyId", u.get("company_id") == null ? null : str(u.get("company_id")));
++        p.put("branchId", u.get("branch_id") == null ? null : str(u.get("branch_id")));
+         p.put("active", bool(u.get("active")));
+         p.put("created", iso(ldt(u.get("created_at"))));
+         return p;
+diff --git a/src/main/java/com/bhai/billing/web/ApiController.java b/src/main/java/com/bhai/billing/web/ApiController.java
+index 9f713e2..b0f1ab5 100644
+--- a/src/main/java/com/bhai/billing/web/ApiController.java
++++ b/src/main/java/com/bhai/billing/web/ApiController.java
+@@ -68,7 +68,18 @@ public class ApiController {
+     /** Sales report / statistics of the session company. ?date=yyyy-MM-dd (default today) */
+     @GetMapping("/report")
+     public ResponseEntity<Object> report(@RequestHeader(value = AUTH, required = false) String auth,
+-                                         @RequestParam(value = "date", required = false) String date) { return run(() -> svc.report(auth, date)); }
++                                         @RequestParam(value = "date", required = false) String date,
++                                         @RequestParam(value = "branch", required = false) String branch) { return run(() -> svc.report(auth, date, branch)); }
++
++    /** Stock of a branch (stock users: own branch, admin: ?branch=) */
++    @GetMapping("/stock")
++    public ResponseEntity<Object> stock(@RequestHeader(value = AUTH, required = false) String auth,
++                                        @RequestParam(value = "branch", required = false) String branch) { return run(() -> svc.stock(auth, branch)); }
++
++    /** {item, size, qty} = set, {item, size, add} = add / subtract; negative allowed */
++    @PutMapping("/stock")
++    public ResponseEntity<Object> setStock(@RequestHeader(value = AUTH, required = false) String auth,
++                                           @RequestBody(required = false) Map<String, Object> body) { return run(() -> svc.setStock(auth, nn(body))); }
+ 
+     // ---- admin
+     /** Today / selected day / month sales of all companies. ?date=yyyy-MM-dd (default today) */
+@@ -76,6 +87,14 @@ public class ApiController {
+     public ResponseEntity<Object> adminSales(@RequestHeader(value = AUTH, required = false) String auth,
+                                              @RequestParam(value = "date", required = false) String date) { return run(() -> svc.adminSales(auth, date)); }
+ 
++    @PostMapping("/admin/branch")
++    public ResponseEntity<Object> saveBranch(@RequestHeader(value = AUTH, required = false) String auth,
++                                             @RequestBody(required = false) Map<String, Object> body) { return run(() -> svc.saveBranch(auth, nn(body))); }
++
++    @DeleteMapping("/admin/branch/{companyId}/{id}")
++    public ResponseEntity<Object> deleteBranch(@RequestHeader(value = AUTH, required = false) String auth,
++                                               @PathVariable("companyId") String companyId, @PathVariable("id") String id) { return run(() -> svc.deleteBranch(auth, companyId, id)); }
++
+     @GetMapping("/admin/overview")
+     public ResponseEntity<Object> overview(@RequestHeader(value = AUTH, required = false) String auth) { return run(() -> svc.overview(auth)); }
+ 
+diff --git a/src/main/resources/db/schema.sql b/src/main/resources/db/schema.sql
+index 09e3690..e9cae9a 100644
+--- a/src/main/resources/db/schema.sql
++++ b/src/main/resources/db/schema.sql
+@@ -41,14 +41,29 @@ CREATE TABLE IF NOT EXISTS companies (
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ 
+ -- ---------------------------------------------------------------------
+--- users : admin (no company) or customer (exactly one company)
++-- branches : shops / outlets of a company (every company has at least one, "Main")
++-- ---------------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS branches (
++  company_id   VARCHAR(20)  NOT NULL,
++  id           VARCHAR(20)  NOT NULL,
++  name         VARCHAR(40)  NOT NULL,
++  sort_order   INT          NOT NULL DEFAULT 0,
++  created_at   DATETIME     NOT NULL,
++  PRIMARY KEY (company_id, id),
++  CONSTRAINT fk_branches_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
++
++-- ---------------------------------------------------------------------
++-- users : admin (no company) | owner (company reports only) | sales (billing, one branch)
++--         | stock (sales + stock maintenance, one branch)
+ -- ---------------------------------------------------------------------
+ CREATE TABLE IF NOT EXISTS users (
+   id           VARCHAR(20)  NOT NULL,
+   username     VARCHAR(30)  NOT NULL,
+   full_name    VARCHAR(60)  NOT NULL,
+-  user_type    ENUM('admin','customer') NOT NULL,
++  user_type    ENUM('admin','owner','sales','stock') NOT NULL,
+   company_id   VARCHAR(20)  NULL,
++  branch_id    VARCHAR(20)  NULL,
+   pass_salt    VARCHAR(44)  NOT NULL,
+   pass_hash    VARCHAR(64)  NOT NULL,
+   active       TINYINT(1)   NOT NULL DEFAULT 1,
+@@ -59,7 +74,7 @@ CREATE TABLE IF NOT EXISTS users (
+   UNIQUE KEY uk_users_username (username),
+   KEY idx_users_company (company_id),
+   CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES companies (id),
+-  CONSTRAINT chk_users_company CHECK ((user_type = 'admin' AND company_id IS NULL) OR (user_type = 'customer' AND company_id IS NOT NULL))
++  CONSTRAINT chk_users_company CHECK ((user_type = 'admin' AND company_id IS NULL) OR (user_type <> 'admin' AND company_id IS NOT NULL))
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ 
+ -- ---------------------------------------------------------------------
+@@ -133,6 +148,7 @@ CREATE TABLE IF NOT EXISTS item_sizes (
+ CREATE TABLE IF NOT EXISTS bills (
+   id               BIGINT         NOT NULL AUTO_INCREMENT,
+   company_id       VARCHAR(20)    NOT NULL,
++  branch_id        VARCHAR(20)    NULL,
+   bill_seq         BIGINT         NOT NULL,
+   bill_no          VARCHAR(20)    NOT NULL,
+   created_at       DATETIME       NOT NULL,
+@@ -146,6 +162,7 @@ CREATE TABLE IF NOT EXISTS bills (
+   UNIQUE KEY uk_bills_company_id  (company_id, id),
+   UNIQUE KEY uk_bills_company_seq (company_id, bill_seq),
+   KEY idx_bills_company_date (company_id, created_at),
++  KEY idx_bills_branch_date (company_id, branch_id, created_at),
+   CONSTRAINT fk_bills_company FOREIGN KEY (company_id) REFERENCES companies (id)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+ 
+@@ -156,6 +173,7 @@ CREATE TABLE IF NOT EXISTS bill_lines (
+   company_id     VARCHAR(20)    NOT NULL,
+   bill_id        BIGINT         NOT NULL,
+   line_no        INT            NOT NULL,
++  item_id        VARCHAR(40)    NULL,
+   item_name      VARCHAR(60)    NOT NULL,
+   item_name_en   VARCHAR(60)    NOT NULL DEFAULT '',
+   size_label     VARCHAR(12)    NOT NULL DEFAULT '',
+@@ -167,3 +185,20 @@ CREATE TABLE IF NOT EXISTS bill_lines (
+   CONSTRAINT fk_lines_bill FOREIGN KEY (company_id, bill_id) REFERENCES bills (company_id, id) ON DELETE CASCADE,
+   CONSTRAINT chk_lines_qty CHECK (qty BETWEEN 1 AND 999)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
++
++-- ---------------------------------------------------------------------
++-- stock : pieces in hand per branch, item and size. Bills reduce it,
++--   stock users set / adjust it. Negative values are allowed.
++--   No FK to item_sizes on purpose: the catalog is re-written on every save.
++-- ---------------------------------------------------------------------
++CREATE TABLE IF NOT EXISTS stock (
++  company_id   VARCHAR(20)  NOT NULL,
++  branch_id    VARCHAR(20)  NOT NULL,
++  item_id      VARCHAR(40)  COLLATE utf8mb4_bin NOT NULL,
++  size_label   VARCHAR(12)  COLLATE utf8mb4_bin NOT NULL,
++  qty          INT          NOT NULL DEFAULT 0,
++  updated_at   DATETIME     NOT NULL,
++  updated_by   VARCHAR(60)  NOT NULL DEFAULT '',
++  PRIMARY KEY (company_id, branch_id, item_id, size_label),
++  CONSTRAINT fk_stock_branch FOREIGN KEY (company_id, branch_id) REFERENCES branches (company_id, id) ON DELETE CASCADE
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+diff --git a/src/main/resources/static/index.html b/src/main/resources/static/index.html
+index 359ea21..6e16e9b 100644
+--- a/src/main/resources/static/index.html
++++ b/src/main/resources/static/index.html
+@@ -381,6 +381,53 @@ footer .pw-by b{color:var(--leaf)}
+ .sc-btns #scTorch.on{background:var(--gold)}
+ .sc-btns #scDone{background:var(--wa);color:#fff}
+ .sc-btns #scTorch[hidden]+#scDone{grid-column:1/-1}
++
++/* ---- roles / branches / stock ---- */
++.tag.t-owner{background:#e7e3ff;color:#3b2a8f}
++.tag.t-stock{background:#ffe7d2;color:#8a3d00}
++.tag.t-sales{background:var(--leaf-l);color:var(--leaf-d)}
++.brchip{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--leaf-l);color:var(--leaf-d);font-weight:800;font-size:13px;border-radius:20px;padding:6px 12px}
++.rp-br{margin-top:8px}
++.rp-br select{width:100%;height:44px;border-radius:12px;border:1.5px solid var(--line);background:#fff;padding:0 10px;font-size:15px;font-weight:700}
++.rp-tbl{width:100%;border-collapse:collapse;font-size:13px}
++.rp-tbl th{font-size:11px;color:var(--muted);font-weight:700;text-align:right;padding:4px 4px 6px}
++.rp-tbl th:first-child,.rp-tbl td:first-child{text-align:left}
++.rp-tbl td{padding:8px 4px;border-top:1px solid var(--line);text-align:right;font-weight:700;vertical-align:top}
++.rp-tbl td small{display:block;font-size:11px;color:var(--muted);font-weight:600}
++.rp-tbl tr.tap{cursor:pointer}
++.rp-tbl .rp-bar{height:6px;border-radius:4px;background:var(--leaf-l);margin-top:5px;overflow:hidden}
++.rp-tbl .rp-bar i{display:block;height:100%;background:var(--leaf)}
++.st-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
++.st-sum div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}
++.st-sum b{display:block;font-family:var(--head);font-size:20px;color:var(--leaf-d)}
++.st-sum small{font-size:11px;color:var(--muted);font-weight:700}
++.st-sum .neg b{color:var(--bad)}
++.st-tools{display:grid;grid-template-columns:1fr 48px;gap:8px;margin-top:10px}
++.st-tools input{height:46px;border-radius:12px;border:1.5px solid var(--line);padding:0 12px;font-size:15px;background:#fff}
++.st-tools button{height:46px;border-radius:12px;background:var(--leaf);color:#fff;font-size:18px}
++.st-flt{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
++.st-flt button{height:34px;padding:0 12px;border-radius:17px;border:1.5px solid var(--line);background:#fff;font-size:12.5px;font-weight:800}
++.st-flt button.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
++.st-g{font-family:var(--head);font-size:16px;font-weight:800;margin:16px 0 6px}
++.st-it{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:8px}
++.st-it b{font-size:14.5px;display:block}
++.st-it small{font-size:11.5px;color:var(--muted);font-weight:600}
++.st-sz{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
++.st-sz button{min-width:64px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);padding:5px 8px;text-align:center;line-height:1.15}
++.st-sz button span{display:block;font-size:11px;color:var(--muted);font-weight:700}
++.st-sz button b{font-family:var(--head);font-size:17px;color:var(--leaf-d)}
++.st-sz button.neg{border-color:var(--bad);background:#fdecea}.st-sz button.neg b{color:var(--bad)}
++.st-sz button.zero b{color:var(--muted)}
++.st-big{font-family:var(--head);font-size:44px;font-weight:800;text-align:center;color:var(--leaf-d);line-height:1.1}
++.st-big.neg{color:var(--bad)}
++.st-in{display:grid;grid-template-columns:52px 1fr;gap:8px;margin-top:10px}
++.st-in button{height:56px;border-radius:14px;background:var(--leaf-l);color:var(--leaf-d);font-size:22px;font-weight:800;border:1.5px solid var(--leaf)}
++.st-in input{min-width:0;width:100%;height:56px;border-radius:14px;border:1.5px solid var(--line);font-size:26px;font-weight:800;text-align:center;font-family:var(--head)}
++.st-q{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
++.st-q button{height:42px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:800}
++.brl{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
++.brl input{width:100%;height:42px;border-radius:10px;border:1.5px solid var(--line);padding:0 10px;font-size:15px;font-weight:700;min-width:0}
++.brl small{grid-column:1/-1;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:-2px}
+ </style>
+ </head>
+ <body>
+@@ -516,7 +563,12 @@ let cart={}, sel={}, customs={};
+ let customQty=1, customFrom="home", customCat=null, cameFromHome=false;
+ 
+ const isAdmin = () => !!(me && me.type==="admin");
+-const canEdit = () => !!(me && company);     // admin (inside an opened company) and customer users can manage groups / items
++const isOwner = () => !!(me && me.type==="owner");   // reports only
++const isStock = () => !!(me && me.type==="stock");   // sales + stock
++const canEdit = () => !!(me && company && !isOwner());     // admin (inside an opened company), sales and stock users manage groups / items
++const canStock = () => !!(me && company && (isAdmin()||isStock()));
++const TYPE_LABEL = {admin:"⚙ Admin", owner:"👑 Owner", sales:"🧾 Sales", stock:"📦 Stock"};
++let myBranch="";
+ 
+ function buildCatalog(){
+   CATS=(catalog.cats||[]).map(c=>[c.id,c.ta,c.en||"",c.emoji||"🛍️",c.color||"#e8eef0"]);
+@@ -585,8 +637,9 @@ function view(){
+   const h=location.hash.slice(1);
+   if(h==="admin" && isAdmin()) return "admin";
+   if(!company) return isAdmin() ? "admin" : "nocompany";
+-  if(h==="report") return "report";
++  if(isOwner() || h==="report") return "report";
+   if(!catalog.setup) return "setup";
++  if(h==="stock" && canStock()) return "stock";
+   if(catById[h]) return "cat";
+   return "home";
+ }
+@@ -609,7 +662,8 @@ function renderBar(){
+   let left;
+   if(c) left=`<button class="back" id="back" aria-label="Back">←</button><div><h1>${esc(c[1])}</h1><small>${esc(c[2])}</small></div>`;
+   else if(v==="admin") left=`${company?`<button class="back" id="toHome" aria-label="Back to billing">←</button>`:`<div class="mark" aria-hidden="true">⚙</div>`}<div><span class="appline">${esc(APP_NAME)}</span><h1 class="co">Admin Panel</h1></div>`;
+-  else if(v==="report") left=`<button class="back" id="toHome" aria-label="Back">←</button><div><span class="appline">${esc(company.name)}</span><h1 class="co">📊 விற்பனை அறிக்கை</h1></div>`;
++  else if(v==="report") left=`${isOwner()?`<div class="mark" aria-hidden="true">📊</div>`:`<button class="back" id="toHome" aria-label="Back">←</button>`}<div><span class="appline">${esc(company.name)}${myBranch?" · "+esc(myBranch):""}</span><h1 class="co">விற்பனை அறிக்கை</h1></div>`;
++  else if(v==="stock") left=`<button class="back" id="toHome" aria-label="Back">←</button><div><span class="appline">${esc(company.name)}</span><h1 class="co">📦 ஸ்டாக் (Stock)</h1></div>`;
+   else left=`<div class="mark" aria-hidden="true">${esc(coMark())}</div><div><span class="appline">${esc(APP_NAME)}</span><h1 class="co">${esc(company?company.name:APP_NAME)}</h1></div>`;
+   $("#bar").innerHTML = left + (me?`<button class="out" id="menuBtn" aria-label="Menu"><span aria-hidden="true">☰</span><em>${esc(me.user)}</em></button>`:"");
+   $("#findBox").hidden = !(v==="home"||v==="cat");
+@@ -618,7 +672,7 @@ function renderBar(){
+ function heroHtml(){
+   return `<section class="hero">${company.bismillah!==false?`<div class="bis">${esc(BISMILLAH)}</div>`:""}<h2>${esc(company.name)}</h2>
+     ${company.tagline?`<p>${esc(company.tagline)}</p>`:""}<span class="pill">${esc(APP_NAME)}</span><br>
+-    <span class="owner">👤 ${esc(me.name)} · ${esc(me.user)}${isAdmin()?" · Admin":""}</span></section>`;
++    <span class="owner">👤 ${esc(me.name)} · ${esc(me.user)}${isAdmin()?" · Admin":""}${myBranch?" · 🏬 "+esc(myBranch):""}</span></section>`;
+ }
+ const pwWarn = () => defaultPw ? `<div class="warnbox">⚠️ Default password பயன்படுத்துகிறீர்கள். உடனே மாற்றவும்<button id="chgPw">மாற்று</button></div>` : "";
+ function ctl(id){
+@@ -647,6 +701,7 @@ function renderView(){
+   if(v==="none") html="";
+   else if(v==="admin") html=renderAdmin();
+   else if(v==="report") html=renderReport();
++  else if(v==="stock") html=renderStock();
+   else if(v==="nocompany") html=`<div class="none"><b>🏬</b>உங்கள் கணக்கில் கம்பெனி இணைக்கப்படவில்லை.<br>Admin-ஐ தொடர்பு கொள்ளவும்.</div>`;
+   else if(v==="setup"){
+     html = heroHtml()+pwWarn()+`<h2 class="h2">தொடங்குவோம் 👋</h2>
+@@ -675,6 +730,7 @@ function renderView(){
+       <button class="admin" id="scanHome"><span class="pl" aria-hidden="true">📷</span><div><b>Barcode Scan செய்து பில் போடு</b><small>Mobile camera அல்லது USB / Bluetooth scanner · ஒவ்வொரு scan-உம் பில்லில் சேரும்</small></div></button>
+       ${manualBtn("பட்டியலில் இல்லாத பொருளை பெயர், சைஸ், ரேட் கொடுத்து சேர்க்கவும்")}
+       <button class="admin" id="billHist"><span class="pl" aria-hidden="true">🧾</span><div><b>பில் வரலாறு (Bills)</b><small>இந்த கம்பெனியின் பில்கள், இன்றைய விற்பனை, மீண்டும் WhatsApp</small></div></button>
++      ${canStock()?`<button class="admin" id="openStock"><span class="pl" aria-hidden="true">📦</span><div><b>ஸ்டாக் (Stock)</b><small>ஐட்டம் / சைஸ் வாரியாக கையிருப்பு · மாற்றலாம் · பில் போட்டால் தானாக குறையும்</small></div></button>`:""}
+       <button class="admin" id="openReport"><span class="pl" aria-hidden="true">📊</span><div><b>விற்பனை அறிக்கை (Sales Report)</b><small>இன்றைய / தேதி வாரியான / மாத விற்பனை, அதிகம் விற்ற பொருட்கள்</small></div></button>
+       <h2 class="h2">என்ன வேண்டும்?</h2>
+       ${CATS.length?"":`<p class="hint" style="margin:-4px 0 10px">முதலில் ஒரு குரூப் உருவாக்கவும் (எ.கா. சேலை, நைட்டி)</p>`}
+@@ -770,7 +826,8 @@ async function sendBill(){
+   let bill;
+   try{
+     bill=(await api("bills","POST",{customer:$("#iName").value.trim(),phone:ph,
+-      lines:L.map(l=>({name:l.it.ta,en:l.it.en||"",size:l.size||"",qty:l.qty,rate:l.rate}))})).bill;
++      lines:L.map(l=>({id:l.it.custom?undefined:l.it.id,name:l.it.ta,en:l.it.en||"",size:l.size||"",qty:l.qty,rate:l.rate}))})).bill;
++    stockData=null;   // bill reduced the stock
+   }catch(e){ apiErr(e); if(btn.isConnected) btn.disabled=false; return; }
+   finally{ busy(false); }
+   cart={}; customs={}; save(); renderAll();
+@@ -786,7 +843,7 @@ async function sendBill(){
+   try{ window.open(url,"_blank","noopener"); }catch(e){}
+ }
+ let billCache=[];
+-let repData=null, repDate=null, repCo=null, repTop="month", repLoading=false;
++let repData=null, repDate=null, repCo=null, repTop="month", repLoading=false, repBranch="";
+ async function openBills(){
+   $("#sheetBody").innerHTML=`<h2>பில் வரலாறு</h2><p class="sub">${esc(company.name)}</p><div class="box"><p class="sub">ஏற்றுகிறது…</p></div>`; showSheet();
+   try{
+@@ -1046,8 +1103,11 @@ async function setupCompany(mode){
+ /* ================= MENU / ACCOUNT ================= */
+ function openMenu(){
+   $("#sheetBody").innerHTML=`<h2>${esc(me.name)}</h2>
+-    <p class="sub">@${esc(me.user)} · ${isAdmin()?"⚙ Admin":"🏬 Customer"}${company?" · "+esc(company.name):""}</p>
+-    ${company?`<button class="mrow" id="mBills">🧾 பில் வரலாறு (Bills)</button><button class="mrow" id="mReport">📊 விற்பனை அறிக்கை (Report)</button><button class="mrow" id="mCompany">🏬 கம்பெனி விவரம் (Company)</button>`:""}
++    <p class="sub">@${esc(me.user)} · ${TYPE_LABEL[me.type]||esc(me.type)}${company?" · "+esc(company.name):""}${myBranch?" · 🏬 "+esc(myBranch):""}</p>
++    ${company&&!isOwner()?`<button class="mrow" id="mBills">🧾 பில் வரலாறு (Bills)</button>`:""}
++    ${company?`<button class="mrow" id="mReport">📊 விற்பனை அறிக்கை (Report)</button>`:""}
++    ${canStock()&&catalog.setup?`<button class="mrow" id="mStock">📦 ஸ்டாக் (Stock)</button>`:""}
++    ${company?`<button class="mrow" id="mCompany">🏬 கம்பெனி விவரம் (Company)</button>`:""}
+     ${isAdmin()?`<button class="mrow" id="mAdmin">⚙ Admin Panel — Users / Companies</button>`:""}
+     <button class="mrow" id="mPw">🔑 கடவுச்சொல் மாற்று (Password)</button>
+     <button class="mrow warnr" id="mLogout">⏻ வெளியேறு (Logout)</button>`;
+@@ -1093,12 +1153,12 @@ function renderAdmin(){
+     ${cs.length?`<div class="list">${cs.map(c=>`<article class="acard">
+         <div class="r1"><div><b>${esc(c.name)}</b><small>${esc([c.owner,c.city].filter(Boolean).join(" · ")||c.tagline||"")}</small></div>${company&&company.id===c.id?`<span class="tag on">திறந்துள்ளது</span>`:""}</div>
+         <div class="meta">📞 ${esc(c.phone||"-")}${c.gstin?` · GST ${esc(c.gstin)}`:""}<br>👤 ${c.userCount} users · 🗂 ${c.groupCount} குரூப் · 👗 ${c.itemCount} ஐட்டம் · 🧾 ${c.billCount} பில்</div>
+-        <div class="acts"><button class="mini" data-opencomp="${esc(c.id)}">🧾 Billing திற</button><button class="mini" data-editcomp="${esc(c.id)}">✏️ விவரம்</button><button class="mini" data-adduserfor="${esc(c.id)}">👤 User சேர்</button></div>
++        <div class="acts"><button class="mini" data-opencomp="${esc(c.id)}">🧾 Billing திற</button><button class="mini" data-editcomp="${esc(c.id)}">✏️ விவரம்</button><button class="mini" data-adduserfor="${esc(c.id)}">👤 User சேர்</button><button class="mini" data-branches="${esc(c.id)}">🏬 கிளைகள் · ${(c.branches||[]).length}</button></div>
+       </article>`).join("")}</div>`:`<div class="none"><b>🏬</b>இன்னும் கம்பெனி இல்லை.<br>➕ புது கம்பெனி அழுத்தவும்</div>`}
+     <div class="adm-head"><h2 class="h2">பயனர்கள் · ${us.length}</h2><button class="gbtn" id="addUser">➕ புது User</button></div>
+     <div class="list">${us.map(u=>`<article class="acard ${u.active?"":"off"}">
+-        <div class="r1"><div><b>${esc(u.name)}</b><small>@${esc(u.user)}${u.id===me.id?" (நீங்கள்)":""}</small></div><span class="tag t-${u.type}">${u.type==="admin"?"⚙ Admin":"🏬 Customer"}</span></div>
+-        <div class="meta">${u.type==="customer"?`🏬 ${esc(u.companyName||"— கம்பெனி இல்லை —")}`:"எல்லா கம்பெனி, user-களையும் நிர்வகிக்கலாம்"}${u.active?"":` · <b style="display:inline;color:var(--bad);font-size:inherit">நிறுத்தப்பட்டது</b>`}</div>
++        <div class="r1"><div><b>${esc(u.name)}</b><small>@${esc(u.user)}${u.id===me.id?" (நீங்கள்)":""}</small></div><span class="tag t-${u.type}">${TYPE_LABEL[u.type]||esc(u.type)}</span></div>
++        <div class="meta">${u.type!=="admin"?`🏬 ${esc(u.companyName||"— கம்பெனி இல்லை —")}${u.branchName?" · "+esc(u.branchName):u.type==="owner"?" · எல்லா கிளைகள்":""}`:"எல்லா கம்பெனி, user-களையும் நிர்வகிக்கலாம்"}${u.active?"":` · <b style="display:inline;color:var(--bad);font-size:inherit">நிறுத்தப்பட்டது</b>`}</div>
+         <div class="acts"><button class="mini" data-edituser="${esc(u.id)}">✏️ மாற்று</button>${u.id!==me.id?`<button class="mini" data-deluser="${esc(u.id)}">🗑 நீக்கு</button>`:""}</div>
+       </article>`).join("")}</div>`;
+ }
+@@ -1158,12 +1218,14 @@ async function deleteCompany(){
+ let uForm=null;
+ function openUserForm(id,draft){
+   const u=id?adminData.users.find(x=>x.id===id):null;
+-  uForm={id:u?u.id:null, type:(draft&&draft.type)||(u?u.type:"customer")};
++  uForm={id:u?u.id:null, type:(draft&&draft.type)||(u?u.type:"sales")};
++  const bid=(draft&&draft.branchId)||(u&&u.branchId)||"";
+   const cid=(draft&&draft.companyId)||(u&&u.companyId)||"";
+   $("#sheetBody").innerHTML=`<h2>${u?"User மாற்று":"புது User சேர்க்க"}</h2><p class="sub">${u?"@"+esc(u.user):"Login விவரம் உருவாக்கி கடைக்கு அனுப்பலாம்"}</p>
+     <div class="box frm">
+-      <div class="fld">User type<div class="chips"><button type="button" data-utype="customer">🏬 Customer (கடை)</button><button type="button" data-utype="admin">⚙ Admin</button></div><p class="hint" id="uTypeHint"></p></div>
++      <div class="fld">User type<div class="chips"><button type="button" data-utype="sales">🧾 Sales</button><button type="button" data-utype="stock">📦 Stock</button><button type="button" data-utype="owner">👑 Owner</button><button type="button" data-utype="admin">⚙ Admin</button></div><p class="hint" id="uTypeHint"></p></div>
+       <label class="fld" id="fuComp">எந்த கம்பெனியை சேர்ந்தவர்? *<select id="uComp"><option value="">— தேர்வு செய்யவும் —</option>${adminData.companies.map(c=>`<option value="${esc(c.id)}"${c.id===cid?" selected":""}>${esc(c.name)}</option>`).join("")}<option value="__new">➕ புது கம்பெனி உருவாக்கு…</option></select><span class="err">கம்பெனியை தேர்வு செய்யவும்</span></label>
++      <label class="fld" id="fuBranch">எந்த கிளை? (Branch) *<select id="uBranch" data-sel="${esc(bid)}"></select><span class="err">கிளையை தேர்வு செய்யவும்</span></label>
+       <label class="fld" id="fuName">பெயர் *<input id="uName" maxlength="60" autocomplete="off" placeholder="எ.கா. அமீன்"><span class="err">பெயர் தேவை</span></label>
+       <label class="fld" id="fuUser">Username * (login-க்கு)<input id="uUser" maxlength="30" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="எ.கா. ameen"><span class="err">3-30 எழுத்து: a-z 0-9 . _ -</span></label>
+       <label class="fld" id="fuPass">${u?"புது கடவுச்சொல் (மாற்ற மட்டும்)":"கடவுச்சொல் *"}<div class="pw"><input id="uPass" maxlength="100" autocomplete="off" placeholder="குறைந்தது 6 எழுத்து"><button type="button" class="eye" id="uGen" aria-label="Generate password">🎲</button></div><span class="err">குறைந்தது 6 எழுத்து</span></label>
+@@ -1175,20 +1237,34 @@ function openUserForm(id,draft){
+   if(draft){ if(draft.name!==undefined) $("#uName").value=draft.name; if(draft.user!==undefined) $("#uUser").value=draft.user; if(draft.password) $("#uPass").value=draft.password; if($("#uActive")&&draft.active!==undefined) $("#uActive").checked=draft.active; }
+   syncUType(); showSheet();
+ }
++const U_HINT={
++  admin:"எல்லா கம்பெனி, கிளை, user-களையும் நிர்வகிக்கலாம்; எந்த கம்பெனியின் billing / stock-ஐயும் திறக்கலாம்",
++  owner:"தன் கம்பெனியின் விற்பனை அறிக்கை மட்டும் — எல்லா கிளைகள், கிளை வாரியாக, user வாரியாக. பில் போட முடியாது",
++  sales:"தன் கிளையில் பில் போடலாம்; குரூப், ஐட்டம், பில் வரலாறு, கிளையின் அறிக்கை",
++  stock:"Sales-ன் எல்லா வசதிகளும் + தன் கிளையின் ஸ்டாக் பார்க்க / மாற்ற (மைனஸ் அனுமதி)"};
+ function syncUType(){
+   document.querySelectorAll("[data-utype]").forEach(b=>b.classList.toggle("on",b.dataset.utype===uForm.type));
+-  $("#fuComp").hidden = uForm.type!=="customer";
+-  $("#uTypeHint").textContent = uForm.type==="admin" ? "எல்லா கம்பெனி, user-களையும் நிர்வகிக்கலாம்; எந்த கம்பெனியின் billing-ஐயும் திறக்கலாம்" : "தன் கம்பெனிக்கு மட்டும்: பில், குரூப், ஐட்டம், பில் வரலாறு";
+-}
+-const userDraft = () => ({id:uForm.id, type:uForm.type, companyId:$("#uComp").value, name:$("#uName").value, user:$("#uUser").value, password:$("#uPass").value, active:$("#uActive")?$("#uActive").checked:true});
++  $("#fuComp").hidden = uForm.type==="admin";
++  $("#fuBranch").hidden = !(uForm.type==="sales"||uForm.type==="stock");
++  $("#uTypeHint").textContent = U_HINT[uForm.type]||"";
++  fillUBranches();
++}
++function fillUBranches(){
++  const sel=$("#uBranch"); if(!sel) return;
++  const c=adminData.companies.find(x=>x.id===$("#uComp").value), keep=sel.value||sel.dataset.sel||"";
++  const bs=c&&c.branches||[];
++  sel.innerHTML=bs.length?bs.map(b=>`<option value="${esc(b.id)}"${b.id===keep?" selected":""}>🏬 ${esc(b.name)}</option>`).join(""):`<option value="">— கம்பெனியை முதலில் தேர்வு செய்யவும் —</option>`;
++}
++const userDraft = () => ({id:uForm.id, type:uForm.type, companyId:$("#uComp").value, branchId:$("#uBranch")?$("#uBranch").value:"", name:$("#uName").value, user:$("#uUser").value, password:$("#uPass").value, active:$("#uActive")?$("#uActive").checked:true});
+ async function saveUser(){
+   const d=userDraft(); d.user=d.user.trim().toLowerCase(); d.name=d.name.trim();
+   const okU=/^[a-z0-9._-]{3,30}$/.test(d.user), okN=!!d.name, okC=d.type==="admin"||(d.companyId&&d.companyId!=="__new"), okP=uForm.id?(!d.password||d.password.length>=6):d.password.length>=6;
+-  $("#fuUser").classList.toggle("bad",!okU); $("#fuName").classList.toggle("bad",!okN); $("#fuComp").classList.toggle("bad",!okC); $("#fuPass").classList.toggle("bad",!okP);
+-  if(!okU||!okN||!okC||!okP){ toast("விவரங்களை சரி பார்க்கவும்"); return; }
++  const okB=!(d.type==="sales"||d.type==="stock")||!!d.branchId;
++  $("#fuUser").classList.toggle("bad",!okU); $("#fuName").classList.toggle("bad",!okN); $("#fuComp").classList.toggle("bad",!okC); $("#fuPass").classList.toggle("bad",!okP); $("#fuBranch").classList.toggle("bad",!okB);
++  if(!okU||!okN||!okC||!okP||!okB){ toast("விவரங்களை சரி பார்க்கவும்"); return; }
+   busy(true);
+   try{
+-    const r=await api("admin/user","POST",{id:d.id||"",user:d.user,name:d.name,type:d.type,companyId:d.type==="customer"?d.companyId:"",password:d.password,active:d.active});
++    const r=await api("admin/user","POST",{id:d.id||"",user:d.user,name:d.name,type:d.type,companyId:d.type!=="admin"?d.companyId:"",branchId:(d.type==="sales"||d.type==="stock")?d.branchId:"",password:d.password,active:d.active});
+     uForm=null; await loadAdmin(); renderAll();
+     if(d.password) openCreds(r.user,d.password); else { closeSheet(); toast("சேமிக்கப்பட்டது: "+r.user.name); }
+   }catch(e){ apiErr(e); } finally{ busy(false); }
+@@ -1216,7 +1292,7 @@ async function openCompanyBilling(id,go){
+   try{
+     const s=await api("admin/open","POST",{companyId:id}); company=s.company;
+     await loadData(); loadCart(); cameFromHome=false; $("#q").value="";
+-    repData=null;
++    repData=null; repBranch=""; stockData=null; stockBr="";
+     const want=go?"#"+go:"";
+     if(location.hash!==want) location.hash=want; else renderAll(true);
+     toast(company.name+(go==="report"?" — அறிக்கை":" — billing திறக்கப்பட்டது"));
+@@ -1226,8 +1302,9 @@ async function openCompanyBilling(id,go){
+ /* ================= LOGIN / SESSION ================= */
+ function lerr(t){ const el=$("#lErr"); el.textContent=t; el.classList.toggle("on",!!t); }
+ async function enter(s){
+-  me=s.user; company=s.company||null; defaultPw=!!s.defaultPassword;
+-  if(company){ await loadData(); loadCart(); }
++  me=s.user; company=s.company||null; defaultPw=!!s.defaultPassword; myBranch=s.branch?s.branch.name:"";
++  repData=null; repBranch=""; stockData=null;
++  if(company && !isOwner()){ await loadData(); loadCart(); }
+   else { catalog={version:0,setup:false,cats:[],items:[]}; buildCatalog(); cart={}; customs={}; }
+   document.body.classList.add("authed");
+   if(isAdmin() && !company && location.hash!=="#admin"){ history.replaceState(null,"","#admin"); }
+@@ -1484,6 +1561,113 @@ document.addEventListener("keydown",e=>{
+   if(e.key.length===1) wedge.buf+=e.key;
+ });
+ 
++
++/* ================= STOCK ================= */
++let stockData=null, stockLoading=false, stockBr="", stockFlt="all", stockEdit=null;
++async function loadStock(){
++  if(stockLoading||!company) return;
++  stockLoading=true; busy(true);
++  try{
++    const r=await api("stock"+(stockBr?"?branch="+encodeURIComponent(stockBr):""));
++    const m={}; (r.stock||[]).forEach(x=>m[x.item+"|"+x.size]=x);
++    stockData={co:company.id, branch:r.branch, branchName:r.branchName, branches:r.branches||null, map:m};
++  }catch(e){ apiErr(e); if(!stockData) stockData={co:company.id,error:e.message,map:{}}; }
++  finally{ stockLoading=false; busy(false); }
++  if(view()==="stock") renderView();
++}
++const stQty = (id,size) => { const x=stockData&&stockData.map[id+"|"+size]; return x?x.qty:0; };
++function renderStock(){
++  if(!stockData || stockData.co!==company.id){ if(!stockLoading) setTimeout(loadStock,0); return `<div class="none"><b>⏳</b>ஸ்டாக் ஏற்றுகிறது…</div>`; }
++  if(stockData.error) return `<div class="none"><b>⚠️</b>${esc(stockData.error)}</div>`;
++  const q=($("#stq")&&$("#stq").value||"").trim().toLowerCase();
++  let pcs=0, neg=0, zero=0;
++  ITEMS.forEach(it=>it.sizes.forEach(z=>{ const v=stQty(it.id,z.size); if(v>0) pcs+=v; else if(v<0) neg++; else zero++; }));
++  const keep=(it,z)=>{ const v=stQty(it.id,z.size); return stockFlt==="neg"?v<0:stockFlt==="zero"?v===0:stockFlt==="low"?v>0&&v<=3:true; };
++  const match=it=>!q || (it.ta+" "+it.en).toLowerCase().includes(q) || it.sizes.some(z=>z.code&&z.code.toLowerCase()===q);
++  const groups=CATS.map(c=>{
++    const its=ITEMS.filter(it=>it.cat===c[0] && match(it) && it.sizes.some(z=>keep(it,z)));
++    if(!its.length) return "";
++    return `<div class="st-g">${esc(c[3]+" "+c[1])}</div>`+its.map(it=>`<div class="st-it"><b>${esc(it.ta)}</b>${it.en?`<small>${esc(it.en)}</small>`:""}
++      <div class="st-sz">${it.sizes.filter(z=>keep(it,z)).map(z=>{ const v=stQty(it.id,z.size);
++        return `<button data-stedit="${esc(it.id)}" data-stsize="${esc(z.size)}" class="${v<0?"neg":v===0?"zero":""}" aria-label="${esc(it.ta)} ${esc(z.size)} stock ${v}"><span>${esc(z.size)}</span><b>${v}</b></button>`; }).join("")}</div></div>`).join("");
++  }).join("");
++  return `
++    ${stockData.branches&&stockData.branches.length>1?`<div class="rp-br"><select id="stBranch" aria-label="Branch">${stockData.branches.map(b=>`<option value="${esc(b.id)}"${b.id===stockData.branch?" selected":""}>🏬 ${esc(b.name)}</option>`).join("")}</select></div>`
++      :`<span class="brchip">🏬 கிளை: ${esc(stockData.branchName||"-")}</span>`}
++    <div class="st-sum"><div><b>${pcs}</b><small>கையிருப்பு பீஸ்</small></div><div class="neg"><b>${neg}</b><small>மைனஸ் (−)</small></div><div><b>${zero}</b><small>இல்லை (0)</small></div></div>
++    <div class="st-tools"><input id="stq" type="search" placeholder="ஐட்டம் தேடு / barcode" value="${esc(q)}" autocomplete="off" aria-label="Search stock"><button id="stScan" aria-label="Scan barcode">📷</button></div>
++    <div class="st-flt">${[["all","எல்லாம்"],["neg","மைனஸ்"],["zero","0 ஸ்டாக்"],["low","குறைவு (1-3)"]].map(f=>`<button data-stflt="${f[0]}" class="${stockFlt===f[0]?"on":""}">${f[1]}</button>`).join("")}</div>
++    <p class="hint">சைஸை தொட்டு ஸ்டாக் மாற்றலாம் · பில் போட்டால் தானாக குறையும் · மைனஸ் அனுமதி உண்டு</p>
++    ${groups||`<div class="none"><b>📦</b>${q||stockFlt!=="all"?"பொருந்தும் ஐட்டம் இல்லை":"இன்னும் ஐட்டம் இல்லை"}</div>`}`;
++}
++function openStockEdit(id,size){
++  const it=byId[id]; if(!it) return;
++  const cur=stQty(id,size), x=stockData.map[id+"|"+size];
++  stockEdit={id,size,mode:"set"};
++  $("#sheetBody").innerHTML=`<h2>${esc(it.ta)}</h2><p class="sub">சைஸ் ${esc(size)} · 🏬 ${esc(stockData.branchName||"")}</p>
++    <div class="box"><p class="sub" style="text-align:center">இப்போதைய ஸ்டாக்</p><div class="st-big ${cur<0?"neg":""}">${cur}</div>
++      ${x&&x.by?`<p class="hint" style="text-align:center">கடைசி மாற்றம்: ${esc(x.by)} · ${esc(fmtDate(x.at))}</p>`:""}</div>
++    <div class="box frm">
++      <div class="chips"><button type="button" data-stmode="set" class="on">✏️ புது மதிப்பு (Set)</button><button type="button" data-stmode="add">➕➖ வரவு / குறைப்பு</button></div>
++      <p class="hint" id="stHint">புதிய மொத்த ஸ்டாக் எண்ணை உள்ளிடவும் (மைனஸ் அனுமதி)</p>
++      <div class="st-in"><button type="button" id="stSign" aria-label="Plus or minus">±</button><input id="stVal" inputmode="numeric" autocomplete="off" value="${cur}" aria-label="Stock value"></div>
++      <div class="st-q">${[-10,-1,1,10].map(n=>`<button type="button" data-stq="${n}">${n>0?"+":"−"}${Math.abs(n)}</button>`).join("")}</div>
++      <p class="hint" id="stPrev"></p>
++    </div>
++    <button class="cta leaf" id="stSave">சேமி (Save)</button>
++    <button class="cta ghost" data-close>ரத்து (Cancel)</button>`;
++  stPreview(); showSheet();
++  setTimeout(()=>{ const i=$("#stVal"); if(i){ i.focus(); i.select(); } },250);
++}
++function stNum(){ const t=String($("#stVal").value).trim().replace(/[^\d-]/g,""); if(!/^-?\d+$/.test(t)) return NaN; return parseInt(t,10); }
++function stPreview(){
++  if(!stockEdit) return; const v=stNum(), cur=stQty(stockEdit.id,stockEdit.size), el=$("#stPrev");
++  if(!isFinite(v)){ el.textContent="முழு எண் உள்ளிடவும் (எ.கா. 12 அல்லது -3)"; return; }
++  const nv=stockEdit.mode==="set"?v:cur+v;
++  el.innerHTML=`${cur} → <b style="color:${nv<0?"var(--bad)":"var(--leaf-d)"}">${nv}</b>${nv<0?" (மைனஸ்)":""}`;
++}
++async function saveStockEdit(){
++  const e=stockEdit; if(!e) return; const v=stNum();
++  if(!isFinite(v)||Math.abs(v)>999999){ toast("சரியான முழு எண் உள்ளிடவும்"); return; }
++  const body={item:e.id,size:e.size}; if(e.mode==="set") body.qty=v; else body.add=v;
++  if(stockData.branches) body.branch=stockData.branch;
++  busy(true);
++  try{
++    const r=await api("stock","PUT",body); stockData.map[e.id+"|"+e.size]=r.stock;
++    closeSheet(); renderView(); toast(`சேமிக்கப்பட்டது: ${byId[e.id].ta} (${e.size}) = ${r.stock.qty}`);
++    stockEdit=null;
++  }catch(x){ apiErr(x); } finally{ busy(false); }
++}
++function stockScan(){
++  openScanner({title:"📦 ஸ்டாக் — Barcode Scan", hint:"Scan செய்த ஐட்டத்தின் ஸ்டாக் திறக்கும்", onCode:code=>{
++    const h=byCode[code];
++    if(!h){ beep(false); toast("இந்த barcode பட்டியலில் இல்லை: "+code); return true; }
++    beep(true); closeScanner(true); openStockEdit(h.id,h.size); return false;
++  }});
++}
++
++
++/* ================= BRANCHES (admin) ================= */
++let brCo=null;
++function openBranches(cid){
++  brCo=cid; const c=adminData.companies.find(x=>x.id===cid); if(!c) return;
++  const bs=c.branches||[];
++  $("#sheetBody").innerHTML=`<h2>கிளைகள் (Branches)</h2><p class="sub">${esc(c.name)} · பில்களும் ஸ்டாக்கும் கிளை வாரியாக</p>
++    <div class="box">${bs.map(b=>`<div class="brl"><input id="brn_${esc(b.id)}" value="${esc(b.name)}" maxlength="40" aria-label="Branch name">
++        <button class="mini" data-brsave="${esc(b.id)}">💾</button>${bs.length>1?`<button class="mini" data-brdel="${esc(b.id)}" aria-label="Delete branch">🗑</button>`:"<span></span>"}
++        <small>👤 ${b.userCount} users</small></div>`).join("")}</div>
++    <div class="box frm"><label class="fld" id="fBrNew">புது கிளை பெயர்<input id="brNew" maxlength="40" autocomplete="off" placeholder="எ.கா. திருச்சி / T.Nagar"><span class="err">பெயர் தேவை</span></label></div>
++    <button class="cta leaf" id="brAdd">➕ கிளையை சேர்</button>
++    <p class="hint">பில்கள் உள்ள கிளையை நீக்க முடியாது (அறிக்கைக்காக) — பெயரை மாற்றலாம்</p>
++    <button class="cta ghost" data-close>மூடு (Close)</button>`;
++  showSheet();
++}
++async function branchApi(fn,msg){
++  busy(true);
++  try{ await fn(); await loadAdmin(); openBranches(brCo); if(msg) toast(msg); }
++  catch(e){ apiErr(e); } finally{ busy(false); }
++}
++
+ /* ================= SALES REPORT ================= */
+ const TA_MONTHS=["ஜனவரி","பிப்ரவரி","மார்ச்","ஏப்ரல்","மே","ஜூன்","ஜூலை","ஆகஸ்ட்","செப்டம்பர்","அக்டோபர்","நவம்பர்","டிசம்பர்"];
+ const TA_DAYS=["ஞாயிறு","திங்கள்","செவ்வாய்","புதன்","வியாழன்","வெள்ளி","சனி"];
+@@ -1505,7 +1689,8 @@ async function loadReport(date){
+   if(repLoading) return;
+   repLoading=true; busy(true);
+   try{
+-    repData=await api("report"+(date?"?date="+encodeURIComponent(date):""));
++    const q=[]; if(date) q.push("date="+encodeURIComponent(date)); if(repBranch) q.push("branch="+encodeURIComponent(repBranch));
++    repData=await api("report"+(q.length?"?"+q.join("&"):""));
+     repDate=repData.date; repCo=company.id; billCache=repData.bills||[];
+     if(view()==="report") renderView();
+   }catch(e){ apiErr(e); if(!repData) { repData={error:e.message}; if(view()==="report") renderView(); } }
+@@ -1548,6 +1733,8 @@ function renderReport(){
+     <button class="nav" data-rnav="1" aria-label="Next day" ${isToday?"disabled":""}>›</button>
+     ${isToday?"":`<button class="chip" id="rToday">இன்று</button>`}
+   </div>
++  ${r.scope&&r.scope.canFilter&&r.branches&&r.branches.length>1?`<div class="rp-br"><select id="rBranch" aria-label="Branch"><option value="">🏬 எல்லா கிளைகளும் (All branches)</option>${r.branches.map(b=>`<option value="${esc(b.id)}"${b.id===r.scope.branch?" selected":""}>🏬 ${esc(b.name)}</option>`).join("")}</select></div>`
++    : r.scope&&r.scope.branchName&&r.scope.branchCount>1?`<span class="brchip">🏬 கிளை: ${esc(r.scope.branchName)}</span>`:""}
+ 
+   <section class="rp-hero">
+     <div class="l">இன்றைய விற்பனை · ${dLabel(r.today)}</div>
+@@ -1583,7 +1770,8 @@ function renderReport(){
+     ${hbars(top,"amt",x=>inr0(x.amt)+" · "+x.qty+" pcs",x=>esc(x.name))}</div>
+ 
+   ${r.sizesMonth&&r.sizesMonth.length?`<div class="rp-card"><h3>சைஸ் வாரியாக <small>${mLabel(r.month)}</small></h3>${hbars(r.sizesMonth,"qty",x=>x.qty+" pcs",x=>esc(x.name))}</div>`:""}
+-  ${r.staffMonth&&r.staffMonth.length>1?`<div class="rp-card"><h3>பில் போட்டவர் வாரியாக <small>${mLabel(r.month)}</small></h3>${hbars(r.staffMonth,"amt",x=>inr0(x.amt)+" · "+x.qty+" பில்",x=>"👤 "+esc(x.name||"-"))}</div>`:""}
++  ${branchSalesHtml(r)}
++  ${userSalesHtml(r)}
+   <div class="rp-grid">
+     <div class="rp-k"><div class="l">தனி வாடிக்கையாளர்கள்</div><div class="v">${cu.unique||0}</div><div class="s">மொபைல் எண் அடிப்படையில்</div></div>
+     <div class="rp-k"><div class="l">WhatsApp பில்</div><div class="v">${cu.bills?Math.round((cu.withPhone||0)*100/cu.bills):0}%</div><div class="s">${cu.withPhone||0} / ${cu.bills||0} பில்கள்</div></div>
+@@ -1601,14 +1789,37 @@ function renderReport(){
+     ${r.billsTruncated?`<p class="hint">முதல் ${r.bills.length} பில்கள் மட்டும் காட்டப்படுகிறது</p>`:""}</div>`;
+ }
+ 
++
++function branchSalesHtml(r){
++  const bs=r.branchSales; if(!bs||bs.length<2) return "";
++  const max=Math.max(1,...bs.map(b=>b.monthTotal)), sel=r.date===r.today?"இன்று":dShort(r.date);
++  return `<div class="rp-card"><h3>🏬 கிளை வாரியாக விற்பனை <small>கிளையை தொட்டால் அதன் அறிக்கை</small></h3>
++    <table class="rp-tbl"><thead><tr><th>கிளை</th><th>${esc(sel)}</th><th>${esc(mLabel(r.month))}</th></tr></thead><tbody>
++    ${bs.map(b=>`<tr class="tap" data-rbranch="${esc(b.id)}"><td>${esc(b.name)}<div class="rp-bar"><i style="width:${(b.monthTotal*100/max).toFixed(1)}%"></i></div></td>
++      <td>${inr0(b.dayTotal)}<small>${b.dayCount} பில்</small></td><td>${inr0(b.monthTotal)}<small>${b.monthCount} பில் · ${M_share(b.monthTotal,r.monthSales.total)}</small></td></tr>`).join("")}
++    </tbody></table></div>`;
++}
++const M_share=(v,t)=>t>0?Math.round(v*100/t)+"%":"0%";
++function userSalesHtml(r){
++  const us=r.userSales; if(!us||!us.length) return "";
++  const sel=r.date===r.today?"இன்று":dShort(r.date), multi=r.scope&&r.scope.branchCount>1&&!r.scope.branch;
++  return `<div class="rp-card"><h3>👤 User வாரியாக பில்கள்</h3>
++    <table class="rp-tbl"><thead><tr><th>User</th><th>${esc(sel)}</th><th>${esc(mLabel(r.month))}</th></tr></thead><tbody>
++    ${us.map(u=>`<tr><td>${esc(u.name)}<small>@${esc(u.user)}${multi&&u.branch?" · 🏬 "+esc(u.branch):""}</small></td>
++      <td>${u.dayCount} பில்<small>${inr0(u.dayTotal)}</small></td><td>${u.monthCount} பில்<small>${inr0(u.monthTotal)} · ${u.monthPieces} pcs</small></td></tr>`).join("")}
++    </tbody></table></div>`;
++}
++
+ function reportText(r){
+   const T=r.todaySales, D=r.daySales, M=r.monthSales, L=[];
+-  L.push(`*${company.name}*`, `📊 விற்பனை அறிக்கை`, ``);
++  L.push(`*${company.name}*`, `📊 விற்பனை அறிக்கை${r.scope&&r.scope.branchName?" · 🏬 "+r.scope.branchName:""}`, ``);
+   L.push(`*இன்று (${dLabel(r.today)})*`, `விற்பனை: ${inr(T.total)}`, `பில்கள்: ${T.count} · பீஸ்: ${T.pieces}`);
+   if(r.date!==r.today) L.push(``, `*${dLabel(r.date)}*`, `விற்பனை: ${inr(D.total)}`, `பில்கள்: ${D.count} · பீஸ்: ${D.pieces}`);
+   L.push(``, `*${mLabel(r.month)}*`, `மொத்தம்: ${inr(M.total)}`, `பில்கள்: ${M.count} · நாள் சராசரி: ${inr0(M.perDay)}`);
+   if(M.growth!=null) L.push(`கடந்த மாதத்துடன்: ${M.growth>=0?"▲":"▼"} ${Math.abs(M.growth)}%`);
+   if(r.bestDay) L.push(`சிறந்த நாள்: ${dShort(r.bestDay.d)} (${inr0(r.bestDay.total)})`);
++  if(r.branchSales&&r.branchSales.length>1){ L.push(``, `*கிளை வாரியாக (${mLabel(r.month)})*`); r.branchSales.forEach(b=>L.push(`${b.name}: ${inr0(b.monthTotal)} (${b.monthCount} பில்) · இன்று ${inr0(b.dayTotal)}`)); }
++  if(r.userSales&&r.userSales.length){ L.push(``, `*User வாரியாக (${mLabel(r.month)})*`); r.userSales.forEach(u=>L.push(`${u.name}: ${u.monthCount} பில் · ${inr0(u.monthTotal)}`)); }
+   if(r.topItemsMonth&&r.topItemsMonth.length){ L.push(``, `*அதிகம் விற்றவை*`); r.topItemsMonth.slice(0,5).forEach((x,i)=>L.push(`${i+1}. ${x.name} — ${x.qty} pcs · ${inr0(x.amt)}`)); }
+   L.push(``, `— ${APP_NAME}`);
+   return L.join("\n");
+@@ -1632,6 +1843,8 @@ function adminSalesHtml(s){
+ document.addEventListener("click",e=>{
+   const bar=e.target.closest&&e.target.closest("[data-rday]");
+   if(bar){ loadReport(bar.getAttribute("data-rday")); return; }
++  const brow=e.target.closest&&e.target.closest("[data-rbranch]");
++  if(brow){ repBranch=brow.getAttribute("data-rbranch"); loadReport(repDate); window.scrollTo(0,0); return; }
+   const t=e.target.closest("button"); if(!t) return;
+   const d=t.dataset;
+   /* menu & account */
+@@ -1651,6 +1864,20 @@ document.addEventListener("click",e=>{
+   if(t.id==="lkSave") return saveLinkCode();
+   if(t.id==="lkBack"){ const pc=pendingCode; if(pc) openUnknownCode(pc.code,pc.back); return; }
+   if(t.id==="mBills"||t.id==="billHist") return openBills();
++  if(t.id==="openStock"||t.id==="mStock"){ closeSheet(); stockData=null; if(location.hash!=="#stock") location.hash="stock"; else loadStock(); return; }
++  if(d.stedit) return openStockEdit(d.stedit,d.stsize);
++  if(d.stflt){ stockFlt=d.stflt; renderView(); return; }
++  if(t.id==="stScan") return stockScan();
++  if(d.stmode){ stockEdit.mode=d.stmode; document.querySelectorAll("[data-stmode]").forEach(b=>b.classList.toggle("on",b===t));
++    $("#stVal").value=d.stmode==="set"?stQty(stockEdit.id,stockEdit.size):0;
++    $("#stHint").textContent=d.stmode==="set"?"புதிய மொத்த ஸ்டாக் எண்ணை உள்ளிடவும் (மைனஸ் அனுமதி)":"வந்த பீஸ் + / விற்ற அல்லது சேதம் − (எ.கா. 10 அல்லது -2)"; stPreview(); return; }
++  if(t.id==="stSign"){ const v=stNum(); $("#stVal").value=isFinite(v)?-v:"-"; stPreview(); return; }
++  if(d.stq){ const v=stNum(); $("#stVal").value=(isFinite(v)?v:0)+Number(d.stq); stPreview(); return; }
++  if(t.id==="stSave") return saveStockEdit();
++  if(d.branches) return openBranches(d.branches);
++  if(t.id==="brAdd"){ const n=$("#brNew").value.trim(); if(!n){ $("#fBrNew").classList.add("bad"); return; } return branchApi(()=>api("admin/branch","POST",{companyId:brCo,name:n}),"கிளை சேர்க்கப்பட்டது: "+n); }
++  if(d.brsave){ const n=$("#brn_"+CSS.escape(d.brsave)).value.trim(); if(!n){ toast("பெயர் தேவை"); return; } return branchApi(()=>api("admin/branch","POST",{companyId:brCo,id:d.brsave,name:n}),"சேமிக்கப்பட்டது: "+n); }
++  if(d.brdel){ if(!confirm("இந்த கிளையை நீக்கவா?")) return; return branchApi(()=>api("admin/branch/"+encodeURIComponent(brCo)+"/"+encodeURIComponent(d.brdel),"DELETE"),"கிளை நீக்கப்பட்டது"); }
+   if(t.id==="openReport"||t.id==="mReport"){ closeSheet(); if(location.hash!=="#report") location.hash="report"; else loadReport(repDate); return; }
+   /* report */
+   if(d.rnav){ const dt=new Date(repDate+"T00:00:00"); dt.setDate(dt.getDate()+Number(d.rnav)); return loadReport(ymd(dt)); }
+@@ -1672,7 +1899,7 @@ document.addEventListener("click",e=>{
+   if(t.id==="addCompany") return openCompanyForm(null);
+   if(d.editcomp) return openCompanyForm(d.editcomp);
+   if(d.opencomp) return openCompanyBilling(d.opencomp);
+-  if(d.adduserfor){ openUserForm(null,{type:"customer",companyId:d.adduserfor}); return; }
++  if(d.adduserfor){ openUserForm(null,{type:"sales",companyId:d.adduserfor}); return; }
+   if(t.id==="addUser") return openUserForm(null);
+   if(d.edituser) return openUserForm(d.edituser);
+   if(d.deluser) return deleteUser(d.deluser);
+@@ -1745,6 +1972,8 @@ document.addEventListener("input",e=>{
+   if(e.target.classList && (e.target.classList.contains("bci")||e.target.id==="cCode")){ const c=cleanCode(e.target.value); if(c!==e.target.value) e.target.value=c; }
+   const id=e.target.id;
+   if(id==="cRate") updateCustomTotal();
++  if(id==="stVal") stPreview();
++  if(id==="stq"){ const pos=e.target.selectionStart; renderView(); const n=$("#stq"); if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(x){} } }
+   if(id==="gTa"||id==="gEn") groupPreview();
+   if(id==="iSizes"){ keepIVals(); renderIRows(); }
+   if(e.target.dataset && e.target.dataset.iri!==undefined && iForm) iForm.vals[e.target.dataset.isz]=e.target.value;
+@@ -1758,9 +1987,13 @@ document.addEventListener("change",e=>{
+   if(id==="cCat"){ if(e.target.value==="__new"){ const d={name:$("#cName").value,size:$("#cSize").value,rate:$("#cRate").value,code:$("#cCode").value,qty:customQty}; openGroupForm(null,{type:"custom",from:customFrom,draft:d}); } else customCat=e.target.value; }
+   if(id==="iCat"){ if(e.target.value==="__new"){ const d=itemDraft(); d.cat=iForm.cat; openGroupForm(null,{type:"item",draft:d}); } else iForm.cat=e.target.value; }
+   if(id==="rDate" && e.target.value) loadReport(e.target.value);
++  if(id==="rBranch"){ repBranch=e.target.value; loadReport(repDate); }
++  if(id==="stBranch"){ stockBr=e.target.value; stockData=null; loadStock(); }
++  if(id==="uComp" && e.target.value!=="__new") fillUBranches();
+   if(id==="uComp" && e.target.value==="__new"){ const d=userDraft(); d.companyId=""; openCompanyForm(null,{type:"user",draft:d}); }
+ });
+ window.addEventListener("hashchange",()=>{ $("#q").value=""; renderAll(true); if(view()==="admin") loadAdmin(); });
++document.addEventListener("keydown",e=>{ if(e.key==="Enter" && e.target.id==="stVal"){ e.preventDefault(); saveStockEdit(); } });
+ 
+ /* ================= START ================= */
+ (async function start(){

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  One Tomcat = one JVM, two completely separate web applications.
+  Every <Service> has its own HTTP port, its own Host/appBase and so its own class loader,
+  Spring context, DataSource and database:
+
+    Service "Catalina" : port 8080   webapps/ROOT.war         = Bhai Mobile Billing (MBill)  -> database bmb
+    Service "School"   : port 8081   webapps-school/ROOT.war  = MSchool                      -> database mschool
+
+  Both apps are deployed as ROOT (context path "/"), so every URL inside the apps (/api/..., /index.html ...)
+  works exactly as before - no change in the phone apps / browser.
+  Database settings come from environment variables:  MBill = DB_URL / DB_USER / DB_PASS,  MSchool = MSCHOOL_DB_URL / MSCHOOL_DB_USER / MSCHOOL_DB_PASS.
+-->
+<Server port="-1" shutdown="SHUTDOWN">
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener"/>
+  <Listener className="org.apache.catalina.core.JreMemoryLeakPreventionListener"/>
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener"/>
+
+  <!-- ===== MBill ===== -->
+  <Service name="Catalina">
+    <Connector port="8080" protocol="HTTP/1.1" connectionTimeout="20000" maxThreads="100" acceptCount="100"
+               URIEncoding="UTF-8" server="" compression="on" compressionMinSize="1024"
+               compressibleMimeType="text/html,text/css,text/plain,text/xml,application/javascript,application/json,image/svg+xml"/>
+    <Engine name="Catalina" defaultHost="localhost">
+      <Host name="localhost" appBase="webapps" unpackWARs="true" autoDeploy="false" deployXML="false">
+        <Valve className="org.apache.catalina.valves.ErrorReportValve" showReport="false" showServerInfo="false"/>
+      </Host>
+    </Engine>
+  </Service>
+
+  <!-- ===== MSchool ===== -->
+  <Service name="School">
+    <Connector port="8081" protocol="HTTP/1.1" connectionTimeout="20000" maxThreads="60" acceptCount="100"
+               URIEncoding="UTF-8" server="" compression="on" compressionMinSize="1024"
+               compressibleMimeType="text/html,text/css,text/plain,text/xml,application/javascript,application/json,image/svg+xml"/>
+    <Engine name="School" defaultHost="localhost">
+      <Host name="localhost" appBase="webapps-school" unpackWARs="true" autoDeploy="false" deployXML="false">
+        <Valve className="org.apache.catalina.valves.ErrorReportValve" showReport="false" showServerInfo="false"/>
+      </Host>
+    </Engine>
+  </Service>
+</Server>

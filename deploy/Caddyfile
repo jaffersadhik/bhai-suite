@@ -1,0 +1,11 @@
+# Used by docker-compose.https.yaml
+#   DOMAIN         (required)  Bhai Mobile Billing  -> app:8080
+#   SCHOOL_DOMAIN  (optional)  MSchool              -> app:8081   e.g. school.example.com (DNS A record -> this server)
+# When SCHOOL_DOMAIN is not set, the MSchool site is served on plain :8081 inside the Caddy container only (not published).
+{$DOMAIN} {
+	reverse_proxy app:8080
+}
+
+{$SCHOOL_DOMAIN} {
+	reverse_proxy app:8081
+}

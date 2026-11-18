@@ -1,0 +1,99 @@
+# Bhai Mobile Billing - MySQL 8.4 + Spring Boot app
+#   1. cp .env.example .env   (set passwords + MYSQL_DATA_DIR / MYSQL_BACKUP_DIR absolute paths)
+#   2. mkdir -p <MYSQL_DATA_DIR> <MYSQL_BACKUP_DIR>
+#   3. docker compose up -d --build
+#   4. open http://<server>:8080/   Bhai Mobile Billing   first login: admin / admin1234
+#      open http://<server>:8081/   MSchool                first login: admin / admin123   (change both at once)
+#
+# ONE container (one Tomcat, one JVM) runs both applications; they use two separate databases on the same MySQL:
+#   MBill -> schema bmb      MSchool -> schema mschool      (the SAME user DB_USER / DB_PASS for both)
+name: bhai-mobile-billing
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: bmb
+      MYSQL_USER: ${DB_USER:-bmb}
+      MYSQL_PASSWORD: ${DB_PASS:?set DB_PASS in .env}
+      TZ: Asia/Kolkata
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - bmb-mysql-data:/var/lib/mysql      # data -> local disk folder MYSQL_DATA_DIR
+      - bmb-mysql-backup:/backup           # mysqldump files -> local disk folder MYSQL_BACKUP_DIR
+    healthcheck:
+      # TCP ping with the app user: succeeds only after MySQL's first-time init has finished
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    # no "ports:" on purpose - MySQL is reachable only by the app on the internal network
+
+  # one-shot job, runs on every "up": creates schema mschool if missing and gives the SAME app user (DB_USER) full rights on it.
+  # Works on an already running MySQL too (needs MYSQL_ROOT_PASSWORD).
+  mschool-db:
+    image: mysql:8.4
+    restart: "no"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
+      APP_USER: ${DB_USER:-bmb}
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        mysql -h mysql -uroot -e "CREATE DATABASE IF NOT EXISTS mschool CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+        GRANT ALL PRIVILEGES ON mschool.* TO '$$APP_USER'@'%'; FLUSH PRIVILEGES;"
+
+  app:
+    build:
+      context: .
+      args:
+        BUILD_ID: "${BUILD_ID:-}"
+    image: bhai-mobile-billing:1.0.0
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mschool-db:
+        condition: service_completed_successfully
+    environment:
+      DB_URL: "jdbc:mysql://mysql:3306/bmb?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&useSSL=false&allowPublicKeyRetrieval=true"
+      DB_USER: ${DB_USER:-bmb}
+      DB_PASS: ${DB_PASS}
+      BMB_ZONE: Asia/Kolkata
+      # --- MSchool: own schema "mschool" on the same MySQL server, same credentials as MBill ---
+      MSCHOOL_DB_URL: "${MSCHOOL_DB_URL:-jdbc:mysql://mysql:3306/mschool?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=Asia/Kolkata}"
+      MSCHOOL_DB_USER: ${DB_USER:-bmb}
+      MSCHOOL_DB_PASS: ${DB_PASS}
+      MSCHOOL_ZONE: Asia/Kolkata
+      TZ: Asia/Kolkata
+    ports:
+      - "${APP_PORT:-8080}:8080"                       # Bhai Mobile Billing
+      - "${SCHOOL_PORT:-127.0.0.1:8081}:8081"          # MSchool (localhost only by default; Caddy publishes it with SCHOOL_DOMAIN. Set SCHOOL_PORT=8081 to open it directly)
+    volumes:
+      - "${CTL_DIR:-./ctl}:/ctl"                       # build info + rollback requests (deploy/oracle scripts)
+
+volumes:
+  # Named volumes stored in folders on the local disk (bind). The folders must exist first.
+  bmb-mysql-data:
+    name: bmb-mysql-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MYSQL_DATA_DIR:?set MYSQL_DATA_DIR in .env (absolute path)}
+  bmb-mysql-backup:
+    name: bmb-mysql-backup
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MYSQL_BACKUP_DIR:?set MYSQL_BACKUP_DIR in .env (absolute path)}

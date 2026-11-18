@@ -1,0 +1,8 @@
+.git
+**/target
+test
+i18n-tools
+db
+*.pdf
+*.patch
+ctl

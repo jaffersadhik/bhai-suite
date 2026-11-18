@@ -1,0 +1,55 @@
+# Bhai Mobile Billing - MySQL only (for running the app with "java -jar" outside Docker)
+#
+#   1. cp .env.example .env            set passwords + MYSQL_DATA_DIR (absolute path)
+#   2. mkdir -p <MYSQL_DATA_DIR> <MYSQL_BACKUP_DIR>
+#   3. docker compose -f docker-compose.mysql.yaml up -d
+#
+# First start (empty data folder): creates database "bmb", the app user, and all tables
+# from src/main/resources/db/schema.sql. Data is saved on the local disk folder MYSQL_DATA_DIR.
+name: bmb-mysql
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: bmb-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: bmb
+      MYSQL_USER: ${DB_USER:-bmb}
+      MYSQL_PASSWORD: ${DB_PASS:?set DB_PASS in .env}
+      TZ: Asia/Kolkata
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      # bound to localhost only; change to "3306:3306" only if other machines must connect
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - bmb-mysql-data:/var/lib/mysql                                                    # data -> local disk
+      - ./bhai-mobile-billing/src/main/resources/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro  # tables on first start
+      - ./db/mysql-init/10-mschool.sh:/docker-entrypoint-initdb.d/10-mschool.sh:ro  # schema mschool + same user
+      - bmb-mysql-backup:/backup                                                         # mysqldump files -> local disk
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  # Named volumes stored in folders on the local disk (bind). The folders must exist first.
+  bmb-mysql-data:
+    name: bmb-mysql-data
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MYSQL_DATA_DIR:?set MYSQL_DATA_DIR in .env (absolute path)}
+  bmb-mysql-backup:
+    name: bmb-mysql-backup
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MYSQL_BACKUP_DIR:?set MYSQL_BACKUP_DIR in .env (absolute path)}

@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f5c3f">
+<title>Online Shop</title>
+<style>
+:root{--leaf:#0f5c3f;--leaf-d:#0a3f2b;--leaf-l:#e3f1ea;--gold:#e8b931;--gold-l:#fff4d1;--bad:#c62828;--line:#e3e8e5;--muted:#6b7570;--bg:#f3f6f4;--card:#fff}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:#16211c;font-family:"Noto Sans Tamil","Mukta Malar",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:0 14px 120px}
+header.top{position:sticky;top:0;z-index:20;background:var(--leaf);color:#fff;padding:12px 14px 10px;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+header.top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.mark{width:42px;height:42px;border-radius:12px;background:var(--gold);color:var(--leaf-d);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;flex:none}
+header h1{margin:0;font-size:18px;line-height:1.15}header small{display:block;opacity:.85;font-size:12px}
+header .call{margin-left:auto;background:rgba(255,255,255,.16);color:#fff;border-radius:12px;padding:8px 10px;font-weight:700;font-size:13px;text-decoration:none;white-space:nowrap}
+.hero{background:linear-gradient(135deg,#0f5c3f,#1d7a55);color:#fff;border-radius:18px;padding:16px;margin-top:12px}
+.hero b{font-size:17px}.hero p{margin:4px 0 0;opacity:.9;font-size:13px}
+.myo{display:inline-block;margin-top:10px;background:var(--gold);color:var(--leaf-d);border-radius:10px;padding:6px 10px;font-weight:800;font-size:13px}
+.lbl{font-size:12.5px;font-weight:800;color:var(--muted);margin:14px 2px 6px}
+.locs{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.locs button{white-space:nowrap;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:8px 11px;font-weight:700;font-size:13px}
+.locs button.on{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.find{display:flex;gap:8px;margin-top:12px}
+.find input{flex:1;min-width:0;height:46px;border:1.5px solid var(--line);border-radius:14px;padding:0 14px;background:#fff}
+.tog{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--muted);margin-top:8px}
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:8px}
+@media(min-width:560px){.tiles{grid-template-columns:repeat(3,1fr)}}
+.tile{background:var(--tint,#eee);border-radius:18px;padding:14px;text-align:left;min-height:118px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.tile .em{font-size:38px;line-height:1}.tile b{margin-top:8px;font-size:15.5px}.tile small{color:#444;font-size:12px}
+.tile .cnt{margin-top:auto;font-size:11.5px;font-weight:800;color:var(--leaf-d)}
+.tile .ph{position:absolute;right:-6px;bottom:-6px;width:64px;height:64px;border-radius:14px;object-fit:cover;opacity:.95;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.crumb{display:flex;align-items:center;gap:8px;margin-top:12px}
+.crumb button{border:1.5px solid var(--line);background:#fff;border-radius:11px;padding:7px 11px;font-weight:700;font-size:13px}
+.crumb b{font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:10px}
+@media(min-width:560px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07);text-align:left;display:flex;flex-direction:column}
+.card .img{aspect-ratio:1/1;background:var(--tint,#eee);display:flex;align-items:center;justify-content:center;font-size:54px;position:relative}
+.card .img img{width:100%;height:100%;object-fit:cover;display:block}
+.card .badge{position:absolute;left:8px;top:8px;background:rgba(255,255,255,.92);border-radius:8px;padding:2px 7px;font-size:11px;font-weight:800;color:var(--leaf-d)}
+.card .badge.out{color:var(--bad)}
+.card .in{padding:9px 10px 11px}
+.card b{font-size:14px;display:block;line-height:1.25}.card small{color:var(--muted);font-size:11.5px;display:block}
+.card .pr{margin-top:6px;font-weight:900;color:var(--leaf-d);font-size:15.5px}
+.card.dim{opacity:.55}
+.card .incart{position:absolute;right:8px;top:8px;background:var(--gold);color:var(--leaf-d);border-radius:999px;min-width:24px;height:24px;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.none{text-align:center;color:var(--muted);padding:30px 10px}.none b{display:block;font-size:34px}
+.bar{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(100%,720px);padding:10px 14px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:15}
+.bar button{width:100%;height:58px;border-radius:16px;background:var(--leaf);color:#fff;display:flex;align-items:center;gap:10px;padding:0 18px;box-shadow:0 8px 22px rgba(9,68,47,.35);font-weight:800;font-size:15.5px}
+.bar .n{background:var(--gold);color:var(--leaf-d);border-radius:10px;padding:2px 10px;font-size:14px}.bar .go{margin-left:auto}
+.veil{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.2s;z-index:30}
+.veil.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,105%);width:min(100%,720px);max-height:92vh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;z-index:31;transition:transform .25s;padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+.sheet.on{transform:translate(-50%,0)}
+.x{position:sticky;top:0;float:right;width:38px;height:38px;border-radius:50%;background:#f1f3f2;font-size:18px;font-weight:800;z-index:2}
+.sheet h2{margin:2px 0 4px;font-size:19px}.sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+.big{width:100%;aspect-ratio:4/3;border-radius:16px;background:var(--tint,#eee);display:flex;align-items:center;justify-content:center;font-size:84px;overflow:hidden;margin:6px 0 10px}
+.big img{width:100%;height:100%;object-fit:cover}
+.szs{display:flex;flex-wrap:wrap;gap:8px}
+.szs button{border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;min-width:64px;text-align:center;background:#fff}
+.szs button b{display:block;font-size:14px}.szs button small{font-size:11px;color:var(--muted)}
+.szs button.on{border-color:var(--leaf);background:var(--leaf-l)}
+.szs button:disabled{opacity:.4}
+.step{display:flex;align-items:center;gap:0;border:1.5px solid var(--leaf);border-radius:12px;overflow:hidden}
+.step .qin{width:56px;height:42px;border:0;background:transparent;text-align:center;font-size:17px;font-weight:900;color:var(--leaf-d);padding:0;-moz-appearance:textfield}.cl .step .qin{width:46px;height:34px;font-size:15px}
+.step button{width:44px;height:42px;font-size:20px;font-weight:900;color:var(--leaf)}.step span{min-width:40px;text-align:center;font-weight:900}
+.addrow{display:flex;align-items:center;gap:12px;margin-top:14px}
+.cta{display:block;width:100%;height:52px;border-radius:14px;background:var(--leaf);color:#fff;font-weight:800;font-size:15.5px;margin-top:12px;text-align:center;line-height:52px;text-decoration:none}
+.cta:disabled{opacity:.5}
+.cta.ghost{background:#fff;color:var(--leaf-d);border:1.5px solid var(--line)}
+.cta.gold{background:var(--gold);color:var(--leaf-d)}
+.box{border:1px solid var(--line);border-radius:16px;padding:10px 12px;margin-top:10px}
+.cl{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line)}
+.cl:last-child{border-bottom:0}
+.cl .th{width:52px;height:52px;border-radius:10px;background:var(--tint,#eee);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden}
+.cl .th img{width:100%;height:100%;object-fit:cover}
+.cl small{display:block;color:var(--muted);font-size:12px}.cl small.bad{color:var(--bad);font-weight:700}
+.cl .step button{width:34px;height:34px;font-size:17px}.cl .step span{min-width:28px}
+.tot{display:flex;justify-content:space-between;font-weight:900;font-size:18px;margin-top:10px}
+.fld{display:block;font-size:12.5px;font-weight:800;color:var(--muted);margin-top:10px}
+.fld input,.fld select,.fld textarea{display:block;width:100%;margin-top:5px;border:1.5px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff;color:#16211c}
+.fld.bad input,.fld.bad select,.fld.bad textarea{border-color:var(--bad)}
+.chips{display:flex;gap:8px;margin-top:6px}.chips button{flex:1;border:1.5px solid var(--line);border-radius:12px;padding:10px;font-weight:800;background:#fff}
+.chips button.on{border-color:var(--leaf);background:var(--leaf-l);color:var(--leaf-d)}
+.tl{list-style:none;padding:0;margin:10px 0}
+.tl li{display:flex;gap:10px;align-items:flex-start;padding:6px 0;color:#9aa3a0;font-weight:700}
+.tl li i{width:26px;height:26px;border-radius:50%;border:2px solid currentColor;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;flex:none}
+.tl li.done{color:var(--leaf)}.tl li.done i{background:var(--leaf);color:#fff;border-color:var(--leaf)}
+.tl li.cur{color:var(--leaf-d)}.tl li.cur i{background:var(--gold);border-color:var(--gold);color:var(--leaf-d)}
+.tl li.x{color:var(--bad)}.tl li.x i{background:var(--bad);border-color:var(--bad);color:#fff}
+.st{display:inline-block;border-radius:9px;padding:3px 8px;font-size:12px;font-weight:800;background:var(--gold-l);color:#7a5600}
+.st.delivered{background:var(--leaf-l);color:var(--leaf-d)}.st.cancelled{background:#fdecea;color:var(--bad)}
+.oc{display:block;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-top:8px}
+.oc .r{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.oc small{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:#16211c;color:#fff;border-radius:12px;padding:10px 14px;font-size:13.5px;font-weight:700;opacity:0;pointer-events:none;transition:.2s;z-index:40;max-width:90%;text-align:center}
+#toast.on{opacity:1}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px 0 0}
+.ok{text-align:center}.ok .tick{width:64px;height:64px;border-radius:50%;background:var(--leaf);color:#fff;font-size:34px;display:flex;align-items:center;justify-content:center;margin:6px auto}
+</style>
+</head>
+<body>
+<header class="top"><div class="in"><div class="mark" id="mark">🛒</div><div><h1 id="coName">Online Shop</h1><small id="coTag">ஏற்றுகிறது…</small></div><button type="button" class="langbtn hdr" id="langBtn" data-langlabel aria-label="Language">🌐</button><a class="call" id="coCall" hidden>📞 அழை</a></div></header>
+<main class="wrap" id="app"><div class="none"><b>⏳</b>ஏற்றுகிறது…</div></main>
+<div class="bar" id="bar" hidden><button id="openCart"><span class="n" id="barN">0</span><span id="barT">₹0</span><span class="go">🛒 Cart பார் ›</span></button></div>
+<div class="veil" id="veil"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"><button class="x" id="closeSheet" aria-label="Close">✕</button><div id="sb"></div></div>
+<div id="toast"></div>
+<script>window.I18N_PERSIST=true;</script>
+<script src="i18n.js"></script>
+<script>
+"use strict";
+const Q=new URLSearchParams(location.search), PM=location.pathname.match(/\/s\/([^\/?#]+)/), PATHCODE=PM?decodeURIComponent(PM[1]):"",
+      CODE=(PATHCODE||Q.get("s")||"").trim(), ORDER=(Q.get("o")||"").trim();
+/* the shop's own address: /s/<name> (new) or shop.html?s=<code> (old links) */
+const SHOPURL=PATHCODE?location.origin+"/s/"+encodeURIComponent(PATHCODE):location.origin+location.pathname+"?s="+encodeURIComponent(CODE);
+const trackUrl=t=>SHOPURL+(SHOPURL.indexOf("?")<0?"?":"&")+"o="+t;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inr=v=>"₹"+Number(v||0).toLocaleString("en-IN",{maximumFractionDigits:2});
+const ls={get(k,d){ try{ const v=localStorage.getItem("bmbshop."+CODE+"."+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } },
+          set(k,v){ try{ localStorage.setItem("bmbshop."+CODE+"."+k,JSON.stringify(v)); }catch(e){} }};
+let S=null, loc=ls.get("loc","all"), grp=null, inOnly=ls.get("inOnly",null), cart=ls.get("cart",{}), sel=null;
+let byId={}, catById={};
+function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("on"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("on"),2600); }
+async function api(path,method,body){
+  const r=await fetch("/api/shop/"+encodeURIComponent(CODE)+path,{method:method||"GET",headers:body?{"Content-Type":"application/json"}:{},body:body?JSON.stringify(body):undefined,cache:"no-store"});
+  let j={}; try{ j=await r.json(); }catch(e){}
+  if(!r.ok) throw new Error(j.error||("Error "+r.status));
+  return j;
+}
+const photoUrl=it=>it.photo?`/api/shop/${encodeURIComponent(CODE)}/photo/${encodeURIComponent(it.id)}?v=${it.photo}`:"";
+const pic=(it,cls)=>it.photo?`<img loading="lazy" src="${esc(photoUrl(it))}" alt="${esc(it.ta)}">`:esc((catById[it.cat]||{}).emoji||"🛍");
+const tint=it=>(catById[it.cat]||{}).color||"#eee";
+/* stock of one item + size at the chosen location ("all" = every shop and warehouse together) */
+const isW=it=>!!it&&it.by==="weight", UG=it=>it.unit==="g"?1:1000;           // weight items: sold by weight, stock + cart are in grams, rate is per kg (or per g)
+const fmtG=g=>g>=1000?(+(g/1000).toFixed(3))+" kg":Math.round(g)+" g";
+const wStep=it=>it.unit==="g"?100:250;
+function qtyAt(id,size,where){ const it=byId[id]; if(isW(it)) size=it.sizes[0].size;      // weight item: grams in stock
+  const k=id+"|"+size, w=where||loc;
+  if(w==="all") return Object.values(S.stock).reduce((a,m)=>a+(m[k]||0),0);
+  return (S.stock[w]||{})[k]||0; }
+const fq=(id,v)=>isW(byId[id])?fmtG(v):v;
+const onlyIn=()=>inOnly===null?!NOSTOCK():inOnly;   // 'in stock only' is on by default, off when the shop takes orders without stock
+const NOSTOCK=()=>!!(S.company&&S.company.orderNoStock);   // shop takes orders even when stock is 0
+const itemQty=it=>it.sizes.reduce((a,z)=>a+qtyAt(it.id,z.size),0);
+function priceTxt(it){ const r=it.sizes.map(z=>z.rate), lo=Math.min(...r), hi=Math.max(...r); return lo===hi?inr(lo):inr(lo)+" – "+inr(hi); }
+const cartKeys=()=>Object.keys(cart).filter(k=>cart[k]>0&&byId[k.split("|")[0]]);
+const cartPcs=()=>cartKeys().reduce((a,k)=>a+(isW(byId[k.split("|")[0]])?1:cart[k]),0);
+const rateOf=k=>{ const [id,sz]=k.split("|"); const it=byId[id]; if(isW(it)) return it.sizes[0].rate; const z=it&&it.sizes.find(x=>x.size===sz); return z?z.rate:0; };
+const lineAmt=k=>{ const it=byId[k.split("|")[0]]; return isW(it)?Math.round(rateOf(k)*cart[k]/UG(it)*100)/100:cart[k]*rateOf(k); };
+const cartTot=()=>cartKeys().reduce((a,k)=>a+lineAmt(k),0);
+function saveCart(){ ls.set("cart",cart); renderBar(); }
+function renderBar(){ const n=cartPcs(); $("#bar").hidden=!n||!!ORDER; $("#barN").textContent=n+" pcs"; $("#barT").textContent=inr(cartTot()); }
+function showSheet(){ $("#veil").classList.add("on"); $("#sheet").classList.add("on"); $("#sheet").scrollTop=0; }
+function closeSheet(){ $("#veil").classList.remove("on"); $("#sheet").classList.remove("on"); }
+
+async function boot(){
+  if(!CODE){ $("#app").innerHTML=`<div class="none"><b>🔗</b>Link தவறு — கடையிடம் சரியான link கேட்கவும்</div>`; return; }
+  try{ S=await api(""); }catch(e){ $("#app").innerHTML=`<div class="none"><b>⚠️</b>${esc(e.message)}</div>`; return; }
+  const c=S.company; document.title=c.name+" · Online Shop";
+  $("#coName").textContent=c.name; $("#coTag").textContent=c.tagline||"Online Shop"; $("#mark").textContent=(Array.from(c.name.trim())[0]||"🛒").toUpperCase();
+  if(c.phone){ const a=$("#coCall"); a.hidden=false; a.href="tel:+91"+c.phone; }
+  S.catalog.cats.forEach(g=>catById[g.id]=g); S.catalog.items.forEach(it=>byId[it.id]=it);
+  if(loc!=="all"&&!S.branches.some(b=>b.id===loc)) loc="all";
+  if(ORDER){ showOrder(ORDER); return; }
+  render(); renderBar();
+}
+function render(){
+  const c=S.company, q=(($("#q")||{}).value||"").trim().toLowerCase();
+  const visible=it=>!onlyIn()||itemQty(it)>0;
+  let body;
+  if(q){
+    const its=S.catalog.items.filter(it=>visible(it)&&((it.ta+" "+it.en).toLowerCase().includes(q)||catById[it.cat]&&(catById[it.cat].ta+" "+catById[it.cat].en).toLowerCase().includes(q)));
+    body=its.length?`<div class="grid">${its.map(card).join("")}</div>`:`<div class="none"><b>🔎</b>பொருள் கிடைக்கவில்லை</div>`;
+  } else if(grp&&catById[grp]){
+    const g=catById[grp], its=S.catalog.items.filter(it=>it.cat===grp&&visible(it));
+    body=`<div class="crumb"><button id="backGrp">← எல்லா வகைகள்</button><b>${esc(g.emoji+" "+g.ta)}</b></div>`
+      +(its.length?`<div class="grid">${its.map(card).join("")}</div>`:`<div class="none"><b>📦</b>இந்த இடத்தில் இந்த வகையில் இருப்பு இல்லை</div>`);
+  } else {
+    body=`<div class="lbl">வகைகள் (Categories)</div><div class="tiles">${S.catalog.cats.map(g=>{
+        const its=S.catalog.items.filter(it=>it.cat===g.id&&visible(it)), ph=its.find(it=>it.photo);
+        return `<button class="tile" data-grp="${esc(g.id)}" style="--tint:${esc(g.color)}"><span class="em">${esc(g.emoji)}</span><b>${esc(g.ta)}</b><small>${esc(g.en)}</small>
+          <span class="cnt">${its.length} பொருட்கள்</span>${ph?`<img class="ph" loading="lazy" src="${esc(photoUrl(ph))}" alt="">`:""}</button>`; }).join("")}</div>`;
+  }
+  $("#app").innerHTML=`
+    <section class="hero"><b>வணக்கம்!</b><p style="margin-top:6px;font-weight:700">Online-ல் ஆர்டர் செய்யுங்கள்</p><p>${esc([c.address,c.city].filter(Boolean).join(", "))}<br>வகையை தேர்வு செய்யுங்கள் → படம் பார்த்து சைஸ் தேர்வு → Cart → ஆர்டர். கடை உறுதி செய்து டெலிவரி / பிக்அப் செய்யும்.</p>
+      ${ls.get("orders",[]).length?`<button class="myo" id="myOrders">📦 என் ஆர்டர்கள் (${ls.get("orders",[]).length})</button>`:""}</section>
+    <div class="lbl">எந்த கடையின் இருப்பை பார்க்க வேண்டும்?</div>
+    <div class="locs"><button data-loc="all" class="${loc==="all"?"on":""}">🌐 எல்லா இடங்களும்</button>${S.branches.map(b=>`<button data-loc="${esc(b.id)}" class="${loc===b.id?"on":""}">${b.kind==="warehouse"?"🏭":"🏬"} ${esc(b.name)}</button>`).join("")}</div>
+    <div class="find"><input id="q" type="search" placeholder="🔎 பொருள் தேடு (Search)" value="${esc(q)}" autocomplete="off"></div>
+    <label class="tog"><input type="checkbox" id="inOnly"${onlyIn()?" checked":""}> இருப்பு உள்ளவை மட்டும் காட்டு</label>
+    ${body}
+    <footer>${esc(c.name)} · Powered by MBill · Mobile Bill</footer>`;
+  const qi=$("#q"); if(q){ qi.focus(); qi.setSelectionRange(q.length,q.length); }
+}
+function card(it){
+  const n=itemQty(it), inc=isW(it)?(cart[it.id+"|W"]?fmtG(cart[it.id+"|W"]):0):it.sizes.reduce((a,z)=>a+(cart[it.id+"|"+z.size]||0),0);
+  return `<button class="card${n>0||NOSTOCK()?"":" dim"}" data-item="${esc(it.id)}" style="--tint:${esc(tint(it))}">
+    <div class="img">${pic(it)}<span class="badge${n>0||NOSTOCK()?"":" out"}">${n>0?((isW(it)?n>20000:n>20)?"இருப்பு உள்ளது":"இருப்பு "+fq(it.id,n)):(NOSTOCK()?"முன்பதிவு":"இருப்பு இல்லை")}</span>${inc?`<span class="incart">${inc}</span>`:""}</div>
+    <div class="in"><b>${esc(it.ta)}</b><small>${esc(it.en||"")}</small><div class="pr">${priceTxt(it)}</div></div></button>`;
+}
+function openItem(id){
+  const it=byId[id]; if(!it) return;
+  if(isW(it)){ sel={id, size:"W", qty:1, wt:it.unit==="g"?500:1000, u:it.unit==="g"?"g":"kg"}; renderItem(); showSheet(); return; }
+  const first=it.sizes.find(z=>qtyAt(it.id,z.size)>0)||it.sizes[0];
+  sel={id, size:first.size, qty:1};
+  renderItem(); showSheet();
+}
+const wGrams=()=>{ const v=parseFloat(String(($("#wIn")||{}).value||"").replace(",",".")); return isFinite(v)&&v>0?Math.round(sel.u==="kg"?v*1000:v):0; };
+function wtNote(it){ const have=qtyAt(it.id), inC=cart[it.id+"|W"]||0, g=sel.wt;
+  return !g?"எடையை உள்ளிடவும்":(g<10||g>99000)?"10 g – 99 kg வரை":have<=0&&NOSTOCK()?"📦 இப்போது ஸ்டாக் இல்லை — முன்பதிவு ஆர்டர் எடுக்கப்படும்; ஸ்டாக் வந்ததும் கடை தொடர்பு கொள்ளும்":(inC+g>have&&NOSTOCK())?"📦 ஸ்டாக் குறைவு ("+fmtG(Math.max(0,have))+") — மீதி முன்பதிவாக எடுக்கப்படும்":""; }
+function wtPaint(){ const it=byId[sel.id], ok=sel.wt>=10&&sel.wt<=99000&&(NOSTOCK()||qtyAt(it.id)>0);
+  const b=$("#addCart"); if(b){ b.disabled=!ok; b.textContent=ok?"🛒 Cart-ல் சேர் · "+inr(Math.round(it.sizes[0].rate*sel.wt/UG(it)*100)/100):(qtyAt(it.id)>0||NOSTOCK()?"எடையை சரி பார்க்கவும்":"இருப்பு இல்லை"); }
+  const a=$("#wAmt"); if(a) a.textContent=sel.wt?fmtG(sel.wt)+" = "+inr(Math.round(it.sizes[0].rate*sel.wt/UG(it)*100)/100):""; const n=$("#wNote"); if(n) n.textContent=wtNote(it);
+  document.querySelectorAll("[data-wq]").forEach(x=>x.classList.toggle("on",+x.dataset.wq===sel.wt)); }
+function renderWeightItem(it){
+  const have=qtyAt(it.id), inCart=cart[it.id+"|W"]||0, z=it.sizes[0], chips=(it.unit==="g"?[100,250,500,1000]:[250,500,1000,2000]);
+  $("#sb").innerHTML=`<h2>${esc(it.ta)}</h2><p class="sub">${esc(it.en||"")} · ${esc((catById[it.cat]||{}).ta||"")}</p>
+    <div class="big" style="--tint:${esc(tint(it))}">${pic(it)}</div>
+    <div class="addrow"><div style="font-size:24px;font-weight:900;color:var(--leaf-d)">${inr(z.rate)} <small style="font-size:13px;color:var(--muted)">/ ${it.unit}</small></div>
+      <small style="margin-left:auto;font-weight:800;color:var(--muted)">${have>0?"இருப்பு "+fmtG(have):(NOSTOCK()?"முன்பதிவு":"இல்லை")}</small></div>
+    <div class="lbl">⚖️ எவ்வளவு வேண்டும்? (Weight)</div>
+    <div class="chips" id="wch">${chips.map(g=>`<button type="button" data-wq="${g}" class="${g===sel.wt?"on":""}">${fmtG(g)}</button>`).join("")}</div>
+    <div class="addrow" style="margin-top:8px"><div class="step"><button data-wd="-1" aria-label="Less">−</button></div>
+      <input id="wIn" type="number" inputmode="decimal" min="0" step="any" style="flex:1;min-width:0;height:44px;border:1.5px solid var(--line);border-radius:12px;text-align:center;font-size:18px;font-weight:900" value="${sel.u==="kg"?+(sel.wt/1000).toFixed(3):sel.wt}">
+      <select id="wUn" aria-label="Unit" style="height:44px;border:1.5px solid var(--line);border-radius:12px;font-weight:800;padding:0 8px"><option value="kg"${sel.u==="kg"?" selected":""}>kg</option><option value="g"${sel.u==="g"?" selected":""}>g</option></select>
+      <div class="step"><button data-wd="1" aria-label="More">+</button></div></div>
+    <p class="sub" id="wAmt" style="margin-top:8px;font-weight:800;color:var(--leaf-d)"></p>
+    ${inCart?`<p class="sub">🛒 ஏற்கனவே Cart-ல்: ${fmtG(inCart)}</p>`:""}
+    <p class="sub" id="wNote" style="color:#b45309;font-weight:700"></p>
+    <button class="cta" id="addCart">🛒 Cart-ல் சேர்</button>
+    <button class="cta ghost" id="closeSheet2">மேலும் பொருட்கள் பார்</button>`;
+  wtPaint();
+}
+function renderItem(){
+  if(isW(byId[sel.id])){ renderWeightItem(byId[sel.id]); return; }
+  const it=byId[sel.id], z=it.sizes.find(x=>x.size===sel.size), have=qtyAt(it.id,sel.size), inCart=cart[it.id+"|"+sel.size]||0;
+  const where=loc==="all"?S.branches.filter(b=>qtyAt(it.id,sel.size,b.id)>0).map(b=>`${b.kind==="warehouse"?"🏭":"🏬"} ${esc(b.name)}: ${qtyAt(it.id,sel.size,b.id)}`).join(" · "):"";
+  $("#sb").innerHTML=`<h2>${esc(it.ta)}</h2><p class="sub">${esc(it.en||"")} · ${esc((catById[it.cat]||{}).ta||"")}</p>
+    <div class="big" style="--tint:${esc(tint(it))}">${pic(it)}</div>
+    <div class="lbl" style="margin-top:0">சைஸ் / அளவு</div>
+    <div class="szs">${it.sizes.map(x=>{ const h=qtyAt(it.id,x.size); return `<button data-sz="${esc(x.size)}" class="${x.size===sel.size?"on":""}"${h>0||NOSTOCK()?"":" disabled"}><b>${esc(x.size)}</b><small>${inr(x.rate)}</small><small>${h>0?"இருப்பு "+h:(NOSTOCK()?"முன்பதிவு":"இல்லை")}</small></button>`; }).join("")}</div>
+    ${where?`<p class="sub" style="margin-top:8px">📍 ${where}</p>`:""}
+    <div class="addrow"><div style="font-size:24px;font-weight:900;color:var(--leaf-d)">${inr(z.rate)}</div>
+      <div class="step" style="margin-left:auto"><button data-iq="-1" aria-label="Less">−</button><input class="qin" id="iqIn" inputmode="numeric" maxlength="3" value="${sel.qty}" aria-label="Quantity"><button data-iq="1" aria-label="More">+</button></div></div>
+    ${inCart?`<p class="sub" style="margin-top:6px">🛒 ஏற்கனவே Cart-ல்: ${inCart}</p>`:""}
+    ${have<=0&&NOSTOCK()?`<p class="sub" style="margin-top:6px;color:#b45309;font-weight:700">📦 இப்போது ஸ்டாக் இல்லை — முன்பதிவு ஆர்டர் எடுக்கப்படும்; ஸ்டாக் வந்ததும் கடை தொடர்பு கொள்ளும்</p>`:""}
+    <button class="cta" id="addCart"${have>0||NOSTOCK()?"":" disabled"}>${have>0||NOSTOCK()?"🛒 Cart-ல் சேர் · "+inr(z.rate*sel.qty):"இருப்பு இல்லை"}</button>
+    <button class="cta ghost" id="closeSheet2">மேலும் பொருட்கள் பார்</button>`;
+}
+function openCart(){
+  const K=cartKeys();
+  if(!K.length){ toast("Cart காலியாக உள்ளது"); return; }
+  const f=ls.get("me",{}), fill=loc!=="all"?loc:(f.branch||"");
+  $("#sb").innerHTML=`<h2>🛒 உங்கள் Cart</h2><p class="sub">${esc(S.company.name)}</p>
+    <div class="box">${K.map(k=>{ const [id,sz]=k.split("|"), it=byId[id], r=rateOf(k);
+      return `<div class="cl" data-k="${esc(k)}"><div class="th" style="--tint:${esc(tint(it))}">${pic(it)}</div>
+        <div><b>${esc(it.ta)}</b><small>${isW(it)?fmtG(cart[k])+" × "+inr(r)+" / "+it.unit:esc(sz)+" · "+inr(r)+" × "+cart[k]} = <b>${inr(lineAmt(k))}</b></small><small class="bad" data-warn="${esc(k)}"></small></div>
+        <div class="step"><button data-cq="-1" aria-label="Less">−</button>${isW(it)?`<span>${fmtG(cart[k])}</span>`:`<input class="qin" data-cqin inputmode="numeric" maxlength="3" value="${cart[k]}" aria-label="Quantity">`}<button data-cq="1" aria-label="More">+</button></div></div>`; }).join("")}
+      <div class="tot"><span>மொத்தம் (${cartPcs()} pcs)</span><span>${inr(cartTot())}</span></div></div>
+    <p class="sub" id="preNote" style="color:#b45309;font-weight:700" hidden>📦 முன்பதிவு: ஸ்டாக் இல்லாத ஐட்டங்கள் முன்பதிவாக எடுக்கப்படும் — ஸ்டாக் வந்தவுடன் கடை உங்களை தொடர்பு கொள்ளும்.</p>
+    <div class="lbl">உங்கள் விவரம்</div>
+    <label class="fld" id="fN">பெயர் *<input id="oName" maxlength="60" autocomplete="name" value="${esc(f.name||"")}"></label>
+    <label class="fld" id="fP">மொபைல் எண் *<input id="oPhone" inputmode="numeric" maxlength="10" autocomplete="tel" value="${esc(f.phone||(Q.get("m")||"").replace(/\D/g,"").slice(-10))}"></label>
+    <div class="chips"><button type="button" data-mode="delivery" class="${(f.mode||"delivery")==="delivery"?"on":""}">🚚 டோர் டெலிவரி</button><button type="button" data-mode="pickup" class="${f.mode==="pickup"?"on":""}">🏬 கடையில் பெறுவேன்</button></div>
+    <label class="fld" id="fA"${f.mode==="pickup"?" hidden":""}>டெலிவரி முகவரி *<textarea id="oAddr" rows="3" maxlength="300">${esc(f.address||"")}</textarea></label>
+    <label class="fld" id="fB">எந்த கடை / warehouse-லிருந்து *<select id="oBranch"><option value="">— தேர்வு செய்யவும் —</option>${S.branches.map(b=>`<option value="${esc(b.id)}"${b.id===fill?" selected":""}>${b.kind==="warehouse"?"🏭":"🏬"} ${esc(b.name)}</option>`).join("")}</select></label>
+    <label class="fld">குறிப்பு (optional)<textarea id="oNotes" rows="2" maxlength="300" placeholder="எ.கா. மாலை 6 மணிக்கு பிறகு"></textarea></label>
+    <p class="bad" id="ordErr" style="font-weight:800;font-size:13.5px;margin:6px 2px" hidden></p>
+    <button class="cta" id="placeOrder">✅ ஆர்டர் செய் · ${inr(cartTot())}</button>
+    <p class="sub" style="text-align:center;margin-top:8px">பணம்: டெலிவரி / பிக்அப் நேரத்தில் Cash அல்லது UPI · விலை, இருப்பை கடை உறுதி செய்யும்</p>`;
+  showSheet(); checkCartBranch();
+}
+function checkCartBranch(){
+  const b=($("#oBranch")||{}).value; let bad=0;
+  cartKeys().forEach(k=>{ const el=document.querySelector(`[data-warn="${CSS.escape(k)}"]`); if(!el) return;
+    const [id,sz]=k.split("|"), h=b?qtyAt(id,sz,b):qtyAt(id,sz,"all");
+    if(NOSTOCK()){ el.textContent=cart[k]>h?"📦 ஸ்டாக் குறைவு — முன்பதிவாக எடுக்கப்படும்":""; return; }
+    el.textContent=cart[k]>h?(b?"இந்த கடையில் "+fq(id,h)+" மட்டும்":"இருப்பு "+fq(id,h)+" மட்டும்"):""; if(cart[k]>h) bad++; });
+  { const pn=$("#preNote"); if(pn) pn.hidden=!(NOSTOCK()&&cartKeys().some(k=>{ const [id,sz]=k.split("|"); return cart[k]>(b?qtyAt(id,sz,b):qtyAt(id,sz,"all")); })); }
+  return bad;
+}
+async function placeOrder(){
+  const name=$("#oName").value.trim(), phone=$("#oPhone").value.replace(/\D/g,""), mode=document.querySelector("[data-mode].on").dataset.mode,
+        address=$("#oAddr").value.trim(), branch=$("#oBranch").value, notes=$("#oNotes").value.trim();
+  $("#fN").classList.toggle("bad",!name); $("#fP").classList.toggle("bad",!/^[6-9]\d{9}$/.test(phone));
+  $("#fA").classList.toggle("bad",mode==="delivery"&&address.length<8); $("#fB").classList.toggle("bad",!branch);
+  if(!name||!/^[6-9]\d{9}$/.test(phone)||(mode==="delivery"&&address.length<8)||!branch){ toast("விவரங்களை சரி பார்க்கவும்"); return; }
+  if(checkCartBranch()){ toast("சில பொருட்கள் இந்த கடையில் போதுமான இருப்பு இல்லை — அளவை குறைக்கவும் அல்லது வேறு கடை"); return; }
+  ls.set("me",{name,phone,mode,address,branch});
+  const btn=$("#placeOrder"); btn.disabled=true;
+  try{
+    const r=await api("/orders","POST",{name,phone,mode,address,branch,notes,lines:cartKeys().map(k=>isW(byId[k.split("|")[0]])?({itemId:k.split("|")[0],wt:cart[k],qty:1}):({itemId:k.split("|")[0],size:k.split("|")[1],qty:cart[k]}))});
+    const L=ls.get("orders",[]); L.unshift({no:r.no,token:r.token,at:new Date().toISOString(),total:r.total}); ls.set("orders",L.slice(0,30));
+    const ordLines=cartKeys().map(k=>{ const [id,sz]=k.split("|"); return {n:byId[id].ta,sz:isW(byId[id])?fmtG(cart[k]):sz,w:isW(byId[id]),q:cart[k],r:lineAmt(k)/(isW(byId[id])?1:cart[k]),pre:NOSTOCK()&&cart[k]>qtyAt(id,sz,branch)}; });
+    const hasPre=ordLines.some(l=>l.pre);
+    const brName=((S.branches.find(b=>b.id===branch))||{}).name||"";
+    cart={}; saveCart(); render();
+    const link=trackUrl(r.token);
+    const waNo=(S.company.wa||S.company.phone||"").replace(/\D/g,"").slice(-10);
+    const waMsg=[`*${S.company.name}* — புதிய Online ஆர்டர் ${r.no}`,
+      `👤 ${name}`,`📱 ${phone}`,mode==="pickup"?"🏬 கடையில் பெறுவார் (Pickup)":"🚚 டோர் டெலிவரி",mode==="pickup"?null:`📍 ${address}`,brName?`🏬 கடை: ${brName}`:null,"",
+      ...ordLines.map((l,i)=>`${i+1}. ${l.n} — ${l.w?l.sz:"("+l.sz+") × "+l.q} = ${inr(l.r*(l.w?1:l.q))}${l.pre?" 📦 முன்பதிவு":""}`),hasPre?"📦 முன்பதிவு ஐட்டங்கள்: ஸ்டாக் வந்தவுடன் வழங்கவும்":null,"",`*மொத்தம்: ${inr(r.total)}*`,notes?`📝 ${notes}`:null,
+      `ஆர்டர் நிலை: ${link}`].filter(x=>x!==null).join("\n");
+    const waUrl="https://wa.me/91"+waNo+"?text="+encodeURIComponent(waMsg)+"&raw=1";
+    $("#sb").innerHTML=`<div class="ok"><div class="tick">✓</div><h2>ஆர்டர் ${esc(r.no)} பெறப்பட்டது</h2>
+      <p class="sub">${inr(r.total)} · கடை உறுதி செய்தவுடன் நிலை மாறும். இந்த link-ல் எப்போதும் நிலையை பார்க்கலாம்.</p>
+      ${hasPre?`<p class="sub" style="color:#b45309;font-weight:700">📦 இது முன்பதிவு ஆர்டர் — ஸ்டாக் வந்தவுடன் கடை உங்களை தொடர்பு கொள்ளும்.</p>`:""}
+      <a class="cta ghost" href="${esc(link)}">📦 ஆர்டர் நிலை பார் (Track)</a>
+      ${waNo?`<p class="sub" style="margin-top:6px">📲 கடைக்கு WhatsApp-ல் ஆர்டர் விவரத்தை அனுப்பினால் உடனே பார்ப்பார்கள்</p><a class="cta" id="waSend" href="${esc(waUrl)}" target="_blank" rel="noopener">💬 WhatsApp-ல் ஆர்டரை அனுப்பு</a>`:""}
+      <button class="cta ghost" id="closeSheet2">மேலும் ஷாப்பிங்</button></div>`;
+    if(waNo){ try{ window.open(waUrl,"_blank","noopener"); }catch(e){} }   // opens WhatsApp right away where the browser allows it; the button above always works
+  }catch(e){ toast(e.message); const eb=$("#ordErr"); if(eb){ eb.textContent="⚠️ "+e.message; eb.hidden=false; } btn.disabled=false; }
+}
+const FLOW=[["new","ஆர்டர் பெறப்பட்டது","🧾"],["accepted","கடை ஏற்றுக்கொண்டது","👍"],["billed","பில் போடப்பட்டது / பேக் ஆனது","📦"],["out","டெலிவரிக்கு புறப்பட்டது","🚚"],["delivered","டெலிவரி / பெறப்பட்டது","✅"]];
+const ST_TXT={new:"புதியது",accepted:"ஏற்கப்பட்டது",billed:"பேக் ஆனது",out:"டெலிவரியில்",delivered:"டெலிவரி ஆனது",cancelled:"ரத்து"};
+async function showOrder(token){
+  $("#app").innerHTML=`<div class="none"><b>⏳</b>ஆர்டர் நிலை…</div>`;
+  let o; try{ o=(await api("/orders/"+encodeURIComponent(token))).order; }catch(e){ $("#app").innerHTML=`<div class="none"><b>⚠️</b>${esc(e.message)}</div>`; return; }
+  const idx=FLOW.findIndex(f=>f[0]===o.status), cx=o.status==="cancelled";
+  const flow=FLOW.filter(f=>!(f[0]==="out"&&o.mode==="pickup")).map(f=>f[0]==="delivered"&&o.mode==="pickup"?[f[0],"கடையில் பெறப்பட்டது","✅"]:f);
+  $("#app").innerHTML=`<section class="hero"><b>📦 ஆர்டர் ${esc(o.no)}</b><p>${esc(new Date(o.at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}))} · ${inr(o.total)} · ${o.mode==="pickup"?"🏬 கடையில் பெறுதல்":"🚚 டோர் டெலிவரி"}<br>${o.branch?"📍 "+esc(o.branch):""}</p></section>
+    <div class="box"><div class="lbl" style="margin-top:0">நிலை (Status) <span class="st ${esc(o.status)}">${esc(ST_TXT[o.status]||o.status)}</span></div>
+      <ul class="tl">${cx?`<li class="done"><i>✓</i>ஆர்டர் பெறப்பட்டது</li><li class="x"><i>✕</i>ஆர்டர் ரத்து செய்யப்பட்டது${o.statusNote?" — "+esc(o.statusNote):""}</li>`
+        :flow.map((f,i)=>{ const j=FLOW.findIndex(x=>x[0]===f[0]); return `<li class="${j<idx?"done":j===idx?(o.status==="delivered"?"done":"cur"):""}"><i>${j<=idx?(j===idx&&o.status!=="delivered"?f[2]:"✓"):i+1}</i>${esc(f[1])}</li>`; }).join("")}</ul>
+      ${o.statusNote&&!cx?`<p class="sub">📝 ${esc(o.statusNote)}</p>`:""}${o.billNo?`<p class="sub">🧾 பில்: ${esc(o.billNo)}</p>`:""}</div>
+    <div class="box">${(o.lines||[]).map(l=>{ const it=byId[l.id]||{cat:"",ta:l.name}; return `<div class="cl"><div class="th" style="--tint:${esc(tint(it))}">${it.id?pic(it):"🛍"}</div><div><b>${esc(l.name)}</b><small>${esc(l.size)} · ${inr(l.rate)} × ${l.qty}</small></div><b>${inr(l.amt)}</b></div>`; }).join("")}
+      <div class="tot"><span>மொத்தம்</span><span>${inr(o.total)}</span></div></div>
+    <button class="cta ghost" id="refresh">🔄 நிலையை புதுப்பி</button>
+    <a class="cta" href="${esc(PATHCODE?"/s/"+encodeURIComponent(PATHCODE):location.pathname+"?s="+encodeURIComponent(CODE))}">🛍 மேலும் ஷாப்பிங்</a>
+    <footer>${esc(S.company.name)} · Powered by MBill · Mobile Bill</footer>`;
+}
+async function openMyOrders(){
+  const L=ls.get("orders",[]);
+  $("#sb").innerHTML=`<h2>📦 என் ஆர்டர்கள்</h2><p class="sub">இந்த மொபைலில் செய்த ஆர்டர்கள்</p><div id="myl"><p class="sub">ஏற்றுகிறது…</p></div>`; showSheet();
+  const rows=await Promise.all(L.map(x=>api("/orders/"+encodeURIComponent(x.token)).then(r=>r.order).catch(()=>null)));
+  $("#myl").innerHTML=L.map((x,i)=>{ const o=rows[i]; return `<a class="oc" href="?s=${encodeURIComponent(CODE)}&o=${encodeURIComponent(x.token)}" style="text-decoration:none;color:inherit">
+    <div class="r"><b>${esc(x.no)}</b>${o?`<span class="st ${esc(o.status)}">${esc(ST_TXT[o.status]||o.status)}</span>`:""}</div><small>${esc(new Date(x.at).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"}))} · ${inr(x.total)}</small></a>`; }).join("")||`<p class="sub">ஆர்டர் இல்லை</p>`;
+}
+document.addEventListener("click",e=>{
+  const t=e.target.closest("button,a"); if(!t) { if(e.target.id==="veil") closeSheet(); return; }
+  const d=t.dataset;
+  if(t.id==="closeSheet"||t.id==="closeSheet2"){ closeSheet(); return; }
+  if(d.loc){ loc=d.loc; ls.set("loc",loc); render(); return; }
+  if(d.grp){ grp=d.grp; render(); window.scrollTo({top:0}); return; }
+  if(t.id==="backGrp"){ grp=null; render(); return; }
+  if(d.item){ openItem(d.item); return; }
+  if(d.wq){ sel.wt=+d.wq; sel.u=sel.wt>=1000&&sel.wt%1000===0?sel.u:sel.u; const i=$("#wIn"); i.value=sel.u==="kg"?+(sel.wt/1000).toFixed(3):sel.wt; wtPaint(); return; }
+  if(d.wd){ const it=byId[sel.id]; sel.wt=Math.max(0,Math.min(99000,(sel.wt||0)+(+d.wd)*wStep(it))); $("#wIn").value=sel.u==="kg"?+(sel.wt/1000).toFixed(3):sel.wt; wtPaint(); return; }
+  if(d.sz){ sel.size=d.sz; sel.qty=1; renderItem(); return; }
+  if(d.iq){ iqRead(); sel.qty=Math.max(1,Math.min(iqMax(),sel.qty+(+d.iq))); renderItem(); return; }
+  if(t.id==="addCart"&&isW(byId[sel.id])){ const k=sel.id+"|W", have=qtyAt(sel.id); sel.wt=wGrams()||sel.wt; if(sel.wt<10||sel.wt>99000){ toast("எடை 10 g – 99 kg வரை"); return; }
+    const n=Math.min(99000,(cart[k]||0)+sel.wt); if(!NOSTOCK()&&n>have){ toast("இருப்பு "+fmtG(have)+" வரை மட்டுமே"); return; } cart[k]=n; saveCart(); closeSheet(); render(); toast("🛒 Cart-ல் சேர்க்கப்பட்டது"); return; }
+  if(t.id==="addCart"){ iqRead(); const k=sel.id+"|"+sel.size, h=qtyAt(sel.id,sel.size); const n=NOSTOCK()?Math.min(999,(cart[k]||0)+sel.qty):Math.min(h,(cart[k]||0)+sel.qty);
+    if(n<=(cart[k]||0)){ toast("இருப்பு அளவு வரை மட்டுமே சேர்க்க முடியும்"); return; } cart[k]=n; saveCart(); closeSheet(); render(); toast("🛒 Cart-ல் சேர்க்கப்பட்டது"); return; }
+  if(t.id==="openCart"){ openCart(); return; }
+  if(d.cq){ const k=t.closest("[data-k]").dataset.k, wi=byId[k.split("|")[0]]; cart[k]=Math.max(0,(cart[k]||0)+(+d.cq)*(isW(wi)?wStep(wi):1)); if(!cart[k]||(isW(wi)&&cart[k]<10)) delete cart[k]; saveCart(); render(); if(cartKeys().length) openCart(); else closeSheet(); return; }
+  if(d.mode){ document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("on",b===t)); $("#fA").hidden=d.mode==="pickup"; return; }
+  if(t.id==="placeOrder"){ placeOrder(); return; }
+  if(t.id==="myOrders"){ openMyOrders(); return; }
+  if(t.id==="refresh"){ showOrder(ORDER); return; }
+});
+$("#veil").addEventListener("click",closeSheet);
+document.addEventListener("input",e=>{
+  if(e.target.id==="q") render();
+  if(e.target.id==="inOnly"){ inOnly=e.target.checked; ls.set("inOnly",inOnly); render(); }
+  if(e.target.id==="oBranch") checkCartBranch();
+  if(e.target.id==="iqIn"){ const v=e.target.value.replace(/\D/g,""); if(v!==e.target.value) e.target.value=v; sel.qty=Math.max(1,Math.min(iqMax(),parseInt(v,10)||1)); iqPaint(); }
+  if(e.target.dataset&&e.target.dataset.cqin!==undefined){ const v=e.target.value.replace(/\D/g,""); if(v!==e.target.value) e.target.value=v; }
+  if(e.target.id==="wIn"){ sel.wt=wGrams(); wtPaint(); }
+  if(e.target.id==="wUn"){ const g=wGrams()||sel.wt; sel.u=e.target.value; sel.wt=g; $("#wIn").value=sel.u==="kg"?+(g/1000).toFixed(3):g; wtPaint(); }
+});
+/* typed quantity (count items): item sheet + cart */
+function iqMax(){ const h=qtyAt(sel.id,sel.size)-(cart[sel.id+"|"+sel.size]||0); return NOSTOCK()?999:Math.max(1,h); }
+function iqRead(){ const i=$("#iqIn"); if(!i) return; const v=parseInt(i.value.replace(/\D/g,""),10)||1; sel.qty=Math.max(1,Math.min(iqMax(),v)); }
+function iqPaint(){ const it=byId[sel.id], z=it&&it.sizes.find(x=>x.size===sel.size), b=$("#addCart"); if(b&&z&&!b.disabled) b.textContent="🛒 Cart-ல் சேர் · "+inr(z.rate*sel.qty); }
+document.addEventListener("keydown",e=>{ if(e.key==="Enter"&&e.target.dataset&&(e.target.id==="iqIn"||e.target.dataset.cqin!==undefined)){ e.preventDefault(); e.target.blur(); } });
+document.addEventListener("change",e=>{
+  if(e.target.id==="iqIn"){ const v=parseInt(e.target.value.replace(/\D/g,""),10)||1, m=iqMax(); sel.qty=Math.max(1,Math.min(m,v)); if(v>m) toast(NOSTOCK()?"ஒரு முறை அதிகபட்சம் 999":"இருப்பு "+m+" வரை மட்டுமே"); e.target.value=sel.qty; iqPaint(); return; }
+  if(e.target.dataset&&e.target.dataset.cqin!==undefined){
+    const k=e.target.closest("[data-k]").dataset.k, v=parseInt(e.target.value.replace(/\D/g,""),10)||0;
+    if(v>999) toast("அதிகபட்சம் 999");
+    if(!v){ delete cart[k]; saveCart(); render(); if(cartKeys().length) openCart(); else closeSheet(); return; }
+    cart[k]=Math.min(999,v); e.target.value=cart[k]; saveCart(); render();
+    const row=e.target.closest(".cl"), it=byId[k.split("|")[0]], sm=row.querySelector("small");
+    if(sm) sm.firstChild.nodeValue=k.split("|")[1]+" · "+inr(rateOf(k))+" × "+cart[k]+" = ";
+    const b=sm&&sm.querySelector("b"); if(b) b.textContent=inr(lineAmt(k));
+    const tot=document.querySelector(".box .tot"); if(tot) tot.innerHTML="<span>மொத்தம் ("+cartPcs()+" pcs)</span><span>"+inr(cartTot())+"</span>";
+    checkCartBranch();
+  }
+});
+boot();
+</script>
+</body>
+</html>

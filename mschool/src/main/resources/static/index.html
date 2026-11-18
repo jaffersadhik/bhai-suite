@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2f3e9e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>MSchool</title>
+<style>
+:root{--pri:#2f3e9e;--pri2:#4658c7;--pri-l:#e8ebfb;--bg:#f3f5fb;--card:#fff;--line:#e3e7f2;--tx:#1c2340;--mu:#6b7390;
+--ok:#1e8e4e;--ok-l:#e3f5ea;--bad:#c62f2f;--bad-l:#fde8e8;--warn:#d9770a;--warn-l:#fff1dc;--r:14px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI","Noto Sans Tamil","Latha",Roboto,sans-serif;font-size:15px;line-height:1.4}
+#app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);position:relative}
+#bar{position:sticky;top:0;z-index:20;background:var(--pri);color:#fff;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px}
+#bar .t{flex:1;min-width:0}#bar .t b{display:block;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bar .t small{opacity:.85;font-size:12px}
+#bar button{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:10px;padding:8px 11px;font-size:15px}
+#main{flex:1;padding:12px 12px 90px}
+#dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:#fff;border-top:1px solid var(--line);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+#dock button{flex:1;border:0;background:none;padding:8px 2px 7px;color:var(--mu);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:1px}
+#dock button i{font-style:normal;font-size:20px}#dock button.on{color:var(--pri);font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.card h3{margin:0 0 8px;font-size:15px}
+.row{display:flex;align-items:center;gap:10px}.sp{flex:1;min-width:0}.mu{color:var(--mu)}.sm{font-size:12px}.b{font-weight:700}.c{text-align:center}.r{text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat b{display:block;font-size:22px;line-height:1.1}.stat span{font-size:12px;color:var(--mu)}
+.stat.ok b{color:var(--ok)}.stat.bad b{color:var(--bad)}.stat.warn b{color:var(--warn)}.stat.pri b{color:var(--pri)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:4px 0 12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 4px;text-align:center;color:var(--tx);font-size:12.5px}
+.tile i{display:block;font-style:normal;font-size:26px;margin-bottom:3px}
+button,input,select,textarea{font:inherit}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:11px;padding:11px 16px;font-weight:600}
+.btn.sec{background:var(--pri-l);color:var(--pri)}.btn.bad{background:var(--bad-l);color:var(--bad)}.btn.ok{background:var(--ok)}.btn.sm{padding:7px 11px;font-size:13px;border-radius:9px}
+.btn:disabled{opacity:.5}.btn.full{width:100%}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:var(--pri-l);color:var(--pri);text-decoration:none;border:0;font-size:16px}
+.f{display:block;margin-bottom:10px}.f>span{display:block;font-size:12px;color:var(--mu);margin-bottom:3px}
+.f input,.f select,.f textarea,.inp{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--tx)}
+.f input:focus,.f select:focus,.inp:focus{outline:2px solid var(--pri2);border-color:transparent}
+.search{position:sticky;top:58px;z-index:5;background:var(--bg);padding:2px 0 8px}
+.seg{display:flex;background:#e6e9f6;border-radius:11px;padding:3px;margin-bottom:10px;gap:3px}
+.seg button{flex:1;border:0;background:none;padding:8px 4px;border-radius:9px;color:var(--mu);font-size:13px}.seg button.on{background:#fff;color:var(--pri);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.li{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 11px;margin-bottom:8px}
+.av{width:38px;height:38px;border-radius:50%;background:var(--pri-l);color:var(--pri);display:flex;align-items:center;justify-content:center;font-weight:700;flex:none;font-size:14px}
+.chip{display:inline-block;background:var(--pri-l);color:var(--pri);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px 3px 2px 0}
+.chip.ok{background:var(--ok-l);color:var(--ok)}.chip.bad{background:var(--bad-l);color:var(--bad)}.chip.warn{background:var(--warn-l);color:var(--warn)}.chip.sel{background:var(--pri);color:#fff}
+.pa{display:flex;gap:6px}.pa button{width:42px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:700;color:var(--mu)}
+.pa button.P.on{background:var(--ok);border-color:var(--ok);color:#fff}.pa button.A.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.pa button.L.on,.pa button.H.on{background:var(--warn);border-color:var(--warn);color:#fff}
+.pa button.pass.on{background:var(--ok);border-color:var(--ok);color:#fff}.pa button.fail.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.pa.w button{width:auto;padding:0 10px}
+.savebar{position:sticky;bottom:64px;background:linear-gradient(transparent,var(--bg) 30%);padding:14px 0 6px;z-index:6}
+.fab{position:fixed;right:max(16px,calc(50% - 244px));bottom:78px;width:54px;height:54px;border-radius:50%;background:var(--pri);color:#fff;border:0;font-size:28px;box-shadow:0 4px 14px rgba(47,62,158,.4);z-index:15}
+.empty{text-align:center;color:var(--mu);padding:30px 10px}
+.hide{display:none!important}
+#shade{position:fixed;inset:0;background:rgba(15,20,50,.45);z-index:40}
+#sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:520px;max-height:92vh;background:#fff;border-radius:20px 20px 0 0;z-index:41;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+#sheet .grab{width:42px;height:4px;border-radius:2px;background:#cfd4e6;margin:8px auto 0}
+#sheet .sh-h{display:flex;align-items:center;padding:8px 14px 6px}#sheet .sh-h b{flex:1;font-size:16px}#sheet .sh-h button{border:0;background:#eef0f8;border-radius:50%;width:32px;height:32px;font-size:15px}
+#shB{overflow:auto;padding:4px 14px 18px;-webkit-overflow-scrolling:touch}
+#toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);max-width:90%;background:#222a4a;color:#fff;padding:10px 16px;border-radius:12px;z-index:60;font-size:14px;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}#toast.err{background:var(--bad)}
+.login{max-width:380px;margin:9vh auto 0;padding:0 18px}.login h1{margin:0 0 4px;color:var(--pri);font-size:30px}
+.bar{height:8px;background:#e6e9f6;border-radius:5px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--ok)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}table.t td,table.t th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}table.t th{color:var(--mu);font-weight:600;font-size:12px}table.t td.n,table.t th.n{text-align:right}
+.rcpt{border:1px dashed #b9c0dd;border-radius:12px;padding:12px;background:#fcfcff}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px}.kv:last-child{border:0}.kv span:first-child{color:var(--mu)}
+.sec-h{font-size:13px;color:var(--mu);font-weight:700;margin:14px 2px 6px;text-transform:uppercase;letter-spacing:.3px}
+.spin{text-align:center;padding:30px;color:var(--mu)}
+@media print{body *{visibility:hidden}#shB,#shB *{visibility:visible}#sheet{position:absolute;left:0;top:0;transform:none;max-width:none;box-shadow:none}.noprint{display:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><header id="bar"></header><main id="main"></main><nav id="dock"></nav></div>
+<div id="shade" class="hide" data-act="closeSheet"></div>
+<div id="sheet" class="hide"><div class="grab"></div><div class="sh-h"><b id="shT"></b><button data-act="closeSheet" aria-label="மூடு">✕</button></div><div id="shB"></div></div>
+<div id="toast"></div>
+<script>
+'use strict';
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const z2=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+z2(d.getMonth()+1)+'-'+z2(d.getDate());
+const todayS=()=>ymd(new Date());
+const monthS=()=>todayS().slice(0,7);
+const inr=n=>'₹'+Number(n||0).toLocaleString('en-IN');
+const num=n=>Number(n||0);
+const dmy=s=>{if(!s)return '';const p=String(s).slice(0,10).split('-');return p.length===3?p[2]+'-'+p[1]+'-'+p[0]:s};
+const waLink=(p,t)=>{let d=String(p||'').replace(/\D/g,'');if(d.length===10)d='91'+d;return 'https://wa.me/'+d+'?text='+encodeURIComponent(t)};
+const telLink=p=>'tel:'+String(p||'').replace(/[^\d+]/g,'');
+const initials=n=>String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const KIND={school:'பள்ளி',college:'கல்லூரி',university:'பல்கலைக்கழகம்'};
+const ROLE={admin:'நிர்வாகி',principal:'முதல்வர்',office:'அலுவலகம்',teacher:'ஆசிரியர்'};
+const MODES=['Cash','UPI','Card','Cheque','Bank'];
+const MODE_TA={Cash:'ரொக்கம்',UPI:'UPI',Card:'கார்டு',Cheque:'காசோலை',Bank:'வங்கி'};
+
+let S={token:localStorage.getItem('ms_token'),me:null,data:null,dash:null,view:'home',hist:[],busy:false};
+
+async function api(path,method,body){
+  const r=await fetch('/api'+path,{method:method||'GET',headers:{'Content-Type':'application/json',...(S.token?{'X-Auth':S.token}:{})},body:body===undefined?undefined:JSON.stringify(body)});
+  let j=null;try{j=await r.json()}catch(e){}
+  if(r.status===401&&S.token&&path!=='/login'){localLogout();throw new Error((j&&j.error)||'மீண்டும் உள்நுழையவும்')}
+  if(!r.ok)throw new Error((j&&j.error)||'பிழை ('+r.status+')');
+  return j;
+}
+function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(toast.h);toast.h=setTimeout(()=>t.className='',err?4200:2200)}
+async function run(fn){try{await fn()}catch(e){toast(e.message||String(e),true)}}
+
+/* ---------- roles ---------- */
+const role=()=>S.me&&S.me.user.type;
+const isAdmin=()=>role()==='admin',isHead=()=>role()==='admin'||role()==='principal',isDesk=()=>isHead()||role()==='office',isTeacher=()=>role()==='teacher';
+const myStaff=()=>S.me&&S.me.user.staffId;
+
+/* ---------- data helpers ---------- */
+const D=()=>S.data||{classes:[],sections:[],rooms:[],heads:[],years:[],teachers:[]};
+const cls=id=>D().classes.find(c=>c.id==id);
+const sec=id=>D().sections.find(s=>s.id==id);
+const secsOf=cid=>D().sections.filter(s=>s.class_id==cid);
+const secLabel=s=>{if(!s)return '';const c=cls(s.class_id);return (c?c.name:'')+' '+s.name};
+const curYear=()=>D().years.find(y=>y.is_current)||null;
+const mySections=()=>isTeacher()?D().sections.filter(s=>s.class_teacher_id==myStaff()):D().sections;
+const opts=(arr,val,fn,blank)=>(blank?'<option value="">'+esc(blank)+'</option>':'')+arr.map(x=>{const [v,t]=fn(x);return '<option value="'+esc(v)+'"'+(String(v)===String(val==null?'':val)?' selected':'')+'>'+esc(t)+'</option>'}).join('');
+const classOpts=(val,blank)=>opts(D().classes,val,c=>[c.id,c.name],blank);
+const sectionOpts=(val,blank,list)=>opts(list||D().sections,val,s=>[s.id,secLabel(s)],blank);
+const modeOpts=v=>opts(MODES,v||'Cash',m=>[m,MODE_TA[m]]);
+const field=(label,id,val,extra)=>'<label class="f"><span>'+label+'</span><input id="'+id+'" value="'+esc(val)+'" '+(extra||'')+'></label>';
+const selField=(label,id,optsHtml,chg)=>'<label class="f"><span>'+label+'</span><select id="'+id+'"'+(chg?' data-chg="'+chg+'"':'')+'>'+optsHtml+'</select></label>';
+const val=id=>{const e=document.getElementById(id);return e?e.value.trim():''};
+const contact=(phone,text)=>phone?'<a class="ib" href="'+telLink(phone)+'" title="அழை">📞</a> <a class="ib" target="_blank" rel="noopener" href="'+waLink(phone,text||'')+'" title="WhatsApp">💬</a>':'';
+
+/* ---------- sheet ---------- */
+function sheet(title,html){$('#shT').textContent=title;$('#shB').innerHTML=html;$('#sheet').classList.remove('hide');$('#shade').classList.remove('hide');$('#shB').scrollTop=0}
+function closeSheet(){$('#sheet').classList.add('hide');$('#shade').classList.add('hide');$('#shB').innerHTML=''}
+const sheetOpen=()=>!$('#sheet').classList.contains('hide');
+
+/* ---------- navigation ---------- */
+const DOCK_ROOT={home:1,students:1,attendance:1,fees:1,more:1};
+function go(view,params){
+  closeSheet();
+  if(S.view&&S.view!==view)S.hist.push(S.view);
+  if(S.hist.length>30)S.hist.shift();
+  S.view=view;S.vp=params||{};
+  window.scrollTo(0,0);
+  const L=LOAD[view];
+  render();
+  if(L)run(async()=>{S.busy=true;render();try{await L()}finally{S.busy=false;render()}});
+}
+function back(){closeSheet();const v=S.hist.pop()||'home';S.view=v;render();const L=LOAD[v];if(L)run(async()=>{await L();render()})}
+
+function render(){renderBar();renderMain();renderDock()}
+function renderBar(){
+  const b=$('#bar');
+  if(!S.me){b.classList.add('hide');return}
+  b.classList.remove('hide');
+  const inst=S.me.inst,y=curYear();
+  const title=S.view==='admin'?'நிறுவனங்கள்':(inst?inst.name:'MSchool');
+  const sub=ROLE[role()]+' · '+esc(S.me.user.name)+(y?' · '+esc(y.name):'');
+  b.innerHTML=(S.view!=='home'&&S.view!=='admin'&&!(S.view==='more')?'<button data-act="back" aria-label="பின்">←</button>':'')+'<div class="t"><b>'+esc(title)+'</b><small>'+sub+'</small></div>'+(isAdmin()&&S.view!=='admin'?'<button data-act="goAdmin" title="நிறுவனம் மாற்று">🏛</button>':'');
+}
+function dockItems(){
+  if(isAdmin()&&!S.me.inst)return [];
+  const a=[['home','🏠','முகப்பு'],['students','🧑‍🎓','மாணவர்'],['attendance','📋','வருகை']];
+  if(isDesk())a.push(['fees','💰','கட்டணம்']);
+  a.push(['more','☰','மேலும்']);
+  return a;
+}
+function renderDock(){
+  const d=$('#dock');const items=S.me?dockItems():[];
+  if(!items.length){d.classList.add('hide');return}
+  d.classList.remove('hide');
+  const cur=DOCK_ROOT[S.view]?S.view:'more';
+  d.innerHTML=items.map(([k,i,t])=>'<button data-act="nav" data-v="'+k+'" class="'+(k===cur?'on':'')+'"><i>'+i+'</i>'+t+'</button>').join('');
+}
+function renderMain(){
+  const m=$('#main');
+  if(!S.me){m.innerHTML=loginView();return}
+  const f=VIEW[S.view];
+  m.innerHTML=f?f():'<div class="empty">—</div>';
+  if(AFTER[S.view])AFTER[S.view]();
+}
+const spin=()=>'<div class="spin">ஏற்றுகிறது…</div>';
+
+/* ---------- login / session ---------- */
+function loginView(){
+  return '<div class="login"><h1>🎓 MSchool</h1><p class="mu" style="margin:0 0 18px">பள்ளி · கல்லூரி · பல்கலைக்கழகம் — மொபைல் நிர்வாகம்</p>'
+   +'<label class="f"><span>பயனர் பெயர்</span><input id="lu" autocomplete="username" autocapitalize="none"></label>'
+   +'<label class="f"><span>கடவுச்சொல்</span><input id="lp" type="password" autocomplete="current-password"></label>'
+   +'<button class="btn full" data-act="login">உள்நுழை</button></div>';
+}
+function localLogout(){S.token=null;S.me=null;S.data=null;S.dash=null;S.hist=[];S.view='home';localStorage.removeItem('ms_token');closeSheet();render()}
+async function afterLogin(){
+  S.me=await api('/me');
+  S.hist=[];
+  if(isAdmin()&&!S.me.inst){S.view='admin';render();await LOAD.admin();render();return}
+  await loadData();
+  S.view='home';render();await LOAD.home();render();
+}
+async function loadData(){S.data=await api('/data')}
+async function reloadAll(){S.me=await api('/me');await loadData();render()}
+
+/* ---------- actions registry ---------- */
+const A={},C={},I={},LOAD={},VIEW={},AFTER={};
+A.login=async()=>{
+  const r=await api('/login','POST',{user:val('lu'),pass:$('#lp').value});
+  S.token=r.token;localStorage.setItem('ms_token',r.token);await afterLogin();
+};
+A.nav=el=>{const v=el.dataset.v;if(DOCK_ROOT[v]){S.hist=[];S.view=v}go(v)};
+A.back=()=>back();
+A.closeSheet=()=>closeSheet();
+A.goAdmin=()=>go('admin');
+A.logout=async()=>{try{await api('/logout','POST')}catch(e){}localLogout()};
+document.addEventListener('click',e=>{const an=e.target.closest('a[href]');if(an&&!an.dataset.act)return;const el=e.target.closest('[data-act]');if(!el)return;const f=A[el.dataset.act];if(f){e.preventDefault();run(()=>f(el,e))}});
+document.addEventListener('change',e=>{const el=e.target.closest('[data-chg]');if(!el)return;const f=C[el.dataset.chg];if(f)run(()=>f(el))});
+document.addEventListener('input',e=>{const el=e.target.closest('[data-inp]');if(!el)return;const f=I[el.dataset.inp];if(f)f(el)});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='lp'){run(A.login)}});
+function debounce(fn,ms){let h;return(...a)=>{clearTimeout(h);h=setTimeout(()=>fn(...a),ms)}}
+
+/* ---------- home ---------- */
+LOAD.home=async()=>{S.dash=await api('/dashboard')};
+const TILES={students:['🧑‍🎓','மாணவர்கள்'],staff:['👩‍🏫','ஆசிரியர் / ஊழியர்'],attendance:['📋','வருகை'],fees:['💰','கட்டணம்'],payroll:['💵','சம்பளம்'],rooms:['🏫','வகுப்பறைகள்'],promotion:['🎓','வகுப்பு உயர்வு'],setup:['⚙️','அமைப்பு'],users:['🔑','பயனர்கள்']};
+function tileKeys(){
+  if(isHead())return ['students','staff','attendance','fees','payroll','rooms','promotion','setup','users'];
+  if(role()==='office')return ['students','staff','attendance','fees','rooms','promotion'];
+  return ['students','attendance','promotion'];
+}
+const tilesHtml=()=>'<div class="tiles">'+tileKeys().map(k=>'<button class="tile" data-act="nav" data-v="'+k+'" style="border:1px solid var(--line)"><i>'+TILES[k][0]+'</i>'+TILES[k][1]+'</button>').join('')+'</div>';
+VIEW.home=()=>{
+  const d=S.dash,inst=S.me.inst,y=curYear();
+  let h='<div class="card"><div class="row"><div class="av">🎓</div><div class="sp"><b>'+esc(inst.name)+'</b><div class="sm mu">'+(KIND[inst.kind]||'')+(y?' · கல்வியாண்டு '+esc(y.name):'')+' · '+dmy(todayS())+'</div></div></div></div>';
+  if(isHead()&&D().classes.length===0){
+    h+='<div class="card" style="border-color:var(--warn)"><h3>முதல் படி: வகுப்புகளை அமைக்கவும்</h3><p class="sm mu" style="margin:0 0 8px">ஒரே தொடுதலில் வகுப்புகள் மற்றும் அடுத்த வகுப்பு வரிசை உருவாகும். பிறகு மாற்றிக்கொள்ளலாம்.</p><div class="grid2"><button class="btn sec" data-act="template" data-t="school">பள்ளி (LKG–12)</button><button class="btn sec" data-act="template" data-t="college3">கல்லூரி 3 ஆண்டு</button></div><button class="btn sec full" style="margin-top:8px" data-act="template" data-t="college4">கல்லூரி / பல்கலை 4 ஆண்டு</button></div>';
+  }
+  if(!d)return h+tilesHtml()+spin();
+  const att=d.studentAttendance;
+  h+='<div class="grid2">'
+   +'<div class="stat pri"><b>'+num(d.students)+'</b><span>மாணவர்கள்</span></div>'
+   +'<div class="stat pri"><b>'+num(d.teachers)+' / '+num(d.otherStaff)+'</b><span>ஆசிரியர் / பிற ஊழியர்</span></div>';
+  if(att)h+='<div class="stat ok"><b>'+num(att.present)+'<small class="mu"> / '+num(att.total)+'</small></b><span>இன்று வருகை (மாணவர்)</span></div><div class="stat bad"><b>'+num(att.absent)+'</b><span>இன்று வரவில்லை</span></div>';
+  if(d.staffAttendance)h+='<div class="stat ok"><b>'+num(d.staffAttendance.present)+'<small class="mu"> / '+num(d.staffAttendance.total)+'</small></b><span>இன்று ஊழியர் வருகை</span></div><div class="stat warn"><b>'+num(d.openIssues)+'</b><span>திறந்த பராமரிப்பு வேலை</span></div>';
+  if(d.feeToday)h+='<div class="stat ok"><b>'+inr(d.feeToday.amount)+'</b><span>இன்றைய வசூல் ('+num(d.feeToday.count)+' ரசீது)</span></div><div class="stat pri"><b>'+inr(d.feeMonth.amount)+'</b><span>இந்த மாத வசூல்</span></div>';
+  if(d.feePending)h+='<div class="stat bad"><b>'+inr(d.feePending.total)+'</b><span>மொத்த பாக்கி ('+num(d.feePending.count)+' மாணவர்)</span></div>';
+  if(d.salaryDue)h+='<div class="stat warn"><b>'+inr(d.salaryDue.amount)+'</b><span>சம்பள பாக்கி ('+num(d.salaryDue.count)+')</span></div>';
+  h+='</div><div class="sec-h">விரைவு பகுதிகள்</div>'+tilesHtml();
+  return h;
+};
+A.template=async el=>{
+  if(!confirm('இந்த வகுப்புகளை உருவாக்கலாமா?'))return;
+  await api('/setup/template','POST',{template:el.dataset.t});
+  await loadData();toast('வகுப்புகள் உருவாக்கப்பட்டன');render();
+};
+
+/* ---------- more menu ---------- */
+VIEW.more=()=>{
+  const item=(k,i,t,s)=>'<button class="li" data-act="nav" data-v="'+k+'" style="width:100%;text-align:left"><div class="av">'+i+'</div><div class="sp"><b>'+t+'</b>'+(s?'<div class="sm mu">'+s+'</div>':'')+'</div><span class="mu">›</span></button>';
+  let h='';
+  tileKeys().forEach(k=>{if(!['students','attendance','fees'].includes(k))h+=item(k,TILES[k][0],TILES[k][1])});
+  h+='<div class="sec-h">கணக்கு</div>'
+   +'<button class="li" data-act="pwd" style="width:100%;text-align:left"><div class="av">🔒</div><div class="sp"><b>கடவுச்சொல் மாற்று</b></div></button>';
+  if(isAdmin())h+=item('admin','🏛','நிறுவனங்கள் (மாற்று)');
+  h+='<button class="li" data-act="logout" style="width:100%;text-align:left"><div class="av" style="background:var(--bad-l);color:var(--bad)">⎋</div><div class="sp"><b>வெளியேறு</b><div class="sm mu">'+esc(S.me.user.name)+' · '+ROLE[role()]+'</div></div></button>';
+  return h;
+};
+A.pwd=()=>{
+  sheet('கடவுச்சொல் மாற்று',field('பழைய கடவுச்சொல்','po','','type="password"')+field('புதிய கடவுச்சொல் (6+ எழுத்துகள்)','pn','','type="password"')+'<button class="btn full" data-act="pwdSave">மாற்று</button>');
+};
+A.pwdSave=async()=>{await api('/password','POST',{oldPass:$('#po').value,newPass:$('#pn').value});closeSheet();toast('கடவுச்சொல் மாற்றப்பட்டது')};
+
+/* ---------- platform admin: institutions ---------- */
+LOAD.admin=async()=>{S.adm=await api('/admin/overview')};
+VIEW.admin=()=>{
+  const list=(S.adm&&S.adm.institutions)||[];
+  let h='<div class="row" style="margin-bottom:10px"><div class="sp b">நிறுவனங்கள் ('+list.length+')</div><button class="btn sm" data-act="instForm">＋ புதிய நிறுவனம்</button></div>';
+  if(!S.adm)return h+spin();
+  if(!list.length)h+='<div class="empty">இன்னும் நிறுவனம் இல்லை. “புதிய நிறுவனம்” அழுத்தவும்.</div>';
+  h+=list.map(i=>'<div class="card"><div class="row"><div class="sp"><b>'+esc(i.name)+'</b><div class="sm mu">'+(KIND[i.kind]||'')+' · மாணவர் '+num(i.students)+' · ஊழியர் '+num(i.staff_count)+'</div><div class="sm mu">முதல்வர்: '+esc(i.principals||'—')+'</div></div></div>'
+   +'<div class="row" style="margin-top:10px"><button class="btn sm sp" data-act="openInst" data-id="'+i.id+'">திற</button><button class="btn sm sec" data-act="instForm" data-id="'+i.id+'">திருத்து</button><button class="btn sm bad" data-act="delInst" data-id="'+i.id+'">நீக்கு</button></div></div>').join('');
+  return h;
+};
+A.instForm=el=>{
+  const id=el.dataset.id,i=id?S.adm.institutions.find(x=>x.id==id):{};
+  sheet(id?'நிறுவனம் திருத்து':'புதிய நிறுவனம்',
+   field('பெயர்','in',i.name||'')+selField('வகை','ik',opts(['school','college','university'],i.kind||'school',k=>[k,KIND[k]]))
+   +field('தொலைபேசி','ip',i.phone||'','inputmode="tel"')+field('முகவரி','ia',i.address||'')
+   +(id?'':'<div class="sec-h">முதல்வர் உள்நுழைவு (விருப்பம்)</div>'+field('முதல்வர் பெயர்','pn2','')+field('பயனர் பெயர்','pu','','autocapitalize="none"')+field('கடவுச்சொல் (6+ எழுத்துகள்)','pp','','type="password"'))
+   +'<button class="btn full" data-act="instSave" data-id="'+(id||'')+'">சேமி</button>');
+};
+A.instSave=async el=>{
+  const b={id:el.dataset.id||null,name:val('in'),kind:val('ik'),phone:val('ip'),address:val('ia')};
+  if(!b.id&&val('pu')){b.principalUser=val('pu');b.principalPass=$('#pp').value;b.principalName=val('pn2')}
+  await api('/admin/institution','POST',b);closeSheet();toast('சேமிக்கப்பட்டது');await LOAD.admin();render();
+};
+A.openInst=async el=>{await api('/admin/open','POST',{instId:+el.dataset.id});S.hist=[];await reloadAll();go('home')};
+A.delInst=async el=>{
+  const i=S.adm.institutions.find(x=>x.id==el.dataset.id);
+  if(!confirm('“'+i.name+'” நிறுவனத்தின் அனைத்து தரவும் நிரந்தரமாக நீக்கப்படும். தொடரவா?'))return;
+  if(!confirm('உறுதியாகவா? இதை திரும்பப் பெற முடியாது.'))return;
+  await api('/admin/institution/'+i.id,'DELETE');toast('நீக்கப்பட்டது');await LOAD.admin();render();
+};
+
+/* ---------- students ---------- */
+S.stu={q:'',classId:'',sectionId:'',rows:null};
+LOAD.students=async()=>{
+  const p=new URLSearchParams();
+  if(S.stu.q)p.set('q',S.stu.q);if(S.stu.classId)p.set('classId',S.stu.classId);if(S.stu.sectionId)p.set('sectionId',S.stu.sectionId);
+  S.stu.rows=await api('/students?'+p);
+};
+function stuList(){
+  const rows=S.stu.rows;
+  if(!rows)return spin();
+  if(!rows.length)return '<div class="empty">மாணவர்கள் இல்லை</div>';
+  return '<div class="sm mu" style="margin:0 2px 6px">'+rows.length+' மாணவர்கள்</div>'+rows.map(s=>
+   '<div class="li" data-act="openStudent" data-id="'+s.id+'"><div class="av">'+(s.roll_no||initials(s.name))+'</div><div class="sp"><b>'+esc(s.name)+'</b><div class="sm mu">'+esc(s.adm_no)+(s.class_name?' · '+esc(s.class_name)+' '+esc(s.section_name||''):'')+'</div></div>'+contact(s.phone,'வணக்கம், '+s.name+' பற்றி…')+'</div>').join('');
+}
+VIEW.students=()=>{
+  const st=S.stu,secs=st.classId?secsOf(st.classId):[];
+  return '<div class="search"><input class="inp" id="sq" placeholder="🔍 பெயர் / சேர்க்கை எண் / தொலைபேசி" data-inp="stuQ" value="'+esc(st.q)+'"></div>'
+   +'<div class="grid2" style="margin-bottom:8px"><select class="inp" data-chg="stuClass">'+classOpts(st.classId,'எல்லா வகுப்பும்')+'</select><select class="inp" data-chg="stuSec">'+sectionOpts(st.sectionId,'எல்லா பிரிவும்',secs)+'</select></div>'
+   +(isDesk()?'<div class="row" style="margin-bottom:8px"><button class="btn sm sec" data-act="csvForm">📥 CSV இறக்குமதி</button></div>':'')
+   +'<div id="stuList">'+stuList()+'</div>'+(isDesk()?'<button class="fab" data-act="studentForm" aria-label="புதிய மாணவர்">＋</button>':'');
+};
+const reloadStu=async()=>{await LOAD.students();const l=$('#stuList');if(l)l.innerHTML=stuList()};
+I.stuQ=debounce(el=>{S.stu.q=el.value.trim();run(reloadStu)},300);
+C.stuClass=async el=>{S.stu.classId=el.value;S.stu.sectionId='';await LOAD.students();render()};
+C.stuSec=async el=>{S.stu.sectionId=el.value;await reloadStu()};
+
+const genderTa={M:'ஆண்',F:'பெண்',O:'மற்றவை'};
+const resultChip=r=>r==='pass'?'<span class="chip ok">தேர்ச்சி</span>':r==='fail'?'<span class="chip bad">தோல்வி</span>':'';
+A.openStudent=el=>showStudent(el.dataset.id);
+async function showStudent(id){
+  const [r,fs]=await Promise.all([api('/student/'+id),isDesk()?api('/fees/student/'+id):Promise.resolve(null)]);
+  const s=r.student,y=curYear(),cur=y&&r.history.find(h=>h.year_id==y.id),att=r.attendance;
+  const tot=num(att.present)+num(att.absent)+num(att.leave),pct=tot?Math.round(att.present*100/tot):0;
+  let h='<div class="row" style="margin-bottom:8px"><div class="av">'+initials(s.name)+'</div><div class="sp"><b style="font-size:17px">'+esc(s.name)+'</b><div class="sm mu">'+esc(s.adm_no)+(cur?' · '+esc(cur.class_name)+' '+esc(cur.section_name||'')+(cur.roll_no?' · வ.எண் '+cur.roll_no:''):'')+'</div></div>'+contact(s.phone,'வணக்கம், '+s.name+' பற்றி…')+'</div>';
+  if(s.status!=='active')h+='<span class="chip warn">'+(s.status==='left'?'விலகியவர்':'படிப்பு முடித்தவர்')+'</span>';
+  h+='<div class="card" style="margin-top:6px">'
+   +kv('பாலினம்',genderTa[s.gender]||'')+kv('பிறந்த தேதி',dmy(s.dob))+kv('தந்தை',s.father_name)+kv('தாய்',s.mother_name)+kv('தொலைபேசி',s.phone)+kv('மாற்று தொலைபேசி',s.phone2)+kv('முகவரி',s.address)+kv('சேர்ந்த தேதி',dmy(s.joined_on))+(s.notes?kv('குறிப்பு',s.notes):'')+'</div>';
+  h+='<div class="card"><h3>வருகை (இந்த ஆண்டு)</h3><div class="bar"><i style="width:'+pct+'%"></i></div><div class="row sm" style="margin-top:6px"><span class="chip ok">வந்தது '+num(att.present)+'</span><span class="chip bad">வரவில்லை '+num(att.absent)+'</span><span class="chip warn">விடுப்பு '+num(att.leave)+'</span><span class="sp r b">'+pct+'%</span></div></div>';
+  if(fs){
+    const t=fs.totals;
+    h+='<div class="card"><h3>கட்டணம் ('+esc(fs.year.name)+')</h3><div class="grid3"><div class="c"><b>'+inr(t.fee-t.concession)+'</b><div class="sm mu">கட்டணம்</div></div><div class="c"><b style="color:var(--ok)">'+inr(t.paid)+'</b><div class="sm mu">செலுத்தியது</div></div><div class="c"><b style="color:var(--bad)">'+inr(t.balance)+'</b><div class="sm mu">பாக்கி</div></div></div>'
+     +'<button class="btn full" style="margin-top:10px" data-act="collect" data-id="'+s.id+'">தொகை வசூலி / ரசீது</button></div>';
+  }
+  h+='<div class="card"><h3>வகுப்பு வரலாறு</h3>'+(r.history.length?r.history.map(x=>'<div class="kv"><span>'+esc(x.year_name)+'</span><span>'+esc(x.class_name)+' '+esc(x.section_name||'')+' '+resultChip(x.result)+'</span></div>').join(''):'<div class="mu sm">பதிவு இல்லை</div>')+'</div>';
+  if(isDesk())h+='<div class="grid2"><button class="btn sec" data-act="studentForm" data-id="'+s.id+'">✏️ திருத்து</button>'+(s.status==='active'?'<button class="btn bad" data-act="stuStatus" data-id="'+s.id+'" data-s="left">விலகியதாக குறி</button>':'<button class="btn sec" data-act="stuStatus" data-id="'+s.id+'" data-s="active">மீண்டும் சேர்</button>')+'</div>';
+  sheet('மாணவர் விவரம்',h);
+}
+const kv=(k,v)=>v?'<div class="kv"><span>'+k+'</span><span style="text-align:right">'+esc(v)+'</span></div>':'';
+A.stuStatus=async el=>{
+  if(el.dataset.s==='left'&&!confirm('இந்த மாணவரை விலகியவராக குறிக்கவா? (தரவு அழியாது)'))return;
+  await api('/student/'+el.dataset.id+'/status','POST',{status:el.dataset.s});closeSheet();toast('மாற்றப்பட்டது');await reloadStu();
+};
+A.studentForm=async el=>{
+  const id=el&&el.dataset.id;let s={},cur=null;
+  if(id){const r=await api('/student/'+id);s=r.student;const y=curYear();cur=y&&r.history.find(h=>h.year_id==y.id)}
+  const cid=cur?cur.class_id:(S.stu.classId||(D().classes[0]||{}).id||''),sid=cur?cur.section_id:(S.stu.sectionId||'');
+  if(!D().classes.length){toast('முதலில் அமைப்பில் வகுப்புகளை உருவாக்கவும்',true);return}
+  sheet(id?'மாணவர் திருத்து':'புதிய மாணவர்',
+   '<div class="grid2">'+field('சேர்க்கை எண் *','sf_adm',s.adm_no||'')+field('பெயர் *','sf_name',s.name||'')+'</div>'
+   +'<div class="grid2">'+selField('வகுப்பு *','sf_cls',classOpts(cid),'sfClass')+selField('பிரிவு *','sf_sec',sectionOpts(sid||(secsOf(cid)[0]||{}).id,'',secsOf(cid)))+'</div>'
+   +'<div class="grid2">'+selField('பாலினம்','sf_g',opts(['M','F','O'],s.gender||'',g=>[g,genderTa[g]],'—'))+field('வரிசை எண் (Roll)','sf_roll',cur?cur.roll_no:'','inputmode="numeric"')+'</div>'
+   +field('பிறந்த தேதி','sf_dob',s.dob||'','type="date"')
+   +'<div class="grid2">'+field('தந்தை பெயர்','sf_fa',s.father_name||'')+field('தாய் பெயர்','sf_mo',s.mother_name||'')+'</div>'
+   +'<div class="grid2">'+field('தொலைபேசி','sf_ph',s.phone||'','inputmode="tel"')+field('மாற்று எண்','sf_ph2',s.phone2||'','inputmode="tel"')+'</div>'
+   +field('முகவரி','sf_ad',s.address||'')+field('குறிப்பு','sf_nt',s.notes||'')
+   +'<button class="btn full" data-act="studentSave" data-id="'+(id||'')+'">சேமி</button>');
+};
+C.sfClass=el=>{$('#sf_sec').innerHTML=sectionOpts('','',secsOf(el.value))};
+A.studentSave=async el=>{
+  const id=el.dataset.id||null;
+  const r=await api('/student','POST',{id,admNo:val('sf_adm'),name:val('sf_name'),classId:val('sf_cls'),sectionId:val('sf_sec'),gender:val('sf_g'),rollNo:val('sf_roll'),dob:val('sf_dob'),fatherName:val('sf_fa'),motherName:val('sf_mo'),phone:val('sf_ph'),phone2:val('sf_ph2'),address:val('sf_ad'),notes:val('sf_nt')});
+  closeSheet();toast('சேமிக்கப்பட்டது');if(S.view==='students')await reloadStu();else if(S.view==='home'){await LOAD.home();render()}
+};
+/* CSV import */
+const CSV_SAMPLE='adm_no,name,gender,dob,father,mother,phone,address,class,section,roll\nA101,அருண்,M,2012-06-15,குமார்,மீனா,9876543210,சென்னை,5ஆம் வகுப்பு,A,1\n';
+A.csvForm=()=>{
+  sheet('மாணவர் CSV இறக்குமதி',
+   '<p class="sm mu" style="margin-top:0">முதல் வரி தலைப்பு: <b>adm_no, name, class</b> கட்டாயம். விருப்பம்: gender (M/F/O), dob, father, mother, phone, address, section, roll. வகுப்பு பெயர் அமைப்பில் உள்ளபடியே இருக்க வேண்டும். ஏதேனும் ஒரு வரியில் பிழை இருந்தால் எதுவும் சேமிக்கப்படாது.</p>'
+   +'<a class="btn sec sm" download="students-sample.csv" href="data:text/csv;charset=utf-8,'+encodeURIComponent('﻿'+CSV_SAMPLE)+'">மாதிரி CSV</a>'
+   +'<label class="f" style="margin-top:10px"><span>CSV கோப்பு</span><input type="file" id="csvFile" accept=".csv,text/csv" data-chg="csvFile"></label>'
+   +'<label class="f"><span>அல்லது இங்கே ஒட்டவும்</span><textarea id="csvText" rows="6" placeholder="adm_no,name,class,…"></textarea></label>'
+   +'<button class="btn full" data-act="csvGo">இறக்குமதி செய்</button><div id="csvRes"></div>');
+};
+C.csvFile=el=>{const f=el.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('#csvText').value=r.result};r.readAsText(f,'utf-8')};
+A.csvGo=async()=>{
+  const r=await api('/students/import','POST',{csv:$('#csvText').value});
+  $('#csvRes').innerHTML='<div class="card" style="margin-top:10px;border-color:var(--ok)"><b>முடிந்தது:</b> புதிய '+r.added+' · புதுப்பிக்கப்பட்டவை '+r.updated+'</div>';
+  S.stu.rows=null;await LOAD.students();if(S.view==='students')render();
+};
+
+/* ---------- staff ---------- */
+S.stf={kind:'',q:'',rows:null};
+LOAD.staff=async()=>{
+  const p=new URLSearchParams();if(S.stf.q)p.set('q',S.stf.q);if(S.stf.kind)p.set('kind',S.stf.kind);
+  S.stf.rows=await api('/staff?'+p);
+};
+function staffList(){
+  const rows=S.stf.rows;if(!rows)return spin();if(!rows.length)return '<div class="empty">ஊழியர்கள் இல்லை</div>';
+  return rows.map(s=>'<div class="li" data-act="openStaff" data-id="'+s.id+'"><div class="av">'+initials(s.name)+'</div><div class="sp"><b>'+esc(s.name)+'</b><div class="sm mu">'+esc(s.emp_no)+' · '+esc(s.designation||(s.kind==='teacher'?'ஆசிரியர்':'ஊழியர்'))+(s.subjects?' · '+esc(s.subjects):'')+'</div></div>'+contact(s.phone,'வணக்கம் '+s.name)+'</div>').join('');
+}
+VIEW.staff=()=>{
+  const k=S.stf.kind;
+  return '<div class="seg"><button data-act="stfKind" data-k="" class="'+(k===''?'on':'')+'">அனைவரும்</button><button data-act="stfKind" data-k="teacher" class="'+(k==='teacher'?'on':'')+'">ஆசிரியர்</button><button data-act="stfKind" data-k="staff" class="'+(k==='staff'?'on':'')+'">பிற ஊழியர்</button></div>'
+   +'<div class="search"><input class="inp" placeholder="🔍 பெயர் / எண் / தொலைபேசி" data-inp="stfQ" value="'+esc(S.stf.q)+'"></div><div id="stfList">'+staffList()+'</div>'
+   +(isDesk()?'<button class="fab" data-act="staffForm" aria-label="புதிய ஊழியர்">＋</button>':'');
+};
+const reloadStf=async()=>{await LOAD.staff();const l=$('#stfList');if(l)l.innerHTML=staffList()};
+I.stfQ=debounce(el=>{S.stf.q=el.value.trim();run(reloadStf)},300);
+A.stfKind=async el=>{S.stf.kind=el.dataset.k;await LOAD.staff();render()};
+A.openStaff=async el=>{
+  const r=await api('/staff/'+el.dataset.id),s=r.staff,a=r.attendance;
+  let h='<div class="row" style="margin-bottom:8px"><div class="av">'+initials(s.name)+'</div><div class="sp"><b style="font-size:17px">'+esc(s.name)+'</b><div class="sm mu">'+esc(s.emp_no)+' · '+(s.kind==='teacher'?'ஆசிரியர்':'பிற ஊழியர்')+'</div></div>'+contact(s.phone,'வணக்கம் '+s.name)+'</div>';
+  if(s.status!=='active')h+='<span class="chip warn">பணியிலிருந்து விலகினார்</span>';
+  h+='<div class="card">'+kv('பதவி',s.designation)+kv('பாடங்கள்',s.subjects)+kv('தொலைபேசி',s.phone)+kv('முகவரி',s.address)+kv('சேர்ந்த தேதி',dmy(s.joined_on))+(s.notes?kv('குறிப்பு',s.notes):'')+'</div>';
+  if(r.classTeacherOf.length)h+='<div class="card"><h3>வகுப்பாசிரியர்</h3>'+r.classTeacherOf.map(c=>'<span class="chip">'+esc(c.class_name)+' '+esc(c.section_name)+'</span>').join('')+'</div>';
+  h+='<div class="card"><h3>இந்த மாத வருகை</h3><span class="chip ok">வந்தது '+num(a.present)+'</span><span class="chip bad">வரவில்லை '+num(a.absent)+'</span><span class="chip warn">அரை நாள் '+num(a.half)+'</span><span class="chip">விடுப்பு '+num(a.leave)+'</span></div>';
+  if(isHead())h+='<div class="card"><h3>சம்பள அமைப்பு (மாதம்)</h3>'+kv('அடிப்படை',inr(s.basic))+kv('படிகள்',inr(s.allowance))+kv('நிலையான பிடித்தம்',inr(s.deduction))+'<div class="kv"><span class="b">மொத்தம்</span><span class="b">'+inr(num(s.basic)+num(s.allowance)-num(s.deduction))+'</span></div></div>';
+  if(isDesk())h+='<div class="grid2"><button class="btn sec" data-act="staffForm" data-id="'+s.id+'">✏️ திருத்து</button>'+(s.status==='active'?'<button class="btn bad" data-act="stfStatus" data-id="'+s.id+'" data-s="left">விலகியதாக குறி</button>':'<button class="btn sec" data-act="stfStatus" data-id="'+s.id+'" data-s="active">மீண்டும் பணியில்</button>')+'</div>';
+  sheet('ஊழியர் விவரம்',h);
+};
+A.stfStatus=async el=>{
+  if(el.dataset.s==='left'&&!confirm('இவரை பணியிலிருந்து விலகியவராக குறிக்கவா?'))return;
+  await api('/staff/'+el.dataset.id+'/status','POST',{status:el.dataset.s});closeSheet();toast('மாற்றப்பட்டது');await reloadStf();
+};
+A.staffForm=async el=>{
+  const id=el&&el.dataset.id;let s={kind:S.stf.kind||'teacher'};
+  if(id)s=(await api('/staff/'+id)).staff;
+  sheet(id?'ஊழியர் திருத்து':'புதிய ஊழியர்',
+   '<div class="grid2">'+field('ஊழியர் எண் *','tf_emp',s.emp_no||'')+field('பெயர் *','tf_name',s.name||'')+'</div>'
+   +'<div class="grid2">'+selField('வகை','tf_kind',opts(['teacher','staff'],s.kind,k=>[k,k==='teacher'?'ஆசிரியர்':'பிற ஊழியர்']))+field('பதவி','tf_des',s.designation||'')+'</div>'
+   +field('பாடங்கள் (ஆசிரியருக்கு)','tf_sub',s.subjects||'')
+   +'<div class="grid2">'+field('தொலைபேசி','tf_ph',s.phone||'','inputmode="tel"')+field('சேர்ந்த தேதி','tf_jo',s.joined_on||'','type="date"')+'</div>'
+   +field('முகவரி','tf_ad',s.address||'')+field('குறிப்பு','tf_nt',s.notes||'')
+   +(isHead()?'<div class="sec-h">மாத சம்பளம் (₹)</div><div class="grid3">'+field('அடிப்படை','tf_ba',s.basic||0,'inputmode="numeric"')+field('படிகள்','tf_al',s.allowance||0,'inputmode="numeric"')+field('பிடித்தம்','tf_de',s.deduction||0,'inputmode="numeric"')+'</div>':'')
+   +'<button class="btn full" data-act="staffSave" data-id="'+(id||'')+'">சேமி</button>');
+};
+A.staffSave=async el=>{
+  const b={id:el.dataset.id||null,empNo:val('tf_emp'),name:val('tf_name'),kind:val('tf_kind'),designation:val('tf_des'),subjects:val('tf_sub'),phone:val('tf_ph'),joinedOn:val('tf_jo'),address:val('tf_ad'),notes:val('tf_nt')};
+  if(isHead()){b.basic=val('tf_ba');b.allowance=val('tf_al');b.deduction=val('tf_de')}
+  await api('/staff','POST',b);closeSheet();toast('சேமிக்கப்பட்டது');await reloadStf();
+};
+
+/* ---------- attendance ---------- */
+S.at={tab:'students',date:todayS(),sectionId:'',sheet:null,marks:{},staff:null,smarks:{},rep:null,repMonth:monthS(),repSection:'',mon:null};
+LOAD.attendance=async()=>{
+  const a=S.at;
+  if(a.tab==='students'){
+    const ms=mySections();
+    if(!a.sectionId||!ms.find(s=>s.id==a.sectionId))a.sectionId=(ms[0]||{}).id||'';
+    a.sheet=null;a.marks={};
+    if(a.sectionId){a.sheet=await api('/attendance/sheet?sectionId='+a.sectionId+'&date='+a.date);a.sheet.students.forEach(s=>a.marks[s.id]=s.status||'P')}
+  }else if(a.tab==='staff'){
+    a.staff=await api('/attendance/staff?date='+a.date);a.smarks={};a.staff.staff.forEach(s=>a.smarks[s.id]=s.status||'P');
+  }else{
+    a.rep=await api('/attendance/day?date='+a.date);a.mon=null;
+  }
+};
+const seg=(items,cur,act)=>'<div class="seg">'+items.map(([k,t])=>'<button data-act="'+act+'" data-k="'+k+'" class="'+(k===cur?'on':'')+'">'+t+'</button>').join('')+'</div>';
+VIEW.attendance=()=>{
+  const a=S.at;
+  const tabs=[['students','மாணவர்']].concat(isDesk()?[['staff','ஊழியர்']]:[]).concat([['report','அறிக்கை']]);
+  let h=seg(tabs,a.tab,'atTab')+'<label class="f"><span>தேதி</span><input type="date" id="atDate" max="'+todayS()+'" value="'+esc(a.date)+'" data-chg="atDate"></label>';
+  if(S.busy)return h+spin();
+  if(a.tab==='students'){
+    const ms=mySections();
+    if(!ms.length)return h+'<div class="empty">'+(isTeacher()?'நீங்கள் வகுப்பாசிரியராக உள்ள பிரிவு இல்லை. முதல்வரிடம் கேளுங்கள்.':'பிரிவுகள் இல்லை. முதலில் அமைப்பில் வகுப்புகளை உருவாக்கவும்.')+'</div>';
+    h+=selField('பிரிவு','atSec',sectionOpts(a.sectionId,'',ms),'atSec');
+    if(!a.sheet)return h+spin();
+    const st=a.sheet.students;
+    if(!st.length)return h+'<div class="empty">இந்த பிரிவில் மாணவர்கள் இல்லை</div>';
+    h+='<div class="row sm" style="margin-bottom:6px"><span class="sp mu">✔ வந்தார் · ✖ வரவில்லை · L விடுப்பு'+(a.sheet.marked?' · <b style="color:var(--ok)">ஏற்கனவே பதிவு செய்யப்பட்டது</b>':'')+'</span></div><div id="atCnt" class="row" style="margin-bottom:8px"></div>';
+    h+=st.map(s=>'<div class="li"><div class="av">'+(s.roll_no||'')+'</div><div class="sp"><b>'+esc(s.name)+'</b></div><div class="pa">'+['P','A','L'].map(k=>'<button class="'+k+(a.marks[s.id]===k?' on':'')+'" data-act="mark" data-g="stu" data-id="'+s.id+'" data-s="'+k+'">'+({P:'✔',A:'✖',L:'L'})[k]+'</button>').join('')+'</div></div>').join('');
+    h+='<div class="savebar grid2"><button class="btn sec" data-act="markAll" data-g="stu">எல்லோரும் ✔</button><button class="btn" data-act="saveAtt">💾 சேமி</button></div>';
+    return h;
+  }
+  if(a.tab==='staff'){
+    if(!a.staff)return h+spin();
+    const st=a.staff.staff;
+    if(!st.length)return h+'<div class="empty">ஊழியர்கள் இல்லை</div>';
+    h+='<div class="row sm" style="margin-bottom:6px"><span class="sp mu">✔ வந்தார் · ✖ வரவில்லை · ½ அரை நாள் · L விடுப்பு'+(a.staff.marked?' · <b style="color:var(--ok)">பதிவு செய்யப்பட்டது</b>':'')+'</span></div><div id="atCnt" class="row" style="margin-bottom:8px"></div>';
+    h+=st.map(s=>'<div class="li"><div class="av">'+initials(s.name)+'</div><div class="sp"><b>'+esc(s.name)+'</b><div class="sm mu">'+esc(s.designation||(s.kind==='teacher'?'ஆசிரியர்':'ஊழியர்'))+'</div></div><div class="pa">'+['P','A','H','L'].map(k=>'<button class="'+k+(a.smarks[s.id]===k?' on':'')+'" data-act="mark" data-g="staff" data-id="'+s.id+'" data-s="'+k+'">'+({P:'✔',A:'✖',H:'½',L:'L'})[k]+'</button>').join('')+'</div></div>').join('');
+    h+='<div class="savebar grid2"><button class="btn sec" data-act="markAll" data-g="staff">எல்லோரும் ✔</button><button class="btn" data-act="saveStaffAtt">💾 சேமி</button></div><button class="btn sec full" data-act="staffMonth">📅 ஊழியர் மாத அறிக்கை</button>';
+    return h;
+  }
+  /* report */
+  const r=a.rep;if(!r)return h+spin();
+  const t=r.totals,pct=t.total?Math.round(t.present*100/t.total):0;
+  h+='<div class="card"><div class="grid3"><div class="c"><b>'+num(t.total)+'</b><div class="sm mu">மொத்தம்</div></div><div class="c"><b style="color:var(--ok)">'+num(t.present)+'</b><div class="sm mu">வந்தவர்</div></div><div class="c"><b style="color:var(--bad)">'+num(t.absent)+'</b><div class="sm mu">வராதவர்</div></div></div><div class="bar" style="margin-top:8px"><i style="width:'+pct+'%"></i></div></div>';
+  h+='<div class="sec-h">பிரிவு வாரியாக</div>'+r.sections.map(s=>{const p=num(s.total)?Math.round(num(s.present)*100/num(s.total)):0,done=num(s.present)+num(s.absent)+num(s.leave_n)>0;
+    return '<div class="li"><div class="sp"><b>'+esc(s.class_name)+' '+esc(s.section_name)+'</b><div class="sm mu">'+(done?'வந்தவர் '+num(s.present)+' · வராதவர் '+num(s.absent)+' · விடுப்பு '+num(s.leave_n)+' / '+num(s.total):'<span style="color:var(--warn)">இன்னும் பதிவு செய்யவில்லை ('+num(s.total)+' மாணவர்)</span>')+'</div></div>'+(done?'<b>'+p+'%</b>':'')+'</div>'}).join('');
+  if(r.absentees.length){
+    const inst=S.me.inst.name;
+    h+='<div class="sec-h">வராதவர்கள் ('+r.absentees.length+')</div>'+r.absentees.map(s=>'<div class="li"><div class="av">'+initials(s.name)+'</div><div class="sp"><b>'+esc(s.name)+'</b><div class="sm mu">'+esc(s.class_name)+' '+esc(s.section_name)+'</div></div>'+contact(s.phone,'வணக்கம், உங்கள் பிள்ளை '+s.name+' இன்று ('+dmy(r.date)+') பள்ளிக்கு வரவில்லை. காரணத்தை தெரிவிக்கவும். – '+inst)+'</div>').join('');
+  }
+  const ms=mySections();
+  h+='<div class="sec-h">மாத அறிக்கை</div><div class="card"><div class="grid2">'+selField('பிரிவு','mrSec',sectionOpts(a.repSection,'தேர்வு செய்',ms))+field('மாதம்','mrMon',a.repMonth,'type="month"')+'</div><button class="btn sec full" data-act="monthRep">காட்டு</button><div id="monOut">'+(a.mon?monthTable(a.mon):'')+'</div></div>';
+  return h;
+};
+function updAtCount(g){
+  const m=g==='staff'?S.at.smarks:S.at.marks,c={P:0,A:0,L:0,H:0};Object.values(m).forEach(v=>c[v]=(c[v]||0)+1);
+  const e=$('#atCnt');if(e)e.innerHTML='<span class="chip ok">வந்தவர் '+c.P+'</span><span class="chip bad">வராதவர் '+c.A+'</span>'+(g==='staff'?'<span class="chip warn">அரை நாள் '+c.H+'</span>':'')+'<span class="chip warn">விடுப்பு '+c.L+'</span>';
+}
+AFTER.attendance=()=>{if(S.at.tab==='students'&&S.at.sheet)updAtCount('stu');if(S.at.tab==='staff'&&S.at.staff)updAtCount('staff')};
+A.atTab=async el=>{S.at.tab=el.dataset.k;render();await LOAD.attendance();render()};
+C.atDate=async el=>{if(!el.value)return;S.at.date=el.value;render();await LOAD.attendance();render()};
+C.atSec=async el=>{S.at.sectionId=el.value;render();await LOAD.attendance();render()};
+A.mark=el=>{const g=el.dataset.g,m=g==='staff'?S.at.smarks:S.at.marks;m[el.dataset.id]=el.dataset.s;el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));updAtCount(g)};
+A.markAll=el=>{const g=el.dataset.g,m=g==='staff'?S.at.smarks:S.at.marks;Object.keys(m).forEach(k=>m[k]='P');render()};
+A.saveAtt=async()=>{
+  const a=S.at,marks=Object.entries(a.marks).map(([id,s])=>({studentId:+id,status:s}));
+  const r=await api('/attendance/sheet','POST',{sectionId:+a.sectionId,date:a.date,marks});
+  toast('சேமிக்கப்பட்டது — வந்தவர் '+r.present+', வராதவர் '+r.absent+', விடுப்பு '+r.leave);a.sheet.marked=true;render();
+};
+A.saveStaffAtt=async()=>{
+  const a=S.at,marks=Object.entries(a.smarks).map(([id,s])=>({staffId:+id,status:s}));
+  await api('/attendance/staff','POST',{date:a.date,marks});toast('சேமிக்கப்பட்டது');a.staff.marked=true;render();
+};
+function monthTable(m){
+  return '<table class="t" style="margin-top:10px"><tr><th>#</th><th>பெயர்</th><th class="n">வ</th><th class="n">இ</th><th class="n">வி</th><th class="n">%</th></tr>'+m.students.map(s=>{const t=num(s.present)+num(s.absent)+num(s.leave_n);return '<tr><td>'+(s.roll_no||'')+'</td><td>'+esc(s.name)+'</td><td class="n">'+num(s.present)+'</td><td class="n">'+num(s.absent)+'</td><td class="n">'+num(s.leave_n)+'</td><td class="n">'+(t?Math.round(num(s.present)*100/t):'—')+'</td></tr>'}).join('')+'</table><div class="sm mu">வ = வந்த நாள், இ = வராத நாள், வி = விடுப்பு</div>';
+}
+A.monthRep=async()=>{
+  const sid=val('mrSec'),mon=val('mrMon');if(!sid||!mon){toast('பிரிவு மற்றும் மாதத்தை தேர்வு செய்யவும்',true);return}
+  S.at.repSection=sid;S.at.repMonth=mon;S.at.mon=await api('/attendance/month?sectionId='+sid+'&month='+mon);$('#monOut').innerHTML=monthTable(S.at.mon);
+};
+A.staffMonth=async()=>{
+  const r=await api('/attendance/staff/month?month='+S.at.date.slice(0,7));
+  sheet('ஊழியர் மாத வருகை — '+r.month,'<table class="t"><tr><th>பெயர்</th><th class="n">வ</th><th class="n">இ</th><th class="n">½</th><th class="n">வி</th></tr>'+r.staff.map(s=>'<tr><td>'+esc(s.name)+'</td><td class="n">'+num(s.present)+'</td><td class="n">'+num(s.absent)+'</td><td class="n">'+num(s.half_n)+'</td><td class="n">'+num(s.leave_n)+'</td></tr>').join('')+'</table>');
+};
+
+/* ---------- fees ---------- */
+S.fee={tab:'collect',q:'',results:null,today:null,pend:null,pf:{classId:'',sectionId:'',yearId:''},rep:null,repDate:todayS(),struct:null,sy:'',sc:'',also:[]};
+LOAD.fees=async()=>{
+  const f=S.fee;
+  if(f.tab==='collect'){f.today=await api('/fees/receipts?date='+todayS())}
+  else if(f.tab==='pending'){
+    const p=new URLSearchParams();if(f.pf.classId)p.set('classId',f.pf.classId);if(f.pf.sectionId)p.set('sectionId',f.pf.sectionId);if(f.pf.yearId!=='')p.set('yearId',f.pf.yearId);
+    f.pend=await api('/fees/pending?'+p);
+  }else if(f.tab==='report'){f.rep=await api('/fees/report?date='+f.repDate);f.repList=await api('/fees/receipts?date='+f.repDate)}
+  else{
+    if(!f.sy)f.sy=(curYear()||{}).id||'';if(!f.sc)f.sc=(D().classes[0]||{}).id||'';
+    f.struct=f.sy&&f.sc?await api('/fees/structure?yearId='+f.sy+'&classId='+f.sc):[];
+  }
+};
+const rcptRow=r=>'<div class="li" data-act="viewRcpt" data-id="'+r.id+'"><div class="sp"><b>'+esc(r.student_name)+'</b><div class="sm mu">'+esc(r.receipt_no)+' · '+esc(MODE_TA[r.pay_mode]||r.pay_mode)+' · '+esc(String(r.created_at).slice(11,16))+'</div></div>'+(r.status!=='ok'?'<span class="chip bad">ரத்து</span>':'')+'<b>'+inr(r.total)+'</b></div>';
+VIEW.fees=()=>{
+  const f=S.fee;
+  const tabs=[['collect','வசூல்'],['pending','பாக்கி'],['report','அறிக்கை']].concat(isHead()?[['setup','அமைப்பு']]:[]);
+  let h=seg(tabs,f.tab,'feeTab');
+  if(S.busy&&!f.today&&!f.pend&&!f.rep&&!f.struct)return h+spin();
+  if(f.tab==='collect'){
+    h+='<div class="search" style="top:58px"><input class="inp" id="feeQ" placeholder="🔍 மாணவர் பெயர் / சேர்க்கை எண் / தொலைபேசி" data-inp="feeQ" value="'+esc(f.q)+'"></div><div id="feeRes">'+feeResults()+'</div>';
+    h+='<div class="sec-h">இன்றைய ரசீதுகள்</div>'+(f.today?(f.today.length?f.today.map(rcptRow).join(''):'<div class="empty">இன்று ரசீது இல்லை</div>'):spin());
+  }else if(f.tab==='pending'){
+    const secs=f.pf.classId?secsOf(f.pf.classId):[];
+    h+='<div class="card"><div class="grid2">'+selField('கல்வியாண்டு','pfY',opts([['','நடப்பு ஆண்டு'],['0','அனைத்து ஆண்டுகளும்']].concat(D().years.map(y=>[String(y.id),y.name])),f.pf.yearId,x=>x),'pfY')+selField('வகுப்பு','pfC',classOpts(f.pf.classId,'எல்லாம்'),'pfC')+'</div>'+(f.pf.classId?selField('பிரிவு','pfS',sectionOpts(f.pf.sectionId,'எல்லாம்',secs),'pfS'):'')+'</div>';
+    if(!f.pend)return h+spin();
+    h+='<div class="card row"><div class="sp"><div class="sm mu">மொத்த பாக்கி</div><b style="font-size:22px;color:var(--bad)">'+inr(f.pend.total)+'</b></div><div class="r"><b>'+f.pend.count+'</b><div class="sm mu">மாணவர்கள்</div></div></div>';
+    if(!f.pend.rows.length)h+='<div class="empty">பாக்கி இல்லை 🎉 (அல்லது கட்டண அமைப்பு இன்னும் உள்ளிடப்படவில்லை)</div>';
+    h+=f.pend.rows.map(s=>'<div class="li" data-act="collect" data-id="'+s.id+'"><div class="sp"><b>'+esc(s.name)+'</b><div class="sm mu">'+esc(s.class_name||'')+' '+esc(s.section_name||'')+' · '+esc(s.adm_no)+'</div></div><div class="r"><b style="color:var(--bad)">'+inr(s.balance)+'</b></div>'+contact(s.phone,'வணக்கம், '+s.name+' ('+(s.class_name||'')+') — கட்டண பாக்கி '+inr(s.balance)+'. தயவுசெய்து செலுத்தவும். – '+S.me.inst.name)+'</div>').join('');
+  }else if(f.tab==='report'){
+    h+='<label class="f"><span>தேதி</span><input type="date" id="frDate" value="'+esc(f.repDate)+'" data-chg="frDate"></label>';
+    const r=f.rep;if(!r)return h+spin();
+    h+='<div class="grid2"><div class="stat ok"><b>'+inr(r.day.amount)+'</b><span>அன்றைய வசூல் ('+num(r.day.count)+' ரசீது)</span></div><div class="stat pri"><b>'+inr(r.month.amount)+'</b><span>அந்த மாத வசூல்</span></div></div>';
+    if(r.day.cancelled)h+='<div class="sm mu" style="margin:6px 2px">ரத்து செய்யப்பட்ட ரசீது: '+r.day.cancelled+'</div>';
+    h+='<div class="card" style="margin-top:10px"><h3>முறை வாரியாக</h3>'+(r.byMode.length?r.byMode.map(m=>'<div class="kv"><span>'+esc(MODE_TA[m.pay_mode]||m.pay_mode)+' ('+m.n+')</span><b>'+inr(m.amount)+'</b></div>').join(''):'<div class="mu sm">இல்லை</div>')+'</div>';
+    h+='<div class="card"><h3>கட்டண வகை வாரியாக</h3>'+(r.byHead.length?r.byHead.map(m=>'<div class="kv"><span>'+esc(m.head_name)+'</span><b>'+inr(m.amount)+'</b></div>').join(''):'<div class="mu sm">இல்லை</div>')+'</div>';
+    h+='<div class="sec-h">ரசீதுகள்</div>'+(f.repList&&f.repList.length?f.repList.map(rcptRow).join(''):'<div class="empty">ரசீது இல்லை</div>');
+  }else{
+    h+='<div class="grid2">'+selField('கல்வியாண்டு','fsY',opts(D().years,f.sy,y=>[y.id,y.name]),'fsY')+selField('வகுப்பு','fsC',classOpts(f.sc),'fsC')+'</div>';
+    if(!f.struct)return h+spin();
+    h+='<div class="card"><h3>இந்த வகுப்பின் கட்டணம் (₹)</h3>'+(f.struct.length?f.struct.map(x=>'<div class="row" style="margin-bottom:8px"><div class="sp">'+esc(x.name)+'</div><input class="inp" style="width:130px" inputmode="numeric" id="fs_'+x.head_id+'" value="'+(x.amount||'')+'" placeholder="0"></div>').join(''):'<div class="mu sm">முதலில் கீழே கட்டண வகைகளை சேர்க்கவும்</div>');
+    const others=D().classes.filter(c=>c.id!=f.sc);
+    if(f.struct.length&&others.length)h+='<div class="sm mu" style="margin:10px 0 4px">இதே கட்டணத்தை இந்த வகுப்புகளுக்கும் பொருத்து:</div><div id="alsoBox">'+alsoChips(others)+'</div>';
+    h+=(f.struct.length?'<button class="btn full" style="margin-top:10px" data-act="saveStruct">💾 சேமி</button>':'')+'</div>';
+    h+='<div class="card"><h3>கட்டண வகைகள்</h3>'+(D().heads.length?D().heads.map(x=>'<div class="row" style="margin-bottom:6px"><div class="sp">'+esc(x.name)+'</div><button class="btn sm sec" data-act="headEdit" data-id="'+x.id+'">✏️</button><button class="btn sm bad" data-act="headDel" data-id="'+x.id+'">🗑</button></div>').join(''):'<div class="mu sm">இல்லை (எ.கா. Tuition, Bus, Exam, Hostel)</div>')+'<div class="row" style="margin-top:8px"><input class="inp" id="newHead" placeholder="புதிய கட்டண வகை"><button class="btn sm" data-act="headAdd">＋</button></div></div>';
+  }
+  return h;
+};
+const alsoChips=others=>others.map(c=>'<span class="chip'+(S.fee.also.includes(String(c.id))?' sel':'')+'" data-act="alsoTog" data-id="'+c.id+'" style="cursor:pointer">'+esc(c.name)+'</span>').join('');
+A.alsoTog=el=>{const i=el.dataset.id,a=S.fee.also,k=a.indexOf(i);if(k<0)a.push(i);else a.splice(k,1);$('#alsoBox').innerHTML=alsoChips(D().classes.filter(c=>c.id!=S.fee.sc))};
+function feeResults(){
+  const r=S.fee.results;if(!S.fee.q)return '<div class="empty sm">மாணவரை தேடி வசூலிக்கவும்</div>';if(!r)return spin();if(!r.length)return '<div class="empty">மாணவர் இல்லை</div>';
+  return r.slice(0,25).map(s=>'<div class="li" data-act="collect" data-id="'+s.id+'"><div class="av">'+initials(s.name)+'</div><div class="sp"><b>'+esc(s.name)+'</b><div class="sm mu">'+esc(s.adm_no)+' · '+esc(s.class_name||'')+' '+esc(s.section_name||'')+'</div></div><span class="mu">›</span></div>').join('');
+}
+I.feeQ=debounce(el=>{S.fee.q=el.value.trim();run(async()=>{S.fee.results=S.fee.q?await api('/students?q='+encodeURIComponent(S.fee.q)):null;const e=$('#feeRes');if(e)e.innerHTML=feeResults()})},300);
+A.feeTab=async el=>{S.fee.tab=el.dataset.k;render();await LOAD.fees();render()};
+C.pfY=async el=>{S.fee.pf.yearId=el.value;S.fee.pend=null;render();await LOAD.fees();render()};
+C.pfC=async el=>{S.fee.pf.classId=el.value;S.fee.pf.sectionId='';S.fee.pend=null;render();await LOAD.fees();render()};
+C.pfS=async el=>{S.fee.pf.sectionId=el.value;S.fee.pend=null;render();await LOAD.fees();render()};
+C.frDate=async el=>{if(!el.value)return;S.fee.repDate=el.value;S.fee.rep=null;render();await LOAD.fees();render()};
+C.fsY=async el=>{S.fee.sy=el.value;S.fee.struct=null;render();await LOAD.fees();render()};
+C.fsC=async el=>{S.fee.sc=el.value;S.fee.also=[];S.fee.struct=null;render();await LOAD.fees();render()};
+A.saveStruct=async()=>{
+  const items=S.fee.struct.map(x=>({headId:x.head_id,amount:val('fs_'+x.head_id)||0}));
+  const r=await api('/fees/structure','PUT',{yearId:+S.fee.sy,classId:+S.fee.sc,items,alsoClassIds:S.fee.also.map(Number)});
+  S.fee.also=[];toast('சேமிக்கப்பட்டது ('+r.classes+' வகுப்பு)');await LOAD.fees();render();
+};
+A.headAdd=async()=>{const n=val('newHead');if(!n)return;await api('/fees/head','POST',{name:n});await loadData();S.fee.struct=null;await LOAD.fees();render()};
+A.headEdit=async el=>{const h=D().heads.find(x=>x.id==el.dataset.id),n=prompt('கட்டண வகை பெயர்',h.name);if(!n||n===h.name)return;await api('/fees/head','POST',{id:h.id,name:n});await loadData();await LOAD.fees();render()};
+A.headDel=async el=>{const h=D().heads.find(x=>x.id==el.dataset.id);if(!confirm('“'+h.name+'” நீக்கவா?'))return;await api('/fees/head/'+h.id,'DELETE');await loadData();await LOAD.fees();render()};
+
+/* collect */
+async function openCollect(id,yearId){
+  const fs=await api('/fees/student/'+id+(yearId?'?yearId='+yearId:'')),s=fs.student,t=fs.totals;
+  let h='<div class="row" style="margin-bottom:6px"><div class="av">'+initials(s.name)+'</div><div class="sp"><b style="font-size:16px">'+esc(s.name)+'</b><div class="sm mu">'+esc(s.adm_no)+(fs.enrollment?' · '+esc(fs.enrollment.class_name)+' '+esc(fs.enrollment.section_name||''):'')+'</div></div></div>';
+  h+=selField('கல்வியாண்டு','payYear',opts(D().years,fs.year.id,y=>[y.id,y.name]),'payYear');
+  if(!fs.heads.length)return sheet('கட்டணம் வசூல்',h+'<div class="empty">இந்த ஆண்டுக்கு கட்டண அமைப்பு இல்லை அல்லது மாணவர் இந்த ஆண்டில் பதிவு செய்யப்படவில்லை.</div>')||(S.pay={id,yearId:fs.year.id});
+  S.pay={id,yearId:fs.year.id,bal:{}};
+  h+='<table class="t"><tr><th>வகை</th><th class="n">கட்டணம்</th><th class="n">பாக்கி</th><th class="n">செலுத்த</th></tr>'+fs.heads.map(x=>{S.pay.bal[x.head_id]=num(x.balance);
+    return '<tr><td>'+esc(x.name)+(num(x.concession)?'<div class="sm mu">சலுகை −'+inr(x.concession)+'</div>':'')+(isHead()?' <a href="#" data-act="concess" data-h="'+x.head_id+'" data-c="'+num(x.concession)+'" class="sm" style="color:var(--pri)">✂</a>':'')+'</td><td class="n">'+inr(num(x.fee)-num(x.concession))+'</td><td class="n" style="color:'+(num(x.balance)?'var(--bad)':'var(--ok)')+'">'+(num(x.balance)?inr(x.balance):'✔')+'</td><td class="n">'+(num(x.balance)?'<input class="inp" style="width:84px;padding:6px" inputmode="numeric" id="pay_'+x.head_id+'" data-inp="payTot" placeholder="0">':'')+'</td></tr>'}).join('')
+   +'<tr><td class="b">மொத்தம்</td><td class="n b">'+inr(t.fee-t.concession)+'</td><td class="n b">'+inr(t.balance)+'</td><td class="n b" id="payTotal">₹0</td></tr></table>';
+  if(t.balance>0)h+='<div class="row" style="margin:10px 0"><button class="btn sec sm" data-act="payFill">அனைத்து பாக்கியும் நிரப்பு</button></div>'
+   +'<div class="grid2">'+selField('செலுத்தும் முறை','payMode',modeOpts('Cash'))+field('குறிப்பு','payNote','')+'</div><button class="btn ok full" data-act="payGo">ரசீது உருவாக்கு</button>';
+  else h+='<div class="card" style="border-color:var(--ok);margin-top:10px"><b style="color:var(--ok)">இந்த ஆண்டு கட்டணம் முழுவதும் செலுத்தப்பட்டது ✔</b></div>';
+  if(fs.receipts.length)h+='<div class="sec-h">முந்தைய ரசீதுகள்</div>'+fs.receipts.map(r=>'<div class="li" data-act="viewRcpt" data-id="'+r.id+'"><div class="sp"><b>'+esc(r.receipt_no)+'</b><div class="sm mu">'+esc(String(r.created_at).slice(0,16))+' · '+esc(MODE_TA[r.pay_mode]||r.pay_mode)+'</div></div>'+(r.status!=='ok'?'<span class="chip bad">ரத்து</span>':'')+'<b>'+inr(r.total)+'</b></div>').join('');
+  sheet('கட்டணம் வசூல்',h);
+}
+A.collect=el=>openCollect(el.dataset.id);
+C.payYear=el=>openCollect(S.pay.id,el.value);
+I.payTot=()=>{let t=0;Object.keys(S.pay.bal).forEach(k=>{const e=$('#pay_'+k);if(e)t+=num(e.value)});const e=$('#payTotal');if(e)e.textContent=inr(t)};
+A.payFill=()=>{Object.entries(S.pay.bal).forEach(([k,b])=>{const e=$('#pay_'+k);if(e)e.value=b||''});I.payTot()};
+A.concess=async el=>{
+  const v=prompt('இந்த கட்டணத்திற்கான சலுகை தொகை (₹) — 0 என்றால் நீக்கும்',el.dataset.c);if(v===null)return;
+  await api('/fees/concession','POST',{studentId:S.pay.id,headId:+el.dataset.h,yearId:S.pay.yearId,amount:+v||0});toast('சலுகை பதிவானது');await openCollect(S.pay.id,S.pay.yearId);
+};
+A.payGo=async()=>{
+  const lines=Object.keys(S.pay.bal).map(k=>({headId:+k,amount:num(val('pay_'+k))})).filter(l=>l.amount>0);
+  if(!lines.length){toast('செலுத்தும் தொகையை உள்ளிடவும்',true);return}
+  const r=await api('/fees/receipt','POST',{studentId:S.pay.id,yearId:S.pay.yearId,mode:val('payMode'),note:val('payNote'),lines});
+  toast('ரசீது '+r.receipt_no+' உருவாக்கப்பட்டது');showReceipt(r);
+  if(S.view==='fees'){await LOAD.fees();render()}else if(S.view==='home'){await LOAD.home();render()}
+};
+function receiptText(r){
+  return '*'+S.me.inst.name+'*\nகட்டண ரசீது '+r.receipt_no+'\nதேதி: '+dmy(r.created_at)+'\nமாணவர்: '+r.student_name+(r.class_name?' ('+r.class_name+' '+(r.section_name||'')+')':'')+'\n'+r.lines.map(l=>l.head_name+': '+inr(l.amount)).join('\n')+'\n*மொத்தம்: '+inr(r.total)+'* ('+(MODE_TA[r.pay_mode]||r.pay_mode)+')\nநன்றி.';
+}
+function showReceipt(r){
+  let h='<div class="rcpt">'+(r.status!=='ok'?'<div class="chip bad" style="display:block;text-align:center;margin-bottom:8px">ரத்து செய்யப்பட்டது'+(r.cancel_reason?' — '+esc(r.cancel_reason):'')+'</div>':'')
+   +'<div class="c b" style="font-size:16px">'+esc(S.me.inst.name)+'</div><div class="c sm mu" style="margin-bottom:8px">'+esc(S.me.inst.address||'')+' '+esc(S.me.inst.phone||'')+'</div><div class="c b" style="margin-bottom:6px">கட்டண ரசீது</div>'
+   +kv('ரசீது எண்',r.receipt_no)+kv('தேதி',dmy(r.created_at)+' '+String(r.created_at).slice(11,16))+kv('மாணவர்',r.student_name+' ('+r.adm_no+')')+kv('வகுப்பு',(r.class_name||'')+' '+(r.section_name||''))+kv('கல்வியாண்டு',r.year_name)
+   +'<table class="t" style="margin-top:6px">'+r.lines.map(l=>'<tr><td>'+esc(l.head_name)+'</td><td class="n">'+inr(l.amount)+'</td></tr>').join('')+'<tr><td class="b">மொத்தம்</td><td class="n b">'+inr(r.total)+'</td></tr></table>'
+   +kv('செலுத்திய முறை',MODE_TA[r.pay_mode]||r.pay_mode)+(r.note?kv('குறிப்பு',r.note):'')+kv('பெற்றவர்',r.created_by)+'</div>'
+   +'<div class="grid2 noprint" style="margin-top:10px"><a class="btn" style="text-align:center;text-decoration:none" target="_blank" rel="noopener" href="'+waLink(r.phone,receiptText(r))+'">💬 WhatsApp</a><button class="btn sec" onclick="window.print()">🖨 அச்சிடு</button></div>'
+   +(r.status==='ok'?'<button class="btn bad full noprint" style="margin-top:8px" data-act="rcptCancel" data-id="'+r.id+'">ரசீதை ரத்து செய்</button>':'');
+  sheet('ரசீது '+r.receipt_no,h);
+}
+A.viewRcpt=async el=>showReceipt(await api('/fees/receipt/'+el.dataset.id));
+A.rcptCancel=async el=>{
+  const why=prompt('ரத்து செய்வதற்கான காரணம்');if(!why)return;
+  await api('/fees/receipt/'+el.dataset.id+'/cancel','POST',{reason:why});toast('ரசீது ரத்து செய்யப்பட்டது');
+  showReceipt(await api('/fees/receipt/'+el.dataset.id));if(S.view==='fees'){await LOAD.fees();render()}
+};
+
+/* ---------- payroll ---------- */
+S.pr={month:monthS(),data:null};
+LOAD.payroll=async()=>{S.pr.data=await api('/payroll?month='+S.pr.month)};
+VIEW.payroll=()=>{
+  const p=S.pr,d=p.data;
+  let h='<label class="f"><span>மாதம்</span><input type="month" id="prMon" value="'+esc(p.month)+'" max="'+monthS()+'" data-chg="prMonth"></label>';
+  if(!d)return h+spin();
+  const t=d.totals;
+  h+='<div class="grid3" style="margin-bottom:10px"><div class="stat pri"><b style="font-size:17px">'+inr(t.net)+'</b><span>மொத்தம்</span></div><div class="stat ok"><b style="font-size:17px">'+inr(t.paid)+'</b><span>செலுத்தியது</span></div><div class="stat bad"><b style="font-size:17px">'+inr(t.due)+'</b><span>பாக்கி</span></div></div>';
+  if(num(d.notGenerated)>0)h+='<button class="btn full" style="margin-bottom:8px" data-act="prGen">⚙️ சம்பளம் உருவாக்கு ('+d.notGenerated+' ஊழியர்)</button>';
+  if(d.rows.length&&t.due>0)h+='<div class="grid2" style="margin-bottom:10px"><button class="btn sec sm" data-act="prRegen">🔄 மீண்டும் கணக்கிடு</button><button class="btn ok sm" data-act="prPayAll">அனைவருக்கும் செலுத்து</button></div>';
+  if(!d.rows.length)h+='<div class="empty">இந்த மாதத்திற்கு சம்பளம் இன்னும் உருவாக்கப்படவில்லை.<br><span class="sm">வருகை பதிவுகளின் அடிப்படையில் தானாக கணக்கிடப்படும்.</span></div>';
+  h+=d.rows.map(r=>'<div class="li" data-act="prOpen" data-id="'+r.id+'"><div class="av">'+initials(r.staff_name)+'</div><div class="sp"><b>'+esc(r.staff_name)+'</b><div class="sm mu">'+esc(r.designation||'')+(num(r.lop_days)?' · LOP '+num(r.lop_days)+' நாள்':'')+'</div></div><div class="r"><b>'+inr(r.net)+'</b><div><span class="chip '+(r.status==='paid'?'ok':'warn')+'">'+(r.status==='paid'?'செலுத்தியது':'நிலுவை')+'</span></div></div></div>').join('');
+  return h;
+};
+C.prMonth=async el=>{if(!el.value)return;S.pr.month=el.value;S.pr.data=null;render();await LOAD.payroll();render()};
+A.prGen=async()=>{const r=await api('/payroll/generate','POST',{month:S.pr.month});toast(r.created+' பேருக்கு சம்பளம் உருவாக்கப்பட்டது (வேலை நாட்கள் '+r.workingDays+')');await LOAD.payroll();render()};
+A.prRegen=async()=>{if(!confirm('செலுத்தப்படாத சம்பளங்களை வருகை மற்றும் சம்பள அமைப்பின் படி மீண்டும் கணக்கிடவா? (போனஸ்/பிடித்தம் மாறாது)'))return;await api('/payroll/generate','POST',{month:S.pr.month,regen:true});toast('புதுப்பிக்கப்பட்டது');await LOAD.payroll();render()};
+A.prPayAll=()=>sheet('அனைவருக்கும் செலுத்து','<p class="mu sm" style="margin-top:0">'+S.pr.month+' மாதத்தின் நிலுவையில் உள்ள அனைத்து சம்பளங்களும் “செலுத்தியது” என குறிக்கப்படும்.</p>'+selField('செலுத்தும் முறை','pm',modeOpts('Bank'))+'<button class="btn ok full" data-act="prPayAllGo">உறுதிசெய்</button>');
+A.prPayAllGo=async()=>{const r=await api('/payroll/payall','POST',{month:S.pr.month,mode:val('pm')});closeSheet();toast(r.paid+' சம்பளங்கள் செலுத்தப்பட்டன');await LOAD.payroll();render()};
+A.prOpen=el=>{
+  const r=S.pr.data.rows.find(x=>x.id==el.dataset.id),paid=r.status==='paid',inst=S.me.inst;
+  let h='<div class="rcpt"><div class="c b" style="font-size:16px">'+esc(inst.name)+'</div><div class="c sm mu" style="margin-bottom:8px">சம்பள சீட்டு — '+esc(S.pr.month)+'</div>'
+   +kv('பெயர்',r.staff_name)+kv('பதவி',r.designation)+kv('வேலை நாட்கள்',r.working_days)+kv('LOP நாட்கள்',num(r.lop_days))
+   +kv('அடிப்படை',inr(r.basic))+kv('படிகள்',inr(r.allowance))+kv('LOP பிடித்தம்','−'+inr(r.lop_amount));
+  if(paid)h+=kv('நிலையான பிடித்தம்','−'+inr(r.deduction))+kv('போனஸ்','+'+inr(r.bonus))+kv('பிற பிடித்தம்','−'+inr(r.other_deduct))+(r.note?kv('குறிப்பு',r.note):'');
+  h+='<div class="kv"><span class="b">நிகர சம்பளம்</span><span class="b" style="font-size:17px" id="prNet">'+inr(r.net)+'</span></div>'+(paid?kv('செலுத்தியது',dmy(r.paid_on)+' · '+(MODE_TA[r.pay_mode]||r.pay_mode)):'')+'</div>';
+  if(!paid)h+='<div class="sec-h">சரிசெய்</div><div class="grid3">'+field('நிலையான பிடித்தம்','pr_de',r.deduction,'inputmode="numeric"')+field('போனஸ்','pr_bo',r.bonus,'inputmode="numeric"')+field('பிற பிடித்தம்','pr_ot',r.other_deduct,'inputmode="numeric"')+'</div>'+field('குறிப்பு','pr_nt',r.note||'')
+   +'<button class="btn sec full" data-act="prSave" data-id="'+r.id+'">💾 மாற்றங்களை சேமி</button><div class="grid2" style="margin-top:10px">'+selField('செலுத்தும் முறை','pr_md',modeOpts('Bank'))+'<div style="display:flex;align-items:flex-end;margin-bottom:10px"><button class="btn ok full" data-act="prPay" data-id="'+r.id+'">செலுத்தியது ✔</button></div></div><button class="btn bad full sm" data-act="prDel" data-id="'+r.id+'">இந்த பதிவை நீக்கு</button>';
+  else h+='<button class="btn sec full noprint" style="margin-top:10px" onclick="window.print()">🖨 அச்சிடு</button>';
+  sheet('சம்பள சீட்டு',h);
+};
+A.prSave=async el=>{await api('/payroll/'+el.dataset.id,'PUT',{deduction:val('pr_de'),bonus:val('pr_bo'),otherDeduct:val('pr_ot'),note:val('pr_nt')});toast('சேமிக்கப்பட்டது');await LOAD.payroll();render();A.prOpen({dataset:{id:el.dataset.id}})};
+A.prPay=async el=>{await api('/payroll/'+el.dataset.id,'PUT',{deduction:val('pr_de'),bonus:val('pr_bo'),otherDeduct:val('pr_ot'),note:val('pr_nt')});await api('/payroll/'+el.dataset.id+'/pay','POST',{mode:val('pr_md')});toast('சம்பளம் செலுத்தப்பட்டது');await LOAD.payroll();render();A.prOpen({dataset:{id:el.dataset.id}})};
+A.prDel=async el=>{if(!confirm('இந்த சம்பள பதிவை நீக்கவா?'))return;await api('/payroll/'+el.dataset.id,'DELETE');closeSheet();await LOAD.payroll();render()};
+
+/* ---------- rooms ---------- */
+S.rm={rows:null};
+const ROOM_KIND={classroom:'வகுப்பறை',lab:'ஆய்வகம்',hall:'அரங்கம்',library:'நூலகம்',office:'அலுவலகம்',other:'மற்றவை'};
+const ROOM_STATUS={active:'பயன்பாட்டில்',maintenance:'பராமரிப்பில்',closed:'மூடப்பட்டது'};
+LOAD.rooms=async()=>{S.rm.rows=await api('/rooms')};
+VIEW.rooms=()=>{
+  const rows=S.rm.rows;if(!rows)return spin();
+  if(!rows.length)return '<div class="empty">வகுப்பறைகள் இல்லை. கீழே ＋ அழுத்தி சேர்க்கவும்.</div>'+(isDesk()?'<button class="fab" data-act="roomForm">＋</button>':'');
+  return rows.map(r=>{const over=num(r.capacity)&&num(r.students)>num(r.capacity);
+    return '<div class="card" data-act="roomOpen" data-id="'+r.id+'"><div class="row"><div class="sp"><b>'+esc(r.name)+'</b><div class="sm mu">'+esc([r.building,r.floor_no?'தளம் '+r.floor_no:''].filter(Boolean).join(' · '))+'</div></div><span class="chip">'+(ROOM_KIND[r.kind]||r.kind)+'</span></div>'
+     +'<div style="margin-top:6px">'+(r.status!=='active'?'<span class="chip warn">'+ROOM_STATUS[r.status]+'</span>':'')+(num(r.open_issues)?'<span class="chip bad">திறந்த வேலை '+r.open_issues+'</span>':'')+'<span class="chip'+(over?' bad':'')+'">மாணவர் '+num(r.students)+(num(r.capacity)?' / '+r.capacity+' இருக்கை':'')+'</span></div>'
+     +(r.used_by?'<div class="sm mu" style="margin-top:4px">பயன்படுத்தும் வகுப்பு: '+esc(r.used_by)+'</div>':'')+'</div>'}).join('')+(isDesk()?'<button class="fab" data-act="roomForm" aria-label="புதிய அறை">＋</button>':'');
+};
+A.roomForm=async el=>{
+  const id=el&&el.dataset.id;let r={kind:'classroom',status:'active'};
+  if(id)r=await api('/room/'+id);
+  sheet(id?'அறை திருத்து':'புதிய அறை',field('அறை எண் / பெயர் *','rf_n',r.name||'')+'<div class="grid2">'+field('கட்டிடம்','rf_b',r.building||'')+field('தளம்','rf_f',r.floor_no||'')+'</div>'
+   +'<div class="grid2">'+selField('வகை','rf_k',opts(Object.keys(ROOM_KIND),r.kind,k=>[k,ROOM_KIND[k]]))+field('இருக்கை எண்ணிக்கை','rf_c',r.capacity||'','inputmode="numeric"')+'</div>'
+   +selField('நிலை','rf_s',opts(Object.keys(ROOM_STATUS),r.status,k=>[k,ROOM_STATUS[k]]))+field('குறிப்பு (வசதிகள் போன்றவை)','rf_t',r.notes||'')
+   +'<button class="btn full" data-act="roomSave" data-id="'+(id||'')+'">சேமி</button>'+(id?'<button class="btn bad full" style="margin-top:8px" data-act="roomDel" data-id="'+id+'">அறையை நீக்கு</button>':''));
+};
+A.roomSave=async el=>{await api('/room','POST',{id:el.dataset.id||null,name:val('rf_n'),building:val('rf_b'),floorNo:val('rf_f'),kind:val('rf_k'),capacity:val('rf_c'),status:val('rf_s'),notes:val('rf_t')});closeSheet();toast('சேமிக்கப்பட்டது');await loadData();await LOAD.rooms();render()};
+A.roomDel=async el=>{if(!confirm('இந்த அறையையும் அதன் பராமரிப்பு பதிவுகளையும் நீக்கவா?'))return;await api('/room/'+el.dataset.id,'DELETE');closeSheet();await loadData();await LOAD.rooms();render()};
+A.roomOpen=async el=>{
+  const r=await api('/room/'+el.dataset.id);
+  let h='<div class="card">'+kv('வகை',ROOM_KIND[r.kind])+kv('நிலை',ROOM_STATUS[r.status])+kv('கட்டிடம்',r.building)+kv('தளம்',r.floor_no)+kv('இருக்கை',r.capacity||'')+kv('குறிப்பு',r.notes)+'</div>';
+  h+='<div class="sec-h">பராமரிப்பு / பழுது</div>'+(r.maintenance.length?r.maintenance.map(m=>'<div class="li"><div class="sp"><b>'+esc(m.issue)+'</b><div class="sm mu">'+dmy(m.reported_on)+(m.status==='done'?' → முடிந்தது '+dmy(m.done_on):'')+(num(m.cost)?' · '+inr(m.cost):'')+(m.note?' · '+esc(m.note):'')+'</div></div>'+(m.status==='open'&&isDesk()?'<button class="btn sm ok" data-act="maintDone" data-id="'+m.id+'" data-r="'+r.id+'">முடிந்தது ✔</button>':(m.status==='open'?'<span class="chip warn">நிலுவை</span>':'<span class="chip ok">முடிந்தது</span>'))+'</div>').join(''):'<div class="mu sm" style="margin-bottom:8px">பதிவு இல்லை</div>');
+  if(isDesk())h+='<div class="card"><h3>புதிய பழுது / வேலை</h3>'+field('விவரம்','mt_i','')+field('மதிப்பீட்டு செலவு (₹)','mt_c','','inputmode="numeric"')+'<button class="btn full" data-act="maintAdd" data-id="'+r.id+'">சேர்</button></div><div class="grid2"><button class="btn sec" data-act="roomForm" data-id="'+r.id+'">✏️ திருத்து</button></div>';
+  sheet(r.name,h);
+};
+A.maintAdd=async el=>{await api('/room/'+el.dataset.id+'/maint','POST',{issue:val('mt_i'),cost:val('mt_c')});toast('சேர்க்கப்பட்டது');await LOAD.rooms();render();A.roomOpen({dataset:{id:el.dataset.id}})};
+A.maintDone=async el=>{const c=prompt('இறுதி செலவு (₹)','0');if(c===null)return;await api('/maint/'+el.dataset.id+'/done','POST',{cost:c,note:''});toast('முடிந்ததாக குறிக்கப்பட்டது');await LOAD.rooms();render();A.roomOpen({dataset:{id:el.dataset.r}})};
+
+/* ---------- promotion (year-end class change) ---------- */
+S.pm={sum:null,sheet:null,marks:{}};
+LOAD.promotion=async()=>{S.pm.sum=await api('/promotion/summary')};
+VIEW.promotion=()=>{
+  const s=S.pm.sum;if(!s)return spin();
+  const ms=mySections().map(x=>x.id);
+  let h='<div class="card"><div class="row"><div class="sp"><b>கல்வியாண்டு '+esc(s.year.name)+'</b><div class="sm mu">ஆண்டு இறுதியில் ஒவ்வொரு மாணவருக்கும் தேர்ச்சி / தோல்வி குறிக்கவும். தேர்ச்சி → அடுத்த வகுப்பு, தோல்வி → அதே வகுப்பு.</div></div></div><div class="bar" style="margin-top:8px"><i style="width:'+(num(s.total)?Math.round(num(s.marked)*100/num(s.total)):0)+'%"></i></div><div class="sm mu" style="margin-top:4px">குறிக்கப்பட்டது '+num(s.marked)+' / '+num(s.total)+'</div></div>';
+  s.classes.forEach(c=>{
+    const secs=secsOf(c.id).filter(x=>ms.includes(x.id));if(!secs.length)return;
+    h+='<div class="card"><div class="row"><div class="sp"><b>'+esc(c.name)+'</b><div class="sm mu">→ '+(c.next_name?esc(c.next_name):'படிப்பு முடிவு')+'</div></div><div class="r sm"><span class="chip ok">தேர்ச்சி '+num(c.pass_n)+'</span><span class="chip bad">தோல்வி '+num(c.fail_n)+'</span><span class="chip warn">மீதம் '+(num(c.total)-num(c.pass_n)-num(c.fail_n))+'</span></div></div><div style="margin-top:6px">'+secs.map(x=>'<button class="btn sm sec" style="margin:2px" data-act="pmOpen" data-id="'+x.id+'">பிரிவு '+esc(x.name)+' குறி</button>').join('')+'</div></div>';
+  });
+  if(isTeacher()&&!ms.length)h+='<div class="empty">நீங்கள் வகுப்பாசிரியராக உள்ள பிரிவு இல்லை.</div>';
+  if(isHead())h+='<button class="btn full" style="margin-top:6px" data-act="pmRunForm">🎓 ஆண்டு இறுதி உயர்வு செய்</button>';
+  return h;
+};
+A.pmOpen=async el=>{
+  const r=await api('/promotion/sheet?sectionId='+el.dataset.id);S.pm.sheet=r;S.pm.marks={};r.students.forEach(s=>{if(s.result)S.pm.marks[s.id]=s.result});pmSheet();
+};
+function pmSheet(){
+  const r=S.pm.sheet;
+  sheet(r.section.class_name+' '+r.section.section_name+' — முடிவுகள்',
+   '<div class="sm mu" style="margin-bottom:8px">தேர்ச்சி → '+(r.section.next_name?esc(r.section.next_name):'படிப்பு முடிவு')+' · தோல்வி → அதே வகுப்பு</div><div class="row" style="margin-bottom:8px"><button class="btn sm sec" data-act="pmAll">அனைவரும் தேர்ச்சி</button><span class="sp"></span><span id="pmCnt" class="sm mu"></span></div>'
+   +(r.students.length?r.students.map(s=>'<div class="li"><div class="av">'+(s.roll_no||'')+'</div><div class="sp"><b>'+esc(s.name)+'</b></div><div class="pa w">'+['pass','fail'].map(k=>'<button class="'+k+(S.pm.marks[s.id]===k?' on':'')+'" data-act="pmMark" data-id="'+s.id+'" data-s="'+k+'">'+(k==='pass'?'தேர்ச்சி':'தோல்வி')+'</button>').join('')+'</div></div>').join(''):'<div class="empty">மாணவர்கள் இல்லை</div>')
+   +'<button class="btn full" style="margin-top:8px" data-act="pmSave">💾 சேமி</button>');
+  pmCount();
+}
+function pmCount(){const v=Object.values(S.pm.marks),e=$('#pmCnt');if(e)e.textContent='தேர்ச்சி '+v.filter(x=>x==='pass').length+' · தோல்வி '+v.filter(x=>x==='fail').length+' · மீதம் '+(S.pm.sheet.students.length-v.length)}
+A.pmMark=el=>{S.pm.marks[el.dataset.id]=el.dataset.s;el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b===el));pmCount()};
+A.pmAll=()=>{S.pm.sheet.students.forEach(s=>S.pm.marks[s.id]='pass');pmSheet()};
+A.pmSave=async()=>{
+  const marks=Object.entries(S.pm.marks).map(([id,result])=>({studentId:+id,result}));
+  if(!marks.length){toast('குறைந்தது ஒருவரை குறிக்கவும்',true);return}
+  await api('/promotion/results','POST',{marks});closeSheet();toast('சேமிக்கப்பட்டது');await LOAD.promotion();render();
+};
+A.pmRunForm=()=>{
+  const y=curYear();let nn='',ns='',ne='';
+  const m=/^(\d{4})/.exec(y.name);
+  if(m){const a=+m[1]+1;nn=a+'-'+z2((a+1)%100)}
+  const sh=d=>{const x=new Date(d);x.setFullYear(x.getFullYear()+1);return ymd(x)};
+  ns=sh(y.start_date);ne=sh(y.end_date);
+  const left=S.pm.sum.total-S.pm.sum.marked;
+  sheet('ஆண்டு இறுதி உயர்வு',
+   '<div class="card" style="border-color:var(--warn)"><div class="sm">இது நடப்பு ஆண்டை (<b>'+esc(y.name)+'</b>) முடித்து புதிய கல்வியாண்டை உருவாக்கும். தேர்ச்சி பெற்றவர்கள் அடுத்த வகுப்புக்கு மாறுவார்கள்; தோல்வி அடைந்தவர்கள் அதே வகுப்பில் தொடர்வார்கள்; இறுதி வகுப்பில் தேர்ச்சி பெற்றவர்கள் “படிப்பு முடித்தவர்” ஆவார்கள். பழைய ஆண்டின் பதிவுகள் அப்படியே இருக்கும்.</div></div>'
+   +field('புதிய கல்வியாண்டு','pr_nn',nn)+'<div class="grid2">'+field('தொடக்கம்','pr_ns',ns,'type="date"')+field('முடிவு','pr_ne',ne,'type="date"')+'</div>'
+   +(left>0?selField('முடிவு குறிக்கப்படாத '+left+' மாணவர்களுக்கு','pr_df',opts([['pass','தேர்ச்சி என கருது'],['fail','தோல்வி என கருது'],['','முதலில் நான் குறிக்கிறேன்']],'',x=>x))+'':'')
+   +'<label class="row" style="margin:6px 0 12px"><input type="checkbox" id="pr_cf" checked style="width:20px;height:20px"><span>கட்டண அமைப்பை புதிய ஆண்டுக்கு நகலெடு</span></label>'
+   +'<button class="btn full" data-act="pmRun">உயர்வு செய்</button>');
+};
+A.pmRun=async()=>{
+  if(!confirm('உறுதியாக ஆண்டு இறுதி உயர்வு செய்யவா? இதை திரும்பப் பெற முடியாது.'))return;
+  const df=$('#pr_df');
+  const r=await api('/promotion/run','POST',{name:val('pr_nn'),start:val('pr_ns'),end:val('pr_ne'),defaultResult:df?df.value:'',copyFees:$('#pr_cf').checked});
+  closeSheet();await reloadAll();await LOAD.promotion();render();
+  sheet('உயர்வு முடிந்தது ✔','<div class="grid3"><div class="stat ok c"><b>'+r.promoted+'</b><span>அடுத்த வகுப்பு</span></div><div class="stat warn c"><b>'+r.repeated+'</b><span>அதே வகுப்பு</span></div><div class="stat pri c"><b>'+r.graduated+'</b><span>படிப்பு முடிந்தது</span></div></div><p class="sm mu">புதிய கல்வியாண்டு தொடங்கிவிட்டது. வருகை மற்றும் கட்டணம் புதிய ஆண்டுக்கு மாறியுள்ளன.</p>');
+};
+
+/* ---------- setup: institution, years, classes, sections ---------- */
+VIEW.setup=()=>{
+  const inst=D().inst||S.me.inst;
+  let h='<div class="card"><div class="row"><div class="sp"><b>'+esc(inst.name)+'</b><div class="sm mu">'+(KIND[inst.kind]||'')+' · '+esc(inst.phone||'')+'</div><div class="sm mu">'+esc(inst.address||'')+'</div></div><button class="btn sm sec" data-act="instEdit">✏️</button></div></div>';
+  h+='<div class="row" style="margin:12px 2px 6px"><div class="sp sec-h" style="margin:0">கல்வியாண்டுகள்</div><button class="btn sm sec" data-act="yearForm">＋</button></div>'
+   +D().years.map(y=>'<div class="li" data-act="yearForm" data-id="'+y.id+'"><div class="sp"><b>'+esc(y.name)+'</b><div class="sm mu">'+dmy(y.start_date)+' → '+dmy(y.end_date)+'</div></div>'+(y.is_current?'<span class="chip ok">நடப்பு</span>':'')+'</div>').join('');
+  h+='<div class="row" style="margin:12px 2px 6px"><div class="sp sec-h" style="margin:0">வகுப்புகள் மற்றும் பிரிவுகள்</div><button class="btn sm sec" data-act="classForm">＋ வகுப்பு</button></div>';
+  if(!D().classes.length)h+='<div class="empty">வகுப்புகள் இல்லை. முகப்பில் மாதிரியை தேர்வு செய்யலாம் அல்லது ＋ அழுத்தவும்.</div>';
+  h+=D().classes.map(c=>{const nx=cls(c.next_class_id);
+    return '<div class="card"><div class="row"><div class="sp" data-act="classForm" data-id="'+c.id+'"><b>'+esc(c.name)+'</b> <span class="mu sm">✏️</span><div class="sm mu">→ '+(nx?esc(nx.name):'இறுதி வகுப்பு')+'</div></div><button class="btn sm sec" data-act="sectionForm" data-c="'+c.id+'">＋ பிரிவு</button></div><div style="margin-top:6px">'
+     +secsOf(c.id).map(s=>'<span class="chip" data-act="sectionForm" data-c="'+c.id+'" data-id="'+s.id+'" style="cursor:pointer">'+esc(s.name)+(s.room_name?' · '+esc(s.room_name):'')+(s.teacher_name?' · '+esc(s.teacher_name):'')+'</span>').join('')+'</div></div>'}).join('');
+  return h;
+};
+A.instEdit=()=>{
+  const i=D().inst;
+  sheet('நிறுவன விவரம்',field('பெயர்','ie_n',i.name)+selField('வகை','ie_k',opts(['school','college','university'],i.kind,k=>[k,KIND[k]]))+field('தொலைபேசி','ie_p',i.phone||'','inputmode="tel"')+field('முகவரி','ie_a',i.address||'')
+   +selField('வாராந்திர விடுமுறை (சம்பள கணக்கீட்டிற்கு)','ie_w',opts([['7','ஞாயிறு'],['6','சனி'],['5','வெள்ளி'],['0','விடுமுறை இல்லை']],String(i.weekly_off),x=>x))
+   +'<button class="btn full" data-act="instSave2">சேமி</button>');
+};
+A.instSave2=async()=>{await api('/institution','POST',{name:val('ie_n'),kind:val('ie_k'),phone:val('ie_p'),address:val('ie_a'),weeklyOff:val('ie_w')});closeSheet();await reloadAll();toast('சேமிக்கப்பட்டது')};
+A.yearForm=el=>{
+  const id=el&&el.dataset.id,y=id?D().years.find(x=>x.id==id):{};
+  sheet(id?'கல்வியாண்டு திருத்து':'புதிய கல்வியாண்டு',field('பெயர் (எ.கா. 2026-27)','yf_n',y.name||'')+'<div class="grid2">'+field('தொடக்கம்','yf_s',y.start_date||'','type="date"')+field('முடிவு','yf_e',y.end_date||'','type="date"')+'</div>'
+   +'<label class="row" style="margin:6px 0 12px"><input type="checkbox" id="yf_c" '+(y.is_current?'checked disabled':'')+' style="width:20px;height:20px"><span>நடப்பு ஆண்டாக அமை</span></label><button class="btn full" data-act="yearSave" data-id="'+(id||'')+'">சேமி</button>');
+};
+A.yearSave=async el=>{await api('/year','POST',{id:el.dataset.id||null,name:val('yf_n'),start:val('yf_s'),end:val('yf_e'),current:$('#yf_c').checked});closeSheet();await reloadAll();toast('சேமிக்கப்பட்டது')};
+A.classForm=el=>{
+  const id=el&&el.dataset.id,c=id?cls(id):{sort_order:D().classes.length+1};
+  sheet(id?'வகுப்பு திருத்து':'புதிய வகுப்பு',field('வகுப்பு பெயர்','cf_n',c.name||'')+field('வரிசை எண்','cf_o',c.sort_order||'','inputmode="numeric"')
+   +selField('தேர்ச்சி பெற்றால் அடுத்த வகுப்பு','cf_x',classOpts(c.next_class_id,'— இறுதி வகுப்பு (படிப்பு முடிவு)').replace('<option value="'+id+'">'+esc(c.name||'')+'</option>',''))
+   +'<button class="btn full" data-act="classSave" data-id="'+(id||'')+'">சேமி</button>'+(id?'<button class="btn bad full" style="margin-top:8px" data-act="classDel" data-id="'+id+'">வகுப்பை நீக்கு</button>':''));
+};
+A.classSave=async el=>{await api('/class','POST',{id:el.dataset.id||null,name:val('cf_n'),sortOrder:val('cf_o'),nextClassId:val('cf_x')||null});closeSheet();await reloadAll();toast('சேமிக்கப்பட்டது')};
+A.classDel=async el=>{if(!confirm('இந்த வகுப்பை நீக்கவா?'))return;await api('/class/'+el.dataset.id,'DELETE');closeSheet();await reloadAll();toast('நீக்கப்பட்டது')};
+A.sectionForm=el=>{
+  const id=el.dataset.id,cid=el.dataset.c,s=id?sec(id):{};
+  sheet((cls(cid)||{}).name+(id?' — பிரிவு திருத்து':' — புதிய பிரிவு'),field('பிரிவு பெயர் (A, B…)','sc_n',s.name||'')
+   +selField('வகுப்பறை','sc_r',opts(D().rooms,s.room_id,r=>[r.id,r.name],'— இல்லை'))+selField('வகுப்பாசிரியர்','sc_t',opts(D().teachers,s.class_teacher_id,t=>[t.id,t.name+' ('+t.emp_no+')'],'— இல்லை'))
+   +'<button class="btn full" data-act="sectionSave" data-id="'+(id||'')+'" data-c="'+cid+'">சேமி</button>'+(id?'<button class="btn bad full" style="margin-top:8px" data-act="sectionDel" data-id="'+id+'">பிரிவை நீக்கு</button>':''));
+};
+A.sectionSave=async el=>{await api('/section','POST',{id:el.dataset.id||null,classId:+el.dataset.c,name:val('sc_n'),roomId:val('sc_r')||null,teacherId:val('sc_t')||null});closeSheet();await reloadAll();toast('சேமிக்கப்பட்டது')};
+A.sectionDel=async el=>{if(!confirm('இந்த பிரிவை நீக்கவா?'))return;await api('/section/'+el.dataset.id,'DELETE');closeSheet();await reloadAll();toast('நீக்கப்பட்டது')};
+
+/* ---------- users (logins of the institution) ---------- */
+S.us={rows:null};
+LOAD.users=async()=>{S.us.rows=await api('/users')};
+const UTYPE={principal:'முதல்வர்',office:'அலுவலகம்',teacher:'ஆசிரியர்'};
+VIEW.users=()=>{
+  const rows=S.us.rows;if(!rows)return spin();
+  return '<div class="row" style="margin-bottom:10px"><div class="sp b">உள்நுழைவு பயனர்கள்</div><button class="btn sm" data-act="userForm">＋ புதிய பயனர்</button></div>'
+   +'<div class="sm mu" style="margin-bottom:8px">அலுவலக பயனர்: மாணவர், கட்டணம், வருகை. ஆசிரியர் பயனர்: தன் வகுப்பின் வருகை மற்றும் தேர்ச்சி முடிவு மட்டும்.</div>'
+   +rows.map(u=>'<div class="li" data-act="userForm" data-id="'+u.id+'"><div class="av">'+initials(u.display_name)+'</div><div class="sp"><b>'+esc(u.display_name)+'</b><div class="sm mu">'+esc(u.username)+' · '+(UTYPE[u.user_type]||u.user_type)+(u.staff_name?' · '+esc(u.staff_name):'')+'</div></div>'+(u.active?'':'<span class="chip bad">முடக்கம்</span>')+'</div>').join('');
+};
+A.userForm=el=>{
+  const id=el&&el.dataset.id,u=id?S.us.rows.find(x=>x.id==id):{user_type:'office',active:1};
+  const types=['office','teacher'].concat(isAdmin()?['principal']:[]);
+  sheet(id?'பயனர் திருத்து':'புதிய பயனர்',field('பெயர்','uf_n',u.display_name||'')+field('பயனர் பெயர் (உள்நுழைய)','uf_u',u.username||'','autocapitalize="none"')
+   +field(id?'புதிய கடவுச்சொல் (மாற்ற மட்டும்)':'கடவுச்சொல் (6+ எழுத்துகள்)','uf_p','','type="password" autocomplete="new-password"')
+   +selField('வகை','uf_t',opts(types,u.user_type,t=>[t,UTYPE[t]]),'ufType')
+   +'<div id="ufStaff" class="'+(u.user_type==='teacher'?'':'hide')+'">'+selField('ஆசிரியர் பதிவு','uf_s',opts(D().teachers,u.staff_id,t=>[t.id,t.name+' ('+t.emp_no+')'],'— தேர்வு செய்'))+'</div>'
+   +'<label class="row" style="margin:6px 0 12px"><input type="checkbox" id="uf_a" '+(u.active?'checked':'')+' style="width:20px;height:20px"><span>செயலில் உள்ளது</span></label>'
+   +'<button class="btn full" data-act="userSave" data-id="'+(id||'')+'">சேமி</button>'+(id?'<button class="btn bad full" style="margin-top:8px" data-act="userDel" data-id="'+id+'">பயனரை நீக்கு</button>':''));
+};
+C.ufType=el=>{$('#ufStaff').classList.toggle('hide',el.value!=='teacher')};
+A.userSave=async el=>{
+  const t=val('uf_t');
+  await api('/users','POST',{id:el.dataset.id||null,name:val('uf_n'),username:val('uf_u'),password:$('#uf_p').value,type:t,staffId:t==='teacher'?val('uf_s')||null:null,active:$('#uf_a').checked});
+  closeSheet();toast('சேமிக்கப்பட்டது');await LOAD.users();render();
+};
+A.userDel=async el=>{if(!confirm('இந்த பயனரை நீக்கவா?'))return;await api('/users/'+el.dataset.id,'DELETE');closeSheet();await LOAD.users();render()};
+
+/* ---------- start ---------- */
+(async function boot(){
+  if(!S.token){render();return}
+  try{await afterLogin()}catch(e){localLogout()}
+})();
+</script>
+</body>
+</html>
