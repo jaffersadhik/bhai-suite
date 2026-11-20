@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e6b4a">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; form-action 'self'; base-uri 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://translate.google.com https://translate.googleapis.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://www.gstatic.com https://translate.google.com https://translate.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://translate.googleapis.com https://translate.google.com; frame-src https://translate.google.com; form-action 'self'; base-uri 'self'; object-src 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="author" content="K. M. Jaffer Sadhik">
 <title>Meeran Technologies · Billing, school management &amp; SMS software</title>
-<meta name="description" content="Meeran Technologies builds mobile-first software for small businesses and schools: MBill (shop billing), MSchool (school, college and university management), MClinic, MPharmacy, software as a service and an SMS platform.">
+<meta name="description" content="Meeran Technologies builds mobile-first software for small businesses and schools: MBill (shop billing), MSchool (school, college and university management), MClinic, MPharmacy, software as a service and an SMS platform. Custom software is developed free of development charge (hosting and maintenance charges only); we also maintain existing applications, servers and production environments.">
 <meta property="og:title" content="Meeran Technologies">
 <meta property="og:description" content="Mobile-first billing, school management and SMS software — in your language.">
 <meta property="og:type" content="website">
@@ -16,7 +16,7 @@
 <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Mukta+Malar:wght@600;800&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Mukta+Malar:wght@600;800&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/site.css">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Meeran Technologies","url":"https://meeran-technologies.duckdns.org/","description":"Mobile-first billing, school management and SMS software.","email":"jsadhik009@gmail.com","telephone":"+91 94876 60738","address":{"@type":"PostalAddress","streetAddress":"1/97 2nd Cross Street, Quaithemilleth Street, Palavakkam ECR","addressLocality":"Chennai","addressRegion":"Tamil Nadu","postalCode":"600041","addressCountry":"IN"},"founder":{"@type":"Person","name":"K. M. Jaffer Sadhik","jobTitle":"Owner, Founder, CEO & CTO","worksFor":{"@type":"Organization","name":"Meeran Technologies"}}}</script>
 </head>
@@ -32,16 +32,27 @@
     <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav">☰</button>
     <nav class="nav" id="nav" aria-label="Main">
       <a href="#products" data-ta="தயாரிப்புகள்">Products</a>
+      <a href="#services" data-ta="சேவைகள்">Services</a>
       <a href="#platform" data-ta="பிளாட்ஃபார்ம்">Platform</a>
       <a href="#why" data-ta="ஏன் நாங்கள்">Why us</a>
       <a href="#about" data-ta="எங்களைப் பற்றி">About</a>
       <a href="#contact" data-ta="தொடர்புக்கு">Contact</a>
-      <div class="lang" role="group" aria-label="Language">
-        <button type="button" data-lang="en" class="on">EN</button>
-        <button type="button" data-lang="ta">தமிழ்</button>
+      <div class="langsel">
+        <label for="langSel" class="sr">Language</label>
+        <select id="langSel" aria-label="Language / மொழி / भाषा / لغة">
+          <option value="en">English</option>
+          <option value="ta">தமிழ்</option>
+          <option value="hi">हिन्दी</option>
+          <option value="te">తెలుగు</option>
+          <option value="kn">ಕನ್ನಡ</option>
+          <option value="ml">മലയാളം</option>
+          <option value="ar">العربية</option>
+          <option value="other">🌐 All other languages…</option>
+        </select>
       </div>
     </nav>
   </div>
+  <div id="gt" class="gt" hidden translate="no"><span>🌐</span><div id="gt_el"></div></div>
 </header>
 
 <main id="top">
@@ -57,6 +68,7 @@
         <a class="btn ghost" href="#products" data-ta="தயாரிப்புகளைப் பாருங்கள்">See our products</a>
       </div>
       <div class="facts">
+        <span data-ta="🎁 கஸ்டம் மென்பொருள் இலவசம்">🎁 Custom software: free development</span>
         <span data-ta="📱 மொபைலுக்கு முதலிடம்">📱 Mobile first</span>
         <span data-ta="🌐 பல மொழிகள்">🌐 Many languages</span>
         <span data-ta="🔒 பாதுகாப்பான உள்நுழைவு">🔒 Secure login</span>
@@ -156,6 +168,38 @@
 </section>
 
 <!-- ======================= PLATFORM ======================= -->
+<!-- ======================= SERVICES ======================= -->
+<section id="services">
+  <div class="wrap">
+    <div class="sec-h">
+      <span class="kick" data-ta="சேவைகள்">SERVICES</span>
+      <h2 data-ta="உங்களுக்கான மென்பொருள் — உருவாக்கம் முதல் பராமரிப்பு வரை">Software for you — from development to maintenance</h2>
+    </div>
+    <div class="freebox">
+      <div class="big" data-ta="🎁 கஸ்டமைஸ்டு மென்பொருள் உருவாக்கம் — <em>இலவசம்</em>">🎁 Customised software development — <em>FREE</em></div>
+      <p data-ta="உங்கள் வியாபாரம் அல்லது நிறுவனத்துக்குத் தேவையான மென்பொருளை நாங்கள் இலவசமாக உருவாக்கித் தருகிறோம். <b>ஹோஸ்டிங் மற்றும் பராமரிப்பு கட்டணம் மட்டுமே</b> பெறப்படும்.">We develop the software your business or organisation needs <b>free of development charge</b>. You pay only the <b>hosting and maintenance charges</b>.</p>
+    </div>
+    <div class="svc">
+      <div>
+        <i aria-hidden="true">🛠️</i>
+        <b data-ta="கஸ்டம் மென்பொருள் உருவாக்கம்">Custom software development</b>
+        <p data-ta="உங்கள் தேவையைக் கேட்டு, மொபைலுக்கு ஏற்ற வகையில் வடிவமைத்து, உருவாக்கி, இயக்கத்தில் கொண்டுவருகிறோம். மென்பொருளை உருவாக்க கட்டணம் இல்லை; ஹோஸ்டிங் மற்றும் பராமரிப்புக்கு மட்டும்.">We listen to your requirement, design it mobile-first, build it and take it live. No development charge — only hosting and maintenance.</p>
+      </div>
+      <div>
+        <i aria-hidden="true">🔧</i>
+        <b data-ta="உள்ள அப்ளிகேஷன் பராமரிப்பு">Maintenance of your existing application</b>
+        <p data-ta="ஏற்கனவே இயங்கும் உங்கள் அப்ளிகேஷனை பராமரிக்கிறோம் — பிழை திருத்தம், மேம்பாடுகள், புதிய வசதிகள், பேக்அப், கண்காணிப்பு மற்றும் ஆதரவு.">We maintain applications that are already running — bug fixes, enhancements, new features, backups, monitoring and support.</p>
+      </div>
+      <div>
+        <i aria-hidden="true">🖥️</i>
+        <b data-ta="சர்வர் &amp; ப்ரொடக்ஷன் பராமரிப்பு">Server &amp; production maintenance</b>
+        <p data-ta="உங்கள் மற்ற சர்வர்களையும் ப்ரொடக்ஷன் சூழலையும் பராமரிக்கிறோம் — கண்காணிப்பு, பேட்ச், பேக்அப் &amp; மீட்பு, பாதுகாப்பு, டிப்ளாய்மெண்ட், சிக்கல் தீர்வு. ஐடி உள்கட்டமைப்பு அனுபவத்துடன்.">We maintain your other servers and your production environment — monitoring, patching, backup &amp; recovery, security, deployments and troubleshooting — backed by real IT infrastructure experience.</p>
+      </div>
+    </div>
+    <p class="svcnote" data-ta="வரம்பு மற்றும் கட்டண விவரங்கள் வேலை தொடங்கும் முன் பேசி ஒப்புக்கொள்ளப்படும்.">Scope and charges for hosting and maintenance are agreed with you before we start.</p>
+  </div>
+</section>
+
 <section class="plat" id="platform">
   <div class="wrap">
     <div class="sec-h">
@@ -243,8 +287,11 @@
         <form id="demoForm" hidden>
           <div><label for="fName" data-ta="உங்கள் பெயர்">Your name</label><input id="fName" name="name" autocomplete="name" required maxlength="80"></div>
           <div><label for="fPhone" data-ta="மொபைல் எண்">Mobile number</label><input id="fPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20"></div>
-          <div><label for="fType" data-ta="நீங்கள்">I run a</label>
+          <div><label for="fType" data-ta="எது தேவை">I need / I run a</label>
             <select id="fType" name="type">
+              <option value="Custom software (free development)" data-ta="கஸ்டம் மென்பொருள் (இலவச உருவாக்கம்)">Custom software (free development)</option>
+              <option value="Maintain my application" data-ta="என் அப்ளிகேஷன் பராமரிப்பு">Maintain my existing application</option>
+              <option value="Server / production maintenance" data-ta="சர்வர் / ப்ரொடக்ஷன் பராமரிப்பு">Server / production maintenance</option>
               <option value="Shop" data-ta="கடை / வியாபாரம்">Shop / business</option>
               <option value="School / college" data-ta="பள்ளி / கல்லூரி">School / college</option>
               <option value="Clinic" data-ta="கிளினிக்">Clinic</option>
@@ -274,7 +321,7 @@
       </div>
       <div>
         <h4 data-ta="தயாரிப்புகள்">Products</h4>
-        <ul><li>MBill</li><li>MSchool</li><li>MClinic</li><li>MPharmacy</li><li data-ta="SMS பிளாட்ஃபார்ம்">SMS Platform</li></ul>
+        <ul><li>MBill</li><li>MSchool</li><li>MClinic</li><li>MPharmacy</li><li data-ta="SMS பிளாட்ஃபார்ம்">SMS Platform</li><li data-ta="கஸ்டம் மென்பொருள் (இலவசம்)">Custom software (free)</li><li data-ta="அப்ளிகேஷன் / சர்வர் பராமரிப்பு">Application / server maintenance</li></ul>
       </div>
       <div>
         <h4 data-ta="தொடர்புக்கு">Contact</h4>

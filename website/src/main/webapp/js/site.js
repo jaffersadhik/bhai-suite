@@ -4,29 +4,85 @@
   var S = window.SITE || {};
   var LS = "mt_lang";
   var lang = "en";
-  try { var saved = localStorage.getItem(LS); if (saved === "ta" || saved === "en") lang = saved; } catch (e) { }
+  var NATIVE = { en: 1, ta: 1, hi: 1, te: 1, kn: 1, ml: 1, ar: 1 };   /* languages with a hand-written pack; every other language goes through Google Translate */
+  var RTL = { ar: 1 };
+  var EXTRA = ["Landmark: ", "Owner, Founder, CEO & CTO", "WhatsApp will open \u2014 just press send.", "Your e-mail app will open."];
+  var EXTRA_TA = ["அடையாளம்: ", "உரிமையாளர், நிறுவனர், CEO & CTO", "WhatsApp திறக்கும் \u2014 செய்தியை அனுப்புங்கள்.", "உங்கள் மின்னஞ்சல் செயலி திறக்கும்."];
+  var googleUsed = false;
+  try { var saved = localStorage.getItem(LS); if (NATIVE[saved]) lang = saved; } catch (e) { }
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
 
-  /* ---------- language: every element with data-ta keeps its English in data-en and swaps text ---------- */
-  function tag(el) {
-    if (el.dataset.en === undefined) el.dataset.en = el.innerHTML;       // innerHTML: a few headings carry <em>
-  }
-  function setLang(l) {
+  /* ---------- language ----------
+     Every translatable element keeps its English in data-en. Tamil sits in data-ta; the other languages are
+     JSON arrays (js/lang/xx.json) in the same order as the unique English strings of the page + EXTRA. */
+  var order = [], tamil = [], map = {}, packs = {};
+  $$("[data-ta]").forEach(function (el) {
+    if (el.dataset.en === undefined) el.dataset.en = el.innerHTML;      /* innerHTML: a few headings carry <em>/<b> */
+    var en = el.dataset.en.trim();
+    if (order.indexOf(en) < 0) { order.push(en); tamil.push(el.getAttribute("data-ta")); }
+  });
+  EXTRA.forEach(function (e, i) { order.push(e); tamil.push(EXTRA_TA[i]); });
+  packs.ta = tamil;
+
+  function t(en) { return lang === "en" ? en : (map[en] || en); }
+
+  function apply(l, arr) {
     lang = l;
-    document.documentElement.lang = l;
+    map = {};
+    if (arr) order.forEach(function (en, i) { if (arr[i]) map[en] = arr[i]; });
+    var h = document.documentElement;
+    h.lang = l;
+    h.dir = RTL[l] ? "rtl" : "ltr";
     $$("[data-ta]").forEach(function (el) {
-      tag(el);
-      var v = l === "ta" ? el.getAttribute("data-ta") : el.dataset.en;
+      var en = el.dataset.en;
+      var v = l === "en" ? en : (map[en.trim()] || en);
       if (el.tagName === "OPTION") el.textContent = v; else el.innerHTML = v;
     });
-    $$(".lang button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-lang") === l); });
+    var sel = $("#langSel"); if (sel && sel.value !== l && !googleUsed) sel.value = l;
     try { localStorage.setItem(LS, l); } catch (e) { }
     fillContact();
   }
-  $$(".lang button").forEach(function (b) {
-    b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); });
+  function setLang(l) {
+    if (!NATIVE[l]) l = "en";
+    if (l === "en" || packs[l]) return apply(l, packs[l]);
+    fetch("js/lang/" + l + ".json", { credentials: "same-origin" })
+      .then(function (r) { if (!r.ok) throw 0; return r.json(); })
+      .then(function (a) { packs[l] = a; apply(l, a); })
+      .catch(function () { apply("en"); });
+  }
+
+  /* ---------- every other language: Google Website Translator (needs internet; loaded only when chosen) ---------- */
+  function clearGoogleCookie() {
+    ["googtrans"].forEach(function (n) {
+      document.cookie = n + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+      document.cookie = n + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=" + location.hostname;
+    });
+  }
+  function showGoogle() {
+    googleUsed = true;
+    var box = $("#gt"); box.hidden = false;
+    if (window.google && window.google.translate) return;
+    window.gtInit = function () {
+      new window.google.translate.TranslateElement({ pageLanguage: "en", autoDisplay: false, layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE }, "gt_el");
+    };
+    var sc = document.createElement("script");
+    sc.src = "https://translate.google.com/translate_a/element.js?cb=gtInit";
+    sc.async = true;
+    document.head.appendChild(sc);
+  }
+  var sel = $("#langSel");
+  sel.addEventListener("change", function () {
+    var v = sel.value;
+    if (v === "other") { apply("en"); showGoogle(); return; }
+    if (googleUsed) {                         /* leaving Google's translation: reset the page cleanly */
+      clearGoogleCookie();
+      try { localStorage.setItem(LS, v); } catch (e) { }
+      location.reload();
+      return;
+    }
+    setLang(v);
   });
 
   /* ---------- mobile menu ---------- */
@@ -55,19 +111,19 @@
     if (ph) rows.push("📞 <a href=\"tel:" + esc(ph.replace(/[^+\d]/g, "")) + "\">" + esc(ph) + "</a>");
     if (mail) rows.push("✉️ <a href=\"mailto:" + esc(mail) + "\">" + esc(mail) + "</a>");
     if (ad) rows.push("📍 " + esc(ad));
-    if (S.landmark) rows.push("🧭 " + (lang === "ta" ? "அடையாளம்: " : "Landmark: ") + esc(S.landmark));
-    if (S.owner) rows.push("👤 " + esc(S.owner) + " — " + (lang === "ta" ? "உரிமையாளர், நிறுவனர், CEO & CTO" : "Owner, Founder, CEO & CTO"));
+    if (S.landmark) rows.push("🧭 " + t("Landmark: ") + esc(S.landmark));
+    if (S.owner) rows.push("👤 " + esc(S.owner) + " — " + t("Owner, Founder, CEO & CTO"));
     rows.forEach(function (r) { var d = document.createElement("div"); d.innerHTML = r; info.appendChild(d); });
     foot.innerHTML = "";
-    foot.appendChild(li("<a href=\"#contact\">" + (lang === "ta" ? "டெமோ கேளுங்கள்" : "Request a demo") + "</a>"));
+    foot.appendChild(li("<a href=\"#contact\">" + t("Request a demo") + "</a>"));
     if (wa) foot.appendChild(li("<a href=\"https://wa.me/" + wa + "\" target=\"_blank\" rel=\"noopener\">WhatsApp</a>"));
     if (ph) foot.appendChild(li(esc(ph)));
     if (mail) foot.appendChild(li("<a href=\"mailto:" + esc(mail) + "\">" + esc(mail) + "</a>"));
     if (ad) foot.appendChild(li(esc(ad)));
-    if (S.landmark) foot.appendChild(li((lang === "ta" ? "அடையாளம்: " : "Landmark: ") + esc(S.landmark)));
+    if (S.landmark) foot.appendChild(li(t("Landmark: ") + esc(S.landmark)));
     var can = !!(wa || mail);
     form.hidden = !can; soon.hidden = can;
-    $("#fNote").textContent = can ? (lang === "ta" ? (wa ? "WhatsApp திறக்கும் — செய்தியை அனுப்புங்கள்." : "உங்கள் மின்னஞ்சல் செயலி திறக்கும்.") : (wa ? "WhatsApp will open — just press send." : "Your e-mail app will open.")) : "";
+    $("#fNote").textContent = can ? t(wa ? EXTRA[2] : EXTRA[3]) : "";
   }
 
   $("#demoForm").addEventListener("submit", function (ev) {
