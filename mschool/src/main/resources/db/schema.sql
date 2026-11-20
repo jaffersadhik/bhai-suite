@@ -267,3 +267,14 @@ CREATE TABLE IF NOT EXISTS payroll (
   UNIQUE KEY uq_payroll (inst_id, pay_month, staff_id),
   CONSTRAINT fk_payroll_inst FOREIGN KEY (inst_id) REFERENCES institutions(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- translations : online translations of screen phrases / names (Tamil source text -> language), shared by all users
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS translations (
+  src_hash CHAR(32)     NOT NULL,                  -- md5 of the Tamil source text
+  lang     VARCHAR(8)   NOT NULL,
+  src      VARCHAR(320) NOT NULL,
+  txt      VARCHAR(640) NOT NULL,
+  PRIMARY KEY (src_hash, lang)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

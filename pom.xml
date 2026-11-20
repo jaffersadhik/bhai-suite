@@ -14,12 +14,14 @@
   <artifactId>bhai-suite</artifactId>
   <version>1.0.0</version>
   <packaging>pom</packaging>
-  <name>Bhai Suite (Mobile Billing + MSchool)</name>
+  <name>Bhai Suite (Mobile Billing + MSchool + Website)</name>
   <description>One Maven project, two WAR modules that run side by side in one Tomcat / one JVM, each with its own database</description>
 
   <modules>
+    <module>suite-security</module>
     <module>bhai-mobile-billing</module>
     <module>mschool</module>
+    <module>website</module>
   </modules>
 
   <properties>

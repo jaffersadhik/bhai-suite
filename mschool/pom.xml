@@ -16,6 +16,12 @@
   <description>School / college / university management - Spring Boot + MySQL. WAR for Tomcat.</description>
 
   <dependencies>
+    <!-- login captcha + failed-login counting + IP block (shared with MBill) -->
+    <dependency>
+      <groupId>com.bhai</groupId>
+      <artifactId>suite-security</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>

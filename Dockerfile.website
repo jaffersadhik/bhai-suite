@@ -1,0 +1,30 @@
+# syntax=docker/dockerfile:1
+# Meeran Technologies website = ONE small container (static HTML5 WAR on its own Tomcat). It does not touch the MBill / MSchool image.
+#   docker build -f Dockerfile.website -t meeran-website:latest .      (or:  bash deploy/website.sh)
+
+# ---------- build stage: website module -> meeran-website.war ----------
+FROM maven:3.9-eclipse-temurin-25 AS build
+WORKDIR /src
+# only the parent pom + the website module are needed (-f website/pom.xml builds just that module)
+COPY pom.xml pom.xml
+COPY website/pom.xml website/pom.xml
+RUN mvn -B -q -f website/pom.xml dependency:go-offline
+COPY website/src website/src
+RUN mvn -B -q -f website/pom.xml -DskipTests package
+
+# ---------- runtime stage: same Tomcat base image as the suite (already on the server) ----------
+FROM tomcat:10.1-jre25-temurin-noble
+ENV CATALINA_HOME=/usr/local/tomcat
+RUN rm -rf $CATALINA_HOME/webapps/* $CATALINA_HOME/webapps.dist \
+ && useradd --system --uid 10002 --no-create-home mtweb
+COPY website/tomcat/server.xml $CATALINA_HOME/conf/server.xml
+COPY --from=build /src/website/target/meeran-website.war $CATALINA_HOME/webapps/ROOT.war
+RUN chown -R mtweb $CATALINA_HOME
+USER mtweb
+ENV TZ=Asia/Kolkata \
+    JAVA_OPTS="-Xms32m -Xmx128m -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/urandom"
+EXPOSE 8080
+# no curl in the image -> bash /dev/tcp asks the IP servlet
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /api/myip HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && grep -q "\"ip\"" <&3'
+CMD ["catalina.sh", "run"]

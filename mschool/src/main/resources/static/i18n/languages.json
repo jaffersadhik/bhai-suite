@@ -1,0 +1,45 @@
+[
+ {
+  "code": "ta",
+  "native": "தமிழ்",
+  "english": "Tamil",
+  "coverage": 100
+ },
+ {
+  "code": "en",
+  "native": "English",
+  "english": "English",
+  "coverage": 100
+ },
+ {
+  "code": "hi",
+  "native": "हिन्दी",
+  "english": "Hindi",
+  "coverage": 3
+ },
+ {
+  "code": "te",
+  "native": "తెలుగు",
+  "english": "Telugu",
+  "coverage": 3
+ },
+ {
+  "code": "kn",
+  "native": "ಕನ್ನಡ",
+  "english": "Kannada",
+  "coverage": 3
+ },
+ {
+  "code": "ml",
+  "native": "മലയാളം",
+  "english": "Malayalam",
+  "coverage": 3
+ },
+ {
+  "code": "ar",
+  "native": "العربية",
+  "english": "Arabic",
+  "coverage": 0,
+  "rtl": true
+ }
+]

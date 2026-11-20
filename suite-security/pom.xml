@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.bhai</groupId>
+    <artifactId>bhai-suite</artifactId>
+    <version>1.0.0</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>suite-security</artifactId>
+  <packaging>jar</packaging>
+  <name>Suite security (login captcha + IP block)</name>
+  <description>Shared by MBill and MSchool: alphanumeric login captcha, failed-login counting per IP, IP block / unblock. Plain JDK + JDBC, no framework.</description>
+  <!-- no dependencies on purpose: javax.sql.DataSource comes from the JDK (java.sql) -->
+</project>

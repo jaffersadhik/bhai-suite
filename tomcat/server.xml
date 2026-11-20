@@ -9,6 +9,7 @@
 
   Both apps are deployed as ROOT (context path "/"), so every URL inside the apps (/api/..., /index.html ...)
   works exactly as before - no change in the phone apps / browser.
+  Client address: RemoteIpValve in both Hosts (see the comment there) - needed for the login IP block.
   Database settings come from environment variables:  MBill = DB_URL / DB_USER / DB_PASS,  MSchool = MSCHOOL_DB_URL / MSCHOOL_DB_USER / MSCHOOL_DB_PASS.
 -->
 <Server port="-1" shutdown="SHUTDOWN">
@@ -23,6 +24,11 @@
                compressibleMimeType="text/html,text/css,text/plain,text/xml,application/javascript,application/json,image/svg+xml"/>
     <Engine name="Catalina" defaultHost="localhost">
       <Host name="localhost" appBase="webapps" unpackWARs="true" autoDeploy="false" deployXML="false">
+        <!-- real client address: replaces the proxy address by the one in X-Forwarded-For, but ONLY when the TCP peer is a private / Docker address
+             (Caddy). A visitor who reaches the port directly is not "internal", so his own X-Forwarded-For is ignored. Login captcha, the IP block and
+             the footer "Your IP" all use request.getRemoteAddr() and so see the real visitor address. -->
+        <Valve className="org.apache.catalina.valves.RemoteIpValve" remoteIpHeader="X-Forwarded-For" protocolHeader="X-Forwarded-Proto"
+               internalProxies="10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1|::1"/>
         <Valve className="org.apache.catalina.valves.ErrorReportValve" showReport="false" showServerInfo="false"/>
       </Host>
     </Engine>
@@ -35,6 +41,11 @@
                compressibleMimeType="text/html,text/css,text/plain,text/xml,application/javascript,application/json,image/svg+xml"/>
     <Engine name="School" defaultHost="localhost">
       <Host name="localhost" appBase="webapps-school" unpackWARs="true" autoDeploy="false" deployXML="false">
+        <!-- real client address: replaces the proxy address by the one in X-Forwarded-For, but ONLY when the TCP peer is a private / Docker address
+             (Caddy). A visitor who reaches the port directly is not "internal", so his own X-Forwarded-For is ignored. Login captcha, the IP block and
+             the footer "Your IP" all use request.getRemoteAddr() and so see the real visitor address. -->
+        <Valve className="org.apache.catalina.valves.RemoteIpValve" remoteIpHeader="X-Forwarded-For" protocolHeader="X-Forwarded-Proto"
+               internalProxies="10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|0:0:0:0:0:0:0:1|::1"/>
         <Valve className="org.apache.catalina.valves.ErrorReportValve" showReport="false" showServerInfo="false"/>
       </Host>
     </Engine>

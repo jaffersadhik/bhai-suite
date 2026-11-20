@@ -74,6 +74,12 @@ services:
       MSCHOOL_DB_USER: ${DB_USER:-bmb}
       MSCHOOL_DB_PASS: ${DB_PASS}
       MSCHOOL_ZONE: Asia/Kolkata
+      # --- login security (captcha + per-IP failure counting + IP block) - same for MBill and MSchool, see SUITE.md "Login security" ---
+      LOGIN_CAPTCHA: ${LOGIN_CAPTCHA:-true}                       # false = no captcha (the IP block stays)
+      LOGIN_MAX_FAILS: ${LOGIN_MAX_FAILS:-10}                     # more than this many wrong user/password tries from one IP in a day -> IP blocked
+      LOGIN_MAX_CAPTCHA_FAILS: ${LOGIN_MAX_CAPTCHA_FAILS:-40}     # wrong captcha tries per IP per day before the IP is blocked
+      IP_BLOCK_HOURS: ${IP_BLOCK_HOURS:-0}                        # 0 = block stays until a System user unblocks; N = auto-unblock after N hours
+      IP_BLOCK_EXEMPT: ${IP_BLOCK_EXEMPT:-127.0.0.1,::1}          # never blocked (comma list; add your office / shop IP if you wish)
       TZ: Asia/Kolkata
     ports:
       - "${APP_PORT:-8080}:8080"                       # Bhai Mobile Billing

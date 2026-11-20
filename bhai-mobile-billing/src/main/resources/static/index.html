@@ -201,6 +201,14 @@ body.authed .login{display:none}
 .lcard .cta{background:var(--leaf)}
 .lcard .cta:disabled{opacity:.55;cursor:not-allowed}
 .lfoot{text-align:center;font-size:12px;opacity:.75;margin-top:18px}
+.myip{font-size:11.5px;opacity:.8;margin-top:6px;font-variant-numeric:tabular-nums}
+.cap{display:flex;gap:8px;align-items:stretch;margin:2px 0 8px}
+.cap button.capimg{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:12px;background:#fff;padding:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:56px}
+.cap button.capimg img{width:100%;max-width:230px;height:auto;display:block}
+.cap button.caprf{flex:0 0 48px;border:1.5px solid var(--line);border-radius:12px;background:var(--leaf-l);color:var(--leaf-d);font-size:20px;cursor:pointer}
+#lCap{letter-spacing:.35em;text-transform:uppercase;font-weight:800;font-size:20px;text-align:center}
+#lCap::placeholder{letter-spacing:0;text-transform:none;font-weight:500;font-size:14px}
+.lerr.blk{background:#fff3cd;color:#7a4b00}
 .bar > div{flex:1;min-width:0}
 .bar .out{flex:none;height:42px;border-radius:13px;background:rgba(255,255,255,.16);color:#fff;padding:0 10px;font-size:11.5px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;max-width:96px}
 .bar .out span{font-size:16px}
@@ -694,10 +702,16 @@ footer .pw-by b{color:var(--leaf)}
     <label class="fld">கடவுச்சொல் (Password)
       <div class="pw"><input id="lPass" type="password" autocomplete="current-password" required><button type="button" class="eye" id="lEye" aria-label="Show password">👁</button></div></label>
     <label class="rem"><input type="checkbox" id="lRem" checked>இந்த மொபைலில் நினைவில் வை (Stay logged in)</label>
+    <div id="lCapBox" hidden>
+      <div class="fld" style="margin-bottom:0">படத்தில் உள்ள எழுத்துகள் (Type the characters shown)</div>
+      <div class="cap"><button type="button" class="capimg" id="lCapImg" aria-label="New captcha"><img id="lCapPic" alt="Captcha" width="230" height="64"></button><button type="button" class="caprf" id="lCapRf" aria-label="Refresh captcha">↻</button></div>
+      <input id="lCap" maxlength="5" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" inputmode="text" enterkeyhint="go" placeholder="Captcha">
+    </div>
     <div class="lerr" id="lErr" role="alert"></div>
     <button class="cta" id="lBtn" type="submit">உள்நுழை (Login)</button>
   </form>
   <p class="lfoot">பதிவு செய்த கடைகளுக்கு மட்டும் · Registered shops only</p>
+  <p class="lfoot myip" style="margin-top:4px">உங்கள் IP (Your IP): <b class="myipv">…</b></p>
 </section>
 <div class="app">
   <header class="bar" id="bar"></header>
@@ -709,6 +723,7 @@ footer .pw-by b{color:var(--leaf)}
     <p id="footAddr" style="margin-top:2px"></p>
     <p id="callLine" style="margin-top:4px"></p>
     <p class="pw-by" id="footApp"></p>
+    <p class="myip" style="text-align:center">உங்கள் IP (Your IP): <b class="myipv">…</b></p>
   </footer>
 </div>
 
@@ -808,7 +823,7 @@ async function api(path,method,body,opt){
   let data=null; try{ data=await r.json(); }catch(e){ if(r.ok&&/text\/html/i.test(r.headers.get("content-type")||"")){ OFF.net(false); throw down(); } }
   OFF.net(true);
   if(r.status===401 && path!=="login" && !opt.quiet) sessionExpired((data&&data.error)||"");
-  if(!r.ok){ const er=new Error((data&&data.error)||("Server error "+r.status)); er.status=r.status; throw er; }
+  if(!r.ok){ const er=new Error((data&&data.error)||("Server error "+r.status)); er.status=r.status; er.data=data||{}; throw er; }
   return data||{};
 }
 function apiErr(e){ if(e && e.status!==401) toast(e.message||"Error"); }
@@ -1055,6 +1070,7 @@ function renderBrand(){
   const ph = company && company.phone;
   $("#callLine").innerHTML = ph ? `அழைக்க: <a href="tel:+${COUNTRY_CODE}${esc(ph)}">${esc(ph)}</a>` : "";
   $("#footApp").innerHTML = company ? `Powered by <b>${esc(APP_NAME)}</b>` : "";
+  if(!document.querySelector(".myipv")||document.querySelector(".myipv").textContent==="…") loadMyIp();
 }
 function renderBar(){
   const v=view(), c=curCat();
@@ -2467,6 +2483,7 @@ function renderAdmin(){
         <div class="acts"><button class="mini" data-opencomp="${esc(c.id)}">🧾 Billing திற</button><button class="mini" data-editcomp="${esc(c.id)}">✏️ விவரம்</button><button class="mini" data-usersof="${esc(c.id)}">👥 Users · ${c.userCount}</button><button class="mini" data-adduserfor="${esc(c.id)}">👤 User சேர்</button><button class="mini" data-loadtpl="${esc(c.id)}">📦 Master data</button><button class="mini" data-openshop="${esc(c.id)}">🌐 Website</button><button class="mini" data-addbranch="${esc(c.id)}">➕ கிளை சேர்</button><button class="mini" data-branches="${esc(c.id)}">🏬 கிளைகள் · ${(c.branches||[]).length}</button><button class="mini" data-paymodes="${esc(c.id)}">💳 Payment · ${(c.payModes||[]).filter(m=>m.active).length}</button></div>
       </article>`).join("")}</div>`:`<div class="none"><b>🏬</b>இன்னும் கம்பெனி இல்லை.<br>➕ புது கம்பெனி அழுத்தவும்</div>`}
     <div class="adm-head" id="usersHead"><h2 class="h2">பயனர்கள் · ${us.length}</h2><button class="gbtn" id="addUser">➕ புது User</button></div>
+    ${isSystem()?`<button class="cta ghost" id="openBlk" style="margin:0 0 8px">🚫 தடை செய்யப்பட்ட IP-கள் (Blocked IPs)</button>`:""}
     <button class="cta ghost" id="openSess" style="margin:0 0 8px">🟢 இப்போது login ஆனவர்கள் (Active sessions)${adminData.sessN?" · "+adminData.sessN:""}</button>
     <div class="ufl"><select id="uFilterCo" aria-label="Filter users by company"><option value="">🏬 எல்லா கம்பெனிகளும் (${us.length})</option>
         <option value="__admin"${uFilterCo==="__admin"?" selected":""}>⚙ Admin / System users (${us.filter(u=>isAL(u.type)).length})</option>
@@ -2604,6 +2621,26 @@ function renderSessions(){
       ${g.map(y=>`<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 0;border-top:1px dashed var(--line)"><div style="font-size:13px">📱 ${esc(y.device||"—")}${y.current?` <span class="tag on">இது நீங்கள்</span>`:""}<br><small style="color:var(--muted)">🌐 ${esc(y.ip||"—")} · login ${esc(fmtDate(y.loginAt))}<br>கடைசி செயல்: ${ago(y.idleSec)}</small></div>
         ${y.current?"":`<button class="mini" data-sesskill="${esc(y.sid)}" aria-label="End session">❌</button>`}</div>`).join("")}</div>`; }).join(""):`<div class="none"><b>🟢</b>யாரும் login-ல் இல்லை</div>`}
     <button class="cta ghost" data-close>மூடு (Close)</button>`;
+}
+let blkData=[];
+async function openBlocked(){
+  busy(true); try{ blkData=(await api("admin/blocked-ips")).blocked; }catch(e){ apiErr(e); return; } finally{ busy(false); }
+  renderBlocked(); showSheet();
+}
+function renderBlocked(){
+  const act=blkData.filter(x=>x.active), old=blkData.filter(x=>!x.active).slice(0,10);
+  $("#sheetBody").innerHTML=`<h2>🚫 Blocked IPs · ${act.length}</h2><p class="sub">ஒரு நாளில் 10 முறைக்கு மேல் தவறான login முயற்சி செய்த IP-கள் · Unblock அழுத்தினால் உடனே மீண்டும் login செய்யலாம்</p>
+    <button class="cta ghost" id="blkRefresh" style="height:42px">🔄 புதுப்பி</button>
+    ${act.length?act.map(x=>`<div class="box"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><div><b style="font-variant-numeric:tabular-nums">${esc(x.ip)}</b><br><small style="color:var(--muted)">${esc(x.blockedAt)} · ${esc(String(x.fails))} fails${x.lastUser?" · @"+esc(x.lastUser):""}</small></div>
+      <button class="mini" data-unblock="${esc(x.ip)}">Unblock</button></div></div>`).join(""):`<div class="none"><b>✅</b>தடை செய்யப்பட்ட IP எதுவும் இல்லை</div>`}
+    ${old.length?`<p class="sub" style="margin-top:12px">சமீபத்தில் unblock செய்யப்பட்டவை</p>`+old.map(x=>`<div class="box" style="opacity:.75"><b style="font-variant-numeric:tabular-nums">${esc(x.ip)}</b> <small style="color:var(--muted)">· ${esc(x.unblockedAt||"")} · ${esc(x.unblockedBy||"")}</small></div>`).join(""):""}
+    <button class="cta ghost" data-close>மூடு (Close)</button>`;
+}
+async function unblockIp(ip){
+  if(!confirm(ip+" — இந்த IP-ஐ unblock செய்யவா?")) return;
+  busy(true);
+  try{ const r=await api("admin/blocked-ips/unblock","POST",{ip}); blkData=r.blocked; toast("Unblock செய்யப்பட்டது"); renderBlocked(); }
+  catch(e){ apiErr(e); } finally{ busy(false); }
 }
 async function killSession(body){
   if(!confirm(body.sid?"இந்த session-ஐ முடிக்கவா? அந்த device உடனே logout ஆகும்.":"இந்த user-ன் எல்லா session-களையும் முடிக்கவா?")) return;
@@ -2789,23 +2826,53 @@ async function enter(s,opt){
   if(isAdmin()&&!opt.cached) loadAdmin();
   if(company&&!isOwner()&&!isWh()) OFF.start();
 }
+/* ---- login captcha + "Your IP" + blocked IP ---- */
+let capId="", capOn=false;
+async function loadCaptcha(){
+  const box=$("#lCapBox"), inp=$("#lCap"); if(inp) inp.value="";
+  try{
+    const c=await api("captcha","GET",undefined,{quiet:true,timeout:10000});
+    capOn=!!c.enabled; capId=c.id||""; box.hidden=!capOn;
+    if(capOn) $("#lCapPic").src=c.image;
+    $("#lBtn").disabled=false; lerr("");
+  }catch(e){
+    if(e.status===403 && e.data && e.data.blocked){ blockedUi(e.message); return; }
+    if(e.status===429){ lerr(e.message); return; }
+    capOn=false; box.hidden=true;                      // offline: server will still insist on the captcha if it is enabled
+  }
+}
+function blockedUi(msg){
+  capOn=false; capId=""; $("#lCapBox").hidden=true; $("#lBtn").disabled=true; lerr(msg); $("#lErr").classList.add("blk");
+}
+async function loadMyIp(){
+  try{ const r=await api("myip","GET",undefined,{quiet:true,timeout:8000}); document.querySelectorAll(".myipv").forEach(n=>n.textContent=r.ip||"—"); }
+  catch(e){ document.querySelectorAll(".myipv").forEach(n=>n.textContent="—"); }
+}
 async function doLogin(e){
   e.preventDefault();
-  const u=$("#lUser").value.trim().toLowerCase(), p=$("#lPass").value;
+  const u=$("#lUser").value.trim().toLowerCase(), p=$("#lPass").value, cap=($("#lCap").value||"").trim();
   if(!u||!p){ lerr("பயனர் பெயர் மற்றும் கடவுச்சொல்லை உள்ளிடவும்"); return; }
-  $("#lBtn").disabled=true; lerr(""); busy(true);
+  if(capOn && !cap){ lerr("படத்தில் உள்ள Captcha எழுத்துகளை உள்ளிடவும்"); $("#lCap").focus(); return; }
+  $("#lBtn").disabled=true; lerr(""); $("#lErr").classList.remove("blk"); busy(true);
   try{
-    const r=await api("login","POST",{user:u,pass:p,remember:$("#lRem").checked});
+    const r=await api("login","POST",{user:u,pass:p,remember:$("#lRem").checked,captchaId:capId,captcha:cap});
     setToken(r.access_token||r.token,$("#lRem").checked); $("#lPass").value="";
     await enter(r);
     toast("வணக்கம் · "+me.name+(company?" · "+company.name:""));
-  }catch(err){ lerr(err.message); $("#lPass").value=""; $("#lPass").focus(); }
-  finally{ $("#lBtn").disabled=false; busy(false); }
+  }catch(err){
+    $("#lPass").value="";
+    if(err.data && err.data.blocked){ blockedUi(err.message); busy(false); return; }
+    lerr(err.message);
+    if(err.status!==0){ await loadCaptcha(); lerr(err.message); }    // every attempt needs a fresh picture
+    ($("#lCapBox").hidden?$("#lPass"):$("#lCap")).focus();
+  }
+  finally{ if(!$("#lErr").classList.contains("blk")) $("#lBtn").disabled=false; busy(false); }
 }
 function showLogin(msg){
   loginPicked=null; try{ I18N.set("en",true); }catch(e){}      // the login page is always English
   me=null; company=null; adminData=null; closeSheet(); document.body.classList.remove("authed"); renderBrand();
   $("#lPass").value=""; lerr(msg||""); window.scrollTo(0,0);
+  loadCaptcha().then(()=>{ if(msg) lerr(msg); }); loadMyIp();
   setTimeout(()=>{ const i=$("#lUser").value?$("#lPass"):$("#lUser"); if(i) i.focus(); },50);
 }
 /* ---- idle auto-logout: the user's idle limit (minutes) comes from the server; any tap / key / scroll counts as use and keeps the server session alive ---- */
@@ -4549,6 +4616,9 @@ document.addEventListener("click",e=>{
   if(t.id==="mPw"||t.id==="chgPw") return openPw();
   if(t.id==="pwSave") return savePw();
   if(t.id==="mClear") return clearAppData();
+  if(t.id==="lCapImg"||t.id==="lCapRf"||(t.closest&&t.closest("#lCapImg"))) return loadCaptcha();
+  if(t.id==="openBlk"||t.id==="blkRefresh") return openBlocked();
+  if(d.unblock) return unblockIp(d.unblock);
   if(t.id==="openSess"||t.id==="sessRefresh") return openSessions();
   if(d.sesskill) return killSession({sid:d.sesskill});
   if(d.sesskuser) return killSession({userId:d.sesskuser});

@@ -5,7 +5,10 @@ import com.mschool.core.Core;
 import com.mschool.core.Ctx;
 import com.mschool.core.DbException;
 import com.mschool.core.U;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -31,9 +34,19 @@ public class ApiController {
     private static final Map<String, Object> OK = Map.of("ok", true);
 
     private final Core core;
+    private final com.suite.security.LoginSecurity sec;
+    private final com.mschool.core.Translator translator;
 
-    public ApiController(Core core) {
+    public ApiController(Core core, com.suite.security.LoginSecurity sec, com.mschool.core.Translator translator) {
         this.core = core;
+        this.sec = sec;
+        this.translator = translator;
+    }
+
+    /** Only getRemoteAddr(): behind Caddy the RemoteIpValve (tomcat/server.xml) has already put the real client address there, and a visitor cannot fake it. */
+    private static String clientIp(HttpServletRequest req) {
+        String a = req.getRemoteAddr();
+        return a == null ? "" : a;
     }
 
     /** health check (no login) - used by the Docker HEALTHCHECK */
@@ -50,6 +63,12 @@ public class ApiController {
             return ResponseEntity.ok(r == null ? OK : r);
         } catch (ApiException e) {
             return ResponseEntity.status(e.status()).body(Map.of("error", e.getMessage()));
+        } catch (com.suite.security.LoginSecurity.Denied d) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("error", d.getMessage());
+            if (d.blocked) { m.put("blocked", true); m.put("ip", d.ip); }
+            if (d.captcha) m.put("captcha", true);
+            return ResponseEntity.status(d.status).header("Cache-Control", "no-store").body(m);
         } catch (DbException e) {
             LOG.log(Level.WARNING, "database error", e);
             String m = String.valueOf(e.getMessage());
@@ -80,10 +99,77 @@ public class ApiController {
 
     // ---------------------------------------------------------------- session
 
+    /** the login captcha (a new picture every call); a blocked IP is told right here. {enabled:false} when LOGIN_CAPTCHA=false */
+    @GetMapping("/captcha")
+    public ResponseEntity<Object> captcha(HttpServletRequest req) {
+        return guard(() -> sec.challenge(clientIp(req)));
+    }
+
+    /** footer line "Your IP" */
+    @GetMapping("/myip")
+    public ResponseEntity<Object> myIp(HttpServletRequest req) {
+        return guard(() -> Collections.singletonMap("ip", clientIp(req).replaceAll("[^0-9a-fA-F:.%]", "")));
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@RequestBody(required = false) Map<String, Object> b) {
+    public ResponseEntity<Object> login(@RequestBody(required = false) Map<String, Object> b, HttpServletRequest req) {
         Map<String, Object> m = body(b);
-        return guard(() -> core.auth.login(U.s(m.get("user")), m.get("pass") == null ? null : m.get("pass").toString()));
+        String ip = clientIp(req);
+        String user = U.s(m.get("user")) == null ? "" : U.s(m.get("user")).trim().toLowerCase();
+        return guard(() -> {
+            sec.beforeLogin(ip, user, m.get("captchaId") == null ? null : m.get("captchaId").toString(), m.get("captcha") == null ? null : m.get("captcha").toString());
+            try {
+                return core.auth.login(U.s(m.get("user")), m.get("pass") == null ? null : m.get("pass").toString());
+            } catch (ApiException e) {
+                if (e.status() == 401) sec.credentialsFailed(ip, user);        // wrong user / password counts towards the daily limit of this IP
+                throw e;
+            }
+        });
+    }
+
+    // ---- blocked IPs (platform admin only)
+    @GetMapping("/admin/blocked-ips")
+    public ResponseEntity<Object> blockedIps(@RequestHeader(value = "X-Auth", required = false) String t) {
+        return run(t, c -> {
+            platformOnly(c);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("blocked", sec.blocked());
+            m.put("captcha", sec.captchaEnabled());
+            return m;
+        });
+    }
+
+    @PostMapping("/admin/blocked-ips/unblock")
+    public ResponseEntity<Object> unblockIp(@RequestHeader(value = "X-Auth", required = false) String t, @RequestBody(required = false) Map<String, Object> b) {
+        Map<String, Object> m = body(b);
+        return run(t, c -> {
+            platformOnly(c);
+            Object ip = m.get("ip");
+            if (ip == null || !sec.unblock(ip.toString(), c.name())) throw new ApiException(404, "இந்த IP தடை பட்டியலில் இல்லை");
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("blocked", sec.blocked());
+            return out;
+        });
+    }
+
+    private static void platformOnly(Ctx c) {
+        if (!c.admin()) throw new ApiException(403, "இதற்கு அனுமதி இல்லை");
+    }
+
+    /** online translation of Tamil phrases / names ({to:["en"], items:[{s,e?}]}); open to the login page too, rate limited per IP */
+    @PostMapping("/translate")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<Object> translate(@RequestBody(required = false) Map<String, Object> b, HttpServletRequest req) {
+        String ip = clientIp(req);
+        Map<String, Object> m = body(b);
+        return guard(() -> {
+            translator.checkRate(ip);
+            Object to = m.get("to"), items = m.get("items");
+            if (!(to instanceof java.util.List) || !(items instanceof java.util.List)) throw new ApiException(400, "Invalid request");
+            java.util.List<String> langs = new java.util.ArrayList<>();
+            for (Object x : (java.util.List<Object>) to) langs.add(String.valueOf(x));
+            return Collections.singletonMap("map", translator.translate(langs, (java.util.List<Object>) items));
+        });
     }
 
     @GetMapping("/me")

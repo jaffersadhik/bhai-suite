@@ -1,0 +1,26 @@
+# Meeran Technologies website — an OVERLAY file: it only ADDS one small container. It never changes mysql / app / caddy.
+#
+#   bash deploy/website.sh                 # build the image, run it (details in that script)
+#   or by hand:
+#   docker compose -f docker-compose.yaml -f docker-compose.https.yaml -f docker-compose.website.yaml up -d --no-deps --build website
+#
+# .env (all optional):
+#   WEBSITE_PORT=127.0.0.1:8082      where the site is published on the server (127.0.0.1 = only Caddy / this server; 8082 = open to everyone)
+#   WEBSITE_DOMAIN=www.example.in    served by Caddy with HTTPS (DNS A record -> this server); see deploy/Caddyfile
+#   WEBSITE_IMAGE=meeran-website:latest   (or a registry name:  ghcr.io/<you>/meeran-website:1.0.0  — then "docker compose ... pull website")
+name: bhai-mobile-billing
+
+services:
+  website:
+    build:
+      context: .
+      dockerfile: Dockerfile.website
+    image: ${WEBSITE_IMAGE:-meeran-website:latest}
+    restart: unless-stopped
+    ports:
+      - "${WEBSITE_PORT:-127.0.0.1:8082}:8080"
+    environment:
+      TZ: Asia/Kolkata
+    # a static site never needs more: the production app and MySQL on the same server keep their memory
+    mem_limit: 256m
+    cpus: 0.5

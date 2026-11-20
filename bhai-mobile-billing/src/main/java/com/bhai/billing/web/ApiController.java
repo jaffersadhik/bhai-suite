@@ -32,30 +32,83 @@ public class ApiController {
     private final BillingService svc;
     private final PostDeployTests tests;
     private final com.bhai.billing.core.Translator translator;
+    private final com.suite.security.LoginSecurity sec;
 
-    public ApiController(BillingService svc, PostDeployTests tests, com.bhai.billing.core.Translator translator) {
+    public ApiController(BillingService svc, PostDeployTests tests, com.bhai.billing.core.Translator translator, com.suite.security.LoginSecurity sec) {
         this.svc = svc;
         this.tests = tests;
         this.translator = translator;
+        this.sec = sec;
+    }
+
+    /**
+     * The client address. Only getRemoteAddr() is used: behind Caddy the RemoteIpValve of tomcat/server.xml has already replaced the proxy
+     * address by the real one - and only for requests that really came from the proxy, so a visitor cannot fake it with his own X-Forwarded-For.
+     */
+    private static String clientIp(HttpServletRequest req) {
+        String a = req.getRemoteAddr();
+        return a == null ? "" : a;
     }
 
     // ---- session
     @GetMapping("/ping")
     public ResponseEntity<Object> ping() { return run(() -> Collections.singletonMap("ok", true)); }
 
+    /** the login captcha (a new picture every call). A blocked IP is told right here. {enabled:false} when LOGIN_CAPTCHA=false. */
+    @GetMapping("/captcha")
+    public ResponseEntity<Object> captcha(HttpServletRequest req) { return run(() -> sec.challenge(clientIp(req))); }
+
+    /** footer line "Your IP" (the address this server sees for the caller) */
+    @GetMapping("/myip")
+    public ResponseEntity<Object> myIp(HttpServletRequest req) {
+        return run(() -> Collections.singletonMap("ip", clientIp(req).replaceAll("[^0-9a-fA-F:.%]", "")));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<Object> login(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest req) {
-        String xf = req.getHeader("X-Forwarded-For");
-        String ip = xf != null && !xf.isBlank() ? xf.split(",")[0].trim() : req.getRemoteAddr();
-        return run(() -> svc.login(nn(body), ip, req.getHeader("User-Agent")));
+        String ip = clientIp(req);
+        Map<String, Object> b = nn(body);
+        String user = String.valueOf(b.get("user") == null ? "" : b.get("user")).trim().toLowerCase();
+        return run(() -> {
+            sec.beforeLogin(ip, user, b.get("captchaId") == null ? null : b.get("captchaId").toString(), b.get("captcha") == null ? null : b.get("captcha").toString());
+            try {
+                return svc.login(b, ip, req.getHeader("User-Agent"));
+            } catch (ApiException e) {
+                if (e.getStatus() == 401) sec.credentialsFailed(ip, user);       // wrong user / password: counts towards the daily limit of this IP
+                throw e;
+            }
+        });
+    }
+
+    // ---- blocked IPs (System user only)
+    @GetMapping("/admin/blocked-ips")
+    public ResponseEntity<Object> blockedIps(@RequestHeader(value = AUTH, required = false) String auth) {
+        return run(() -> {
+            svc.systemUser(auth);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("blocked", sec.blocked());
+            m.put("captcha", sec.captchaEnabled());
+            return m;
+        });
+    }
+
+    @PostMapping("/admin/blocked-ips/unblock")
+    public ResponseEntity<Object> unblockIp(@RequestHeader(value = AUTH, required = false) String auth, @RequestBody(required = false) Map<String, Object> body) {
+        return run(() -> {
+            String by = svc.systemUser(auth);
+            Object ip = nn(body).get("ip");
+            if (ip == null || !sec.unblock(ip.toString(), by)) throw new ApiException(404, "இந்த IP தடை பட்டியலில் இல்லை");
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("blocked", sec.blocked());
+            return m;
+        });
     }
 
     /** online translation of Tamil master data / phrases ({to:["en"], items:[{s,e?}]}); open to the login page and the public shop too, rate limited */
     @PostMapping("/translate")
     @SuppressWarnings("unchecked")
     public ResponseEntity<Object> translate(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest req) {
-        String xf = req.getHeader("X-Forwarded-For");
-        String ip = xf != null && !xf.isBlank() ? xf.split(",")[0].trim() : req.getRemoteAddr();
+        String ip = clientIp(req);
         return run(() -> {
             Map<String, Object> b = nn(body);
             translator.checkRate(ip);
@@ -408,6 +461,12 @@ public class ApiController {
             return ResponseEntity.status(200).header("Cache-Control", "no-store").body(work.get());
         } catch (ApiException e) {
             return error(e.getStatus(), e.getMessage());
+        } catch (com.suite.security.LoginSecurity.Denied d) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("error", d.getMessage());
+            if (d.blocked) { m.put("blocked", true); m.put("ip", d.ip); }
+            if (d.captcha) m.put("captcha", true);
+            return ResponseEntity.status(d.status).header("Cache-Control", "no-store").body(m);
         } catch (DbException e) {
             if (e.isConstraintViolation()) return error(409, "தரவு முரண்பாடு — மீண்டும் முயற்சிக்கவும் (conflict)");
             log.error("Database error", e);

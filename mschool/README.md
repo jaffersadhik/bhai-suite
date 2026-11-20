@@ -1,6 +1,6 @@
 # MSchool — பள்ளி / கல்லூரி / பல்கலைக்கழக மொபைல் நிர்வாக மென்பொருள்
 
-Spring Boot 3.5 + MySQL 8 + single-file mobile web UI (Tamil, installable PWA). MBill போன்ற அதே அமைப்பு.
+Spring Boot 3.5 + MySQL 8 + single-file mobile web UI (installable PWA) in the **same look & feel as MBill** (green / gold, Mukta Malar + DM Sans). Languages like MBill: English (default), தமிழ், Hindi, Telugu, Kannada, Malayalam, Arabic - 🌐 button on the login page and in the bar / More; the choice is remembered on the device. Screen text is Tamil in the source; `static/i18n/en.json` holds the English, other languages are translated online (cached in table `translations`).
 
 ## Run
 Part of the Bhai Suite: one Tomcat/JVM/container runs MSchool (port 8081) together with Bhai Mobile Billing (8080). See ../SUITE.md.
@@ -18,6 +18,9 @@ First login: **admin / admin123** — change it immediately (More → கடவ�
 4. Daily: attendance (students: teacher of own section; staff: office/principal), fee collection with receipt/WhatsApp, pending list.
 5. Month end: Payroll → generate (LOP from attendance) → pay.
 6. Year end: Promotion → mark pass/fail per section → "ஆண்டு இறுதி உயர்வு" (pass → next class, fail → same class, final class pass → graduated; old records kept).
+
+## Login security
+Captcha on the login page, more than 10 wrong logins from one IP in a day -> IP blocked (platform admin: Institutions -> 🚫 Blocked IPs -> Unblock), footer shows "Your IP". Details and settings: ../SUITE.md "Login security".
 
 ## Roles
 admin (platform) · principal · office (desk) · teacher (own class-teacher sections only: attendance + results).

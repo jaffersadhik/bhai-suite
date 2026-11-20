@@ -3239,6 +3239,9 @@ public class BillingService {
     /** admin check for other components (post-deploy tests); returns the admin's name */
     public String adminName(String auth) { return str(system(auth).user.get("full_name")); }
 
+    /** System user only: the user name that is written into the "unblocked by" column of the blocked-IP list */
+    public String systemUser(String auth) { return str(system(auth).user.get("username")); }
+
     private Ctx admin(String auth) {
         Ctx c = ctx(auth);
         if (!c.admin()) throw new ApiException(403, "Admin மட்டும் (Admin only)");

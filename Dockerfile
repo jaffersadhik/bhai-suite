@@ -3,16 +3,21 @@
 #   :8080  Bhai Mobile Billing (MBill)   -> MySQL database bmb
 #   :8081  MSchool                       -> MySQL database mschool
 #
-# ---------- build stage: compile both modules -> two WAR files ----------
+# ---------- build stage: compile suite-security + both modules -> two WAR files ----------
 FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /src
 COPY pom.xml .
+COPY suite-security/pom.xml suite-security/pom.xml
 COPY bhai-mobile-billing/pom.xml bhai-mobile-billing/pom.xml
 COPY mschool/pom.xml mschool/pom.xml
-RUN mvn -B -q dependency:go-offline
+COPY website/pom.xml website/pom.xml
+# dependency cache layer (the sibling module suite-security is built later, so it is excluded; if this step fails the build still works, only slower)
+RUN mvn -B -q dependency:go-offline -DexcludeGroupIds=com.bhai || true
+COPY suite-security/src suite-security/src
 COPY bhai-mobile-billing/src bhai-mobile-billing/src
 COPY mschool/src mschool/src
-RUN mvn -B -q -DskipTests package
+# suite-security (login captcha + IP block) is compiled first and packed into both WARs; the website module has its own image (Dockerfile.website)
+RUN mvn -B -q -DskipTests -pl bhai-mobile-billing,mschool -am package
 
 # ---------- runtime stage: Tomcat 10.1 on Java 25 ----------
 FROM tomcat:10.1-jre25-temurin-noble

@@ -42,6 +42,12 @@ public class AppConfig {
         return new BillingService(db, ZoneId.of(zone));
     }
 
+    /** login captcha + per-IP failed-login counting + IP block (settings: LOGIN_CAPTCHA, LOGIN_MAX_FAILS, IP_BLOCK_HOURS, IP_BLOCK_EXEMPT ...); tables ip_fail_day / ip_block are created in the bmb database */
+    @Bean
+    public com.suite.security.LoginSecurity loginSecurity(DataSource dataSource, @Value("${bmb.zone:Asia/Kolkata}") String zone) {
+        return com.suite.security.LoginSecurity.fromEnvironment(dataSource, ZoneId.of(zone));
+    }
+
     @Bean
     public com.bhai.billing.core.Translator translator(JdbcDb db, @Value("${translate.google.key:}") String key, @Value("${translate.url:}") String url) {
         return new com.bhai.billing.core.Translator(db, key, url);

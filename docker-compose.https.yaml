@@ -11,6 +11,9 @@
 #
 # MSchool (same container, port 8081) on its own address - optional:
 #   in .env also set   SCHOOL_DOMAIN=school.example.com   (A record -> this server)   then up -d again.
+#
+# Company website (docker-compose.website.yaml, container "website") - optional:
+#   in .env also set   WEBSITE_DOMAIN=www.example.in      (A record -> this server)
 name: bhai-mobile-billing
 
 services:
@@ -26,6 +29,7 @@ services:
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN in .env}
       SCHOOL_DOMAIN: ${SCHOOL_DOMAIN:-:8081}
+      WEBSITE_DOMAIN: ${WEBSITE_DOMAIN:-:8082}
     command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro

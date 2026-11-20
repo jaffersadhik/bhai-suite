@@ -34,6 +34,16 @@ the WARs, the front-ends call absolute `/api/...` URLs.
 
 Your existing production `.env` keeps working without any edit (MSchool uses the same `DB_USER` / `DB_PASS`).
 
+## Login security (captcha, IP block, "Your IP")
+Shared module `suite-security` (packed into both WARs). Same behaviour in MBill and MSchool:
+- **Captcha** on the login page: 5 characters (letters + digits, no look-alikes such as O/0 or I/1), not case sensitive, drawn as an image, new picture after every attempt; tap the picture or ↻ for another one. The answer is kept on the server and works once.
+- **IP block**: more than `LOGIN_MAX_FAILS` (10) wrong user/password attempts from one IP **in one day** -> that IP is blocked (the 11th attempt is refused and the block is stored in the table `ip_block` of each app's own schema). Successful logins do not reset the count. IPv6 addresses are counted per /64.
+- **Unblock**: MBill -> Admin -> **Blocked IPs** (System user only). MSchool -> platform admin -> Institutions -> **Blocked IPs**. If the System user's own IP got blocked: `bash deploy/oracle/unblock-ip.sh` (list) / `bash deploy/oracle/unblock-ip.sh <ip>`.
+- **"Your IP"** is shown in the footer of MBill, MSchool and the website (and on the login pages).
+- Settings (`.env`, see `docker-compose.yaml`): `LOGIN_CAPTCHA`, `LOGIN_MAX_FAILS`, `LOGIN_MAX_CAPTCHA_FAILS`, `IP_BLOCK_HOURS` (0 = until unblocked), `IP_BLOCK_EXEMPT`.
+- **Real client IP**: `tomcat/server.xml` has a `RemoteIpValve` in both Tomcat hosts. It trusts `X-Forwarded-For` only when the TCP peer is a private / Docker address (= Caddy). Caddy overwrites the header, so a visitor cannot fake his IP. The apps read `request.getRemoteAddr()` only.
+- Be aware: people behind one shared address (mobile-operator CGNAT, an office) share the counter - one person typing the wrong password 11 times can lock the others; use `IP_BLOCK_HOURS` (e.g. 24) or `IP_BLOCK_EXEMPT` for such addresses. A captcha stops casual guessing, not a determined attacker with a solving service - the IP block and strong passwords are the real protection.
+
 ## Moving production (MBill already running) to the suite
 1. Copy this project over the old one (or `git pull`), keep your `.env`.
 2. `bash deploy/oracle/update.sh` (backs up `bmb`, keeps the old image as `:prev`, rebuilds, restarts). MBill's data is untouched.

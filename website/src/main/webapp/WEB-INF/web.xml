@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd" version="6.0">
+  <display-name>Meeran Technologies website</display-name>
+
+  <!-- visitor IP for the footer ("Your IP") -->
+  <servlet>
+    <servlet-name>myip</servlet-name>
+    <servlet-class>com.meeran.site.MyIpServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>myip</servlet-name>
+    <url-pattern>/api/myip</url-pattern>
+  </servlet-mapping>
+
+  <!-- security headers: X-Frame-Options, X-Content-Type-Options (HSTS only when the request arrived over HTTPS) -->
+  <filter>
+    <filter-name>secHeaders</filter-name>
+    <filter-class>org.apache.catalina.filters.HttpHeaderSecurityFilter</filter-class>
+    <init-param><param-name>antiClickJackingOption</param-name><param-value>DENY</param-value></init-param>
+    <init-param><param-name>hstsMaxAgeSeconds</param-name><param-value>31536000</param-value></init-param>
+  </filter>
+  <filter-mapping><filter-name>secHeaders</filter-name><url-pattern>/*</url-pattern></filter-mapping>
+
+  <!-- caching: pages are re-checked on every visit, css / js for one hour, pictures for a week -->
+  <filter>
+    <filter-name>expires</filter-name>
+    <filter-class>org.apache.catalina.filters.ExpiresFilter</filter-class>
+    <init-param><param-name>ExpiresByType text/html</param-name><param-value>access plus 0 seconds</param-value></init-param>
+    <init-param><param-name>ExpiresByType text/css</param-name><param-value>access plus 1 hour</param-value></init-param>
+    <init-param><param-name>ExpiresByType application/javascript</param-name><param-value>access plus 1 hour</param-value></init-param>
+    <init-param><param-name>ExpiresByType text/javascript</param-name><param-value>access plus 1 hour</param-value></init-param>
+    <init-param><param-name>ExpiresByType image</param-name><param-value>access plus 1 week</param-value></init-param>
+  </filter>
+  <filter-mapping><filter-name>expires</filter-name><url-pattern>/*</url-pattern></filter-mapping>
+
+  <welcome-file-list><welcome-file>index.html</welcome-file></welcome-file-list>
+  <error-page><error-code>404</error-code><location>/404.html</location></error-page>
+  <session-config><session-timeout>1</session-timeout></session-config>
+  <mime-mapping><extension>webmanifest</extension><mime-type>application/manifest+json</mime-type></mime-mapping>
+</web-app>
