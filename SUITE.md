@@ -1,13 +1,14 @@
-# Bhai Suite — Bhai Mobile Billing + MSchool in ONE project, ONE Tomcat, ONE JVM
+# Bhai Suite — Bhai Mobile Billing + MSchool + company website in ONE project, ONE Tomcat, ONE JVM
 
 ```
 pom.xml                      parent (Spring Boot 3.5.16, Java 25) — modules below
 bhai-mobile-billing/         module 1  ->  bhai-mobile-billing.war   (MBill, database "bmb")
 mschool/                     module 2  ->  mschool.war               (MSchool, database "mschool")
-tomcat/server.xml            ONE Tomcat, two <Service>s:  :8080 = MBill (ROOT.war)   :8081 = MSchool (ROOT.war)
-Dockerfile                   builds both WARs, runs them in tomcat:10.1-jre25-temurin-noble (one container)
-docker-compose.yaml          mysql + one-shot "mschool-db" (creates DB + user) + app (both apps)
-docker-compose.https.yaml    Caddy: DOMAIN -> :8080, SCHOOL_DOMAIN -> :8081
+website/                     module 3  ->  meeran-website.war        (Meeran Technologies static website, no database)
+tomcat/server.xml            ONE Tomcat, three <Service>s:  :8080 = MBill   :8081 = MSchool   :8082 = website   (each ROOT.war)
+Dockerfile                   builds the three WARs, runs them in tomcat:10.1-jre25-temurin-noble (one container)
+docker-compose.yaml          mysql + one-shot "mschool-db" (creates DB + user) + app (all three WARs)
+docker-compose.https.yaml    Caddy: DOMAIN -> :8080 (MBill), SCHOOL_DOMAIN -> :8081 (MSchool), WEBSITE_DOMAIN -> :8082 (website)
 deploy/oracle/*.sh           your existing setup / update / rollback / backup / restore (now also backs up mschool)
 ```
 
@@ -20,8 +21,8 @@ Copy `tomcat/server.xml` into `$CATALINA_BASE/conf/`, then
 `bhai-mobile-billing.war` -> `$CATALINA_BASE/webapps/ROOT.war`, `mschool.war` -> `$CATALINA_BASE/webapps-school/ROOT.war`
 and export the environment variables below before starting Tomcat.
 
-## Context path = "/" for both (nothing changes inside the apps)
-Both WARs are deployed as ROOT in their **own Tomcat Service/port** (8080 and 8081), so every URL inside the apps
+## Context path = "/" for all three (nothing changes inside the apps)
+All WARs are deployed as ROOT in their **own Tomcat Service/port** (8080, 8081, 8082), so every URL inside the apps
 (`/api/...`, `/index.html`, `/s/<shop>`) stays exactly as it was. Phones/browsers of MBill keep using the same address.
 If you prefer path-based addresses (`/mbill`, `/school`) put Caddy/Nginx in front and map the path to the ports — do not rename
 the WARs, the front-ends call absolute `/api/...` URLs.
@@ -44,6 +45,18 @@ Shared module `suite-security` (packed into both WARs). Same behaviour in MBill 
 - **Real client IP**: `tomcat/server.xml` has a `RemoteIpValve` in both Tomcat hosts. It trusts `X-Forwarded-For` only when the TCP peer is a private / Docker address (= Caddy). Caddy overwrites the header, so a visitor cannot fake his IP. The apps read `request.getRemoteAddr()` only.
 - Be aware: people behind one shared address (mobile-operator CGNAT, an office) share the counter - one person typing the wrong password 11 times can lock the others; use `IP_BLOCK_HOURS` (e.g. 24) or `IP_BLOCK_EXEMPT` for such addresses. A captcha stops casual guessing, not a determined attacker with a solving service - the IP block and strong passwords are the real protection.
 
+## Domains: which name opens which application
+One Tomcat, one container, three ports; **Caddy decides by the domain name** (`deploy/Caddyfile`). In `.env`:
+```
+DOMAIN=billing.example.com          # -> MBill   (:8080)
+SCHOOL_DOMAIN=school.example.com    # -> MSchool (:8081)
+WEBSITE_DOMAIN=www.example.in       # -> website (:8082);  several names:  WEBSITE_DOMAIN="example.in, www.example.in"
+```
+Each domain needs a DNS A record -> this server (ports 80 + 443 open). Then `docker compose -f docker-compose.yaml -f docker-compose.https.yaml up -d`
+(`setup.sh` / `update.sh` do this for you). Without Caddy the three ports can be opened directly: `APP_PORT=8080`, `SCHOOL_PORT=8081`, `WEBSITE_PORT=8082` in `.env`
+(defaults keep 8081 / 8082 on 127.0.0.1 only; 8082 needs the firewall / security list opened too).
+The website is part of the same image, so `update.sh` / `rollback.sh` update it together with MBill and MSchool; a website-only change still rebuilds the one image (the apps restart for ~1 minute).
+
 ## Moving production (MBill already running) to the suite
 1. Copy this project over the old one (or `git pull`), keep your `.env`.
 2. `bash deploy/oracle/update.sh` (backs up `bmb`, keeps the old image as `:prev`, rebuilds, restarts). MBill's data is untouched.
@@ -62,6 +75,6 @@ The one-shot `mschool-db` service creates schema `mschool` and grants that user 
 and never touches school data; either app can be restored alone (`restore.sh <file>` picks the schema from the file name).
 
 ## Trade-offs of one JVM (be aware)
-- One crash / OutOfMemory / restart stops **both** apps. `docker compose restart app` restarts both; MBill's rollback (`rollback.sh`) swaps the image for both.
-- Heap and GC are shared; `JAVA_OPTS` in the Dockerfile (MaxRAMPercentage=75) applies to both.
+- One crash / OutOfMemory / restart stops **all three** (MBill, MSchool, website). `docker compose restart app` restarts them all; MBill's rollback (`rollback.sh`) swaps the image for all.
+- Heap and GC are shared; `JAVA_OPTS` in the Dockerfile (MaxRAMPercentage=75) applies to all three.
 - If MSchool cannot reach its database it fails to start by itself; MBill keeps running (Tomcat starts each WAR independently), but the container health check turns "unhealthy".

@@ -79,8 +79,10 @@ MYSQL_BACKUP_DIR=$DATA/backup
 # app only on localhost - the public goes through Caddy (HTTPS)
 APP_PORT=127.0.0.1:8080
 SCHOOL_PORT=127.0.0.1:8081
+WEBSITE_PORT=127.0.0.1:8082
 DOMAIN=$DOMAIN
 # SCHOOL_DOMAIN=school.example.com   (MSchool address - DNS A record -> this VM, then re-run docker compose up -d)
+# WEBSITE_DOMAIN=www.example.in      (company website address - DNS A record -> this VM, then re-run docker compose up -d)
 CTL_DIR=$DATA/ctl
 EOT
   chmod 600 "$ENV"; chown "$RUN_USER": "$ENV"
@@ -128,6 +130,7 @@ done
 if curl -fsS http://127.0.0.1:8080/api/ping >/dev/null 2>&1; then
   say "DONE  ->  https://$DOMAIN/      (first login: admin / admin1234 - change it at once)"
   say "MSchool runs in the same container on :8081 (first login admin / admin123) - set SCHOOL_DOMAIN in .env for its https address"
+  say "Company website runs in the same container on :8082 - set WEBSITE_DOMAIN in .env for its https address"
   echo "      demo data:  bash deploy/oracle/load-demo.sh      backup now:  sudo deploy/oracle/backup.sh"
 else
   warn "app not answering yet - check:  docker compose logs -f app"

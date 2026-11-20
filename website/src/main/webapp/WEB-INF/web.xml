@@ -11,6 +11,7 @@
   <servlet-mapping>
     <servlet-name>myip</servlet-name>
     <url-pattern>/api/myip</url-pattern>
+    <url-pattern>/api/ping</url-pattern>
   </servlet-mapping>
 
   <!-- security headers: X-Frame-Options, X-Content-Type-Options (HSTS only when the request arrived over HTTPS) -->

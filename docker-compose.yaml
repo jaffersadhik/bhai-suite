@@ -4,8 +4,9 @@
 #   3. docker compose up -d --build
 #   4. open http://<server>:8080/   Bhai Mobile Billing   first login: admin / admin1234
 #      open http://<server>:8081/   MSchool                first login: admin / admin123   (change both at once)
+#      open http://<server>:8082/   Meeran Technologies website   (set WEBSITE_PORT=8082 in .env to open it directly)
 #
-# ONE container (one Tomcat, one JVM) runs both applications; they use two separate databases on the same MySQL:
+# ONE container (one Tomcat, one JVM) runs MBill, MSchool and the website (three WARs, three ports); the two apps use two separate databases on the same MySQL:
 #   MBill -> schema bmb      MSchool -> schema mschool      (the SAME user DB_USER / DB_PASS for both)
 name: bhai-mobile-billing
 
@@ -84,6 +85,7 @@ services:
     ports:
       - "${APP_PORT:-8080}:8080"                       # Bhai Mobile Billing
       - "${SCHOOL_PORT:-127.0.0.1:8081}:8081"          # MSchool (localhost only by default; Caddy publishes it with SCHOOL_DOMAIN. Set SCHOOL_PORT=8081 to open it directly)
+      - "${WEBSITE_PORT:-127.0.0.1:8082}:8082"         # Meeran Technologies website (localhost only by default; Caddy publishes it with WEBSITE_DOMAIN. Set WEBSITE_PORT=8082 to open it directly)
     volumes:
       - "${CTL_DIR:-./ctl}:/ctl"                       # build info + rollback requests (deploy/oracle scripts)
 

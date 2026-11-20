@@ -7,6 +7,7 @@ import java.io.IOException;
 
 /**
  * GET /api/myip  ->  {"ip":"203.0.113.7"}   (the footer "Your IP" line of the site).
+ * GET /api/ping   ->  {"ok":true}            (Docker HEALTHCHECK of the shared container).
  *
  * Only {@code request.getRemoteAddr()} is used. When the site runs behind Caddy, the RemoteIpValve in tomcat/server.xml replaces the
  * proxy's address by the real visitor address from X-Forwarded-For - and only when the request really comes from the trusted proxy,
@@ -21,6 +22,7 @@ public class MyIpServlet extends HttpServlet {
         res.setContentType("application/json");
         res.setCharacterEncoding("UTF-8");
         res.setHeader("Cache-Control", "no-store");
+        if ("/api/ping".equals(req.getServletPath())) { res.getWriter().write("{\"ok\":true}"); return; }
         res.getWriter().write("{\"ip\":\"" + clean(req.getRemoteAddr()) + "\"}");
     }
 

@@ -12,8 +12,9 @@
 # MSchool (same container, port 8081) on its own address - optional:
 #   in .env also set   SCHOOL_DOMAIN=school.example.com   (A record -> this server)   then up -d again.
 #
-# Company website (docker-compose.website.yaml, container "website") - optional:
-#   in .env also set   WEBSITE_DOMAIN=www.example.in      (A record -> this server)
+# Company website (same container, port 8082) on its own address - optional:
+#   in .env also set   WEBSITE_DOMAIN=www.example.in      (A record -> this server)   then up -d again.
+#   Domain -> application:  DOMAIN = MBill (8080)   SCHOOL_DOMAIN = MSchool (8081)   WEBSITE_DOMAIN = website (8082)
 name: bhai-mobile-billing
 
 services:
