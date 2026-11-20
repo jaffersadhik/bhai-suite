@@ -182,3 +182,16 @@ footer .legal{border-top:1px solid rgba(255,255,255,.16);margin-top:28px;padding
 }
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 @media print{.bar,.contact form{display:none}}
+
+/* ---- About / founder ---- */
+.founder{display:grid;grid-template-columns:300px 1fr;gap:28px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:24px;padding:28px;position:relative;overflow:hidden}
+.founder::before{content:"";position:absolute;left:28px;right:28px;top:0;height:4px;border-radius:0 0 4px 4px;background:var(--gold)}
+.founder .who{text-align:center;display:grid;gap:8px;justify-items:center}
+.founder .avatar{width:104px;height:104px;border-radius:30px;background:var(--gold);color:var(--leaf-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:46px;box-shadow:0 10px 26px rgba(14,107,74,.25)}
+.founder .nm{font-family:var(--head);font-size:24px;font-weight:800;color:var(--leaf-d);line-height:1.2}
+.founder .roles{background:var(--leaf-l);color:var(--leaf-d);font-weight:700;font-size:13px;border-radius:20px;padding:5px 14px}
+.founder .bio p{color:var(--ink);font-size:16.5px;margin-bottom:12px}
+.founder .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.founder .tags span{background:var(--bg);border:1px solid var(--line);color:var(--leaf-d);font-weight:700;font-size:12.5px;border-radius:20px;padding:4px 12px}
+footer .own{margin-top:10px;font-weight:700;color:var(--gold-l);font-size:13.5px}
+@media(max-width:720px){.founder{grid-template-columns:1fr;padding:22px 18px}}

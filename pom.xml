@@ -14,6 +14,26 @@
   <artifactId>bhai-suite</artifactId>
   <version>1.0.0</version>
   <packaging>pom</packaging>
+
+  <organization>
+    <name>Meeran Technologies</name>
+    <url>https://meeran-technologies.duckdns.org</url>
+  </organization>
+  <developers>
+    <developer>
+      <name>K. M. Jaffer Sadhik</name>
+      <email>jsadhik009@gmail.com</email>
+      <organization>Meeran Technologies</organization>
+      <organizationUrl>https://meeran-technologies.duckdns.org</organizationUrl>
+      <roles>
+        <role>Owner</role>
+        <role>Founder</role>
+        <role>CEO</role>
+        <role>CTO</role>
+        <role>Developer of MBill, MSchool and the SMS platform</role>
+      </roles>
+    </developer>
+  </developers>
   <name>Bhai Suite (Mobile Billing + MSchool + Website)</name>
   <description>One Maven project, two WAR modules that run side by side in one Tomcat / one JVM, each with its own database</description>
 

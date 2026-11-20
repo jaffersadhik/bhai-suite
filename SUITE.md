@@ -78,3 +78,6 @@ and never touches school data; either app can be restored alone (`restore.sh <fi
 - One crash / OutOfMemory / restart stops **all three** (MBill, MSchool, website). `docker compose restart app` restarts them all; MBill's rollback (`rollback.sh`) swaps the image for all.
 - Heap and GC are shared; `JAVA_OPTS` in the Dockerfile (MaxRAMPercentage=75) applies to all three.
 - If MSchool cannot reach its database it fails to start by itself; MBill keeps running (Tomcat starts each WAR independently), but the container health check turns "unhealthy".
+
+## Owner / developer
+Meeran Technologies — owner, founder, CEO & CTO **K. M. Jaffer Sadhik**, who designed and developed MBill, MSchool and the SMS platform. Details: `AUTHORS.md`, `pom.xml` (`<developers>`), the website About section (`website/src/main/webapp/index.html`, contact data in `js/site-config.js`) and the "Developed by" line on the MBill / MSchool login pages and footers.

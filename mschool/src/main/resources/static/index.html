@@ -106,7 +106,7 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}table.t td,table.t th
 </style>
 </head>
 <body>
-<div id="app"><header id="bar"></header><main id="main"></main><footer id="ipfoot">உங்கள் IP (Your IP): <b class="myipv">…</b></footer><nav id="dock"></nav></div>
+<div id="app"><header id="bar"></header><main id="main"></main><footer id="ipfoot">உங்கள் IP (Your IP): <b class="myipv">…</b><br>Developed by <b>K. M. Jaffer Sadhik</b> · Meeran Technologies</footer><nav id="dock"></nav></div>
 <div id="shade" class="hide" data-act="closeSheet"></div>
 <div id="sheet" class="hide"><div class="grab"></div><div class="sh-h"><b id="shT"></b><button data-act="closeSheet" aria-label="மூடு">✕</button></div><div id="shB"></div></div>
 <div id="toast"></div>
@@ -234,7 +234,8 @@ function loginView(){
    +'<div class="lerr'+(S.lerr?' on':'')+(S.blk?' blk':'')+'" id="lerr" role="alert">'+esc(S.lerr||'')+'</div>'
    +'<button class="btn full" id="lbtn" data-act="login"'+(S.blk?' disabled':'')+'>உள்நுழை</button></div>'
    +'<p class="lfoot">பதிவு செய்த நிறுவனங்களுக்கு மட்டும் · Registered institutions only</p>'
-   +'<p class="lfoot" style="margin-top:4px">உங்கள் IP (Your IP): <b class="myipv">'+esc(S.ip||'…')+'</b></p></div>';
+   +'<p class="lfoot" style="margin-top:4px">உங்கள் IP (Your IP): <b class="myipv">'+esc(S.ip||'…')+'</b></p>'
+   +'<p class="lfoot" style="margin-top:4px">Developed by <b>K. M. Jaffer Sadhik</b> · <a href="https://meeran-technologies.duckdns.org" target="_blank" rel="noopener" style="color:inherit">Meeran Technologies</a></p></div>';
 }
 /* ---- login captcha / blocked IP / "Your IP" (state lives in S so a re-render of the login page keeps it) ---- */
 function lerrShow(msg,blk){S.lerr=msg||'';S.blk=!!blk;const e=$('#lerr');if(e){e.textContent=S.lerr;e.classList.toggle('on',!!S.lerr);e.classList.toggle('blk',!!blk)}const b=$('#lbtn');if(b)b.disabled=!!blk}

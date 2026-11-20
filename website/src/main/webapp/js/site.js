@@ -55,6 +55,8 @@
     if (ph) rows.push("📞 <a href=\"tel:" + esc(ph.replace(/[^+\d]/g, "")) + "\">" + esc(ph) + "</a>");
     if (mail) rows.push("✉️ <a href=\"mailto:" + esc(mail) + "\">" + esc(mail) + "</a>");
     if (ad) rows.push("📍 " + esc(ad));
+    if (S.landmark) rows.push("🧭 " + (lang === "ta" ? "அடையாளம்: " : "Landmark: ") + esc(S.landmark));
+    if (S.owner) rows.push("👤 " + esc(S.owner) + " — " + (lang === "ta" ? "உரிமையாளர், நிறுவனர், CEO & CTO" : "Owner, Founder, CEO & CTO"));
     rows.forEach(function (r) { var d = document.createElement("div"); d.innerHTML = r; info.appendChild(d); });
     foot.innerHTML = "";
     foot.appendChild(li("<a href=\"#contact\">" + (lang === "ta" ? "டெமோ கேளுங்கள்" : "Request a demo") + "</a>"));
@@ -62,6 +64,7 @@
     if (ph) foot.appendChild(li(esc(ph)));
     if (mail) foot.appendChild(li("<a href=\"mailto:" + esc(mail) + "\">" + esc(mail) + "</a>"));
     if (ad) foot.appendChild(li(esc(ad)));
+    if (S.landmark) foot.appendChild(li((lang === "ta" ? "அடையாளம்: " : "Landmark: ") + esc(S.landmark)));
     var can = !!(wa || mail);
     form.hidden = !can; soon.hidden = can;
     $("#fNote").textContent = can ? (lang === "ta" ? (wa ? "WhatsApp திறக்கும் — செய்தியை அனுப்புங்கள்." : "உங்கள் மின்னஞ்சல் செயலி திறக்கும்.") : (wa ? "WhatsApp will open — just press send." : "Your e-mail app will open.")) : "";
