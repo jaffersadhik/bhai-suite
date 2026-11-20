@@ -96,7 +96,7 @@
   /* ---------- product links ---------- */
   $$(".app-link").forEach(function (a) {
     var u = S[a.getAttribute("data-site")];
-    if (u && /^https?:\/\//i.test(u)) { a.href = u; a.target = "_blank"; a.rel = "noopener"; a.hidden = false; }
+    if (u && /^https?:\/\//i.test(u)) { a.href = u.replace(/\/+$/, "") + "/" + (a.getAttribute("data-path") || ""); a.target = "_blank"; a.rel = "noopener"; a.hidden = false; }
   });
 
   /* ---------- contact box + footer ---------- */
