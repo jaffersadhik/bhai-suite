@@ -14,7 +14,6 @@ self.addEventListener("fetch",e=>{
   const r=e.request; if(r.method!=="GET") return;
   const u=new URL(r.url);
   if(u.pathname.indexOf("/api/")>=0) return;                       // data: never cached here
-  if(u.pathname.indexOf("/demo/")>=0) return;                      // demo videos: plain network (range requests, big files)
   if(r.mode==="navigate"){
     if(!isShellPage(u)) return;                                    // shop.html etc.: normal network
     e.respondWith((async()=>{
