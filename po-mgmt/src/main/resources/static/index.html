@@ -121,7 +121,7 @@ function renderLogin(){
       ${c.enabled?`<label class="f" style="margin-bottom:4px"><span>Captcha</span></label>
       <div class="cap"><span class="capimg">${c.image?`<img src="${esc(c.image)}" alt="captcha">`:'…'}</span><button type="button" class="caprf" id="capRf">↻</button></div>
       <label class="f"><input id="lc" autocomplete="off" placeholder="Enter the characters above"></label>`:''}
-      <div class="lerr" id="le"></div>
+      <div class="lerr${S.lerr?' on':''}" id="le">${esc(S.lerr||'')}</div>
       <button class="btn full" id="lbtn" style="height:50px;border-radius:14px;margin-top:6px">${esc(t('Login'))}</button>
       <p class="mu sm" style="margin:12px 0 0;text-align:center">admin / admin1234 · demo: exec1 · mgr1 · appr1 / demo1234</p>
     </div><p class="lfoot">Meeran Technologies</p></div>`;
@@ -132,11 +132,13 @@ function renderLogin(){
 }
 async function doLogin(){
   const user=$('#lu').value.trim(),password=$('#lp').value,captcha=$('#lc')?$('#lc').value.trim():'';
-  if(!user||!password){$('#le').textContent=t('Username')+' / '+t('Password')+' ?';$('#le').className='lerr on';return}
-  $('#lbtn').disabled=true;
+  if(!user||!password){S.lerr=t('Username')+' / '+t('Password')+' ?';$('#le').textContent=S.lerr;$('#le').className='lerr on';return}
+  S.lerr='';$('#lbtn').disabled=true;
   try{const r=await api('/login','POST',{user,password,captchaId:(S.cap&&S.cap.id)||'',captcha});
-    S.token=r.token;localStorage.setItem('po_token',r.token);S.me=r.me;document.body.classList.remove('lg');await boot()}
-  catch(e){$('#le').textContent=e.message;$('#le').className='lerr on';$('#lbtn').disabled=false;if(e.status!==undefined&&e.status!==0)loadCaptcha()}
+    S.token=r.token;localStorage.setItem('po_token',r.token);S.me=r.me;S.lerr='';document.body.classList.remove('lg');await boot()}
+  catch(e){S.lerr=e.message||'Login failed';$('#lbtn').disabled=false;
+    // reload captcha (fresh picture each attempt) and keep the error visible via S.lerr; if no reload, show it directly
+    if(e.status!==undefined&&e.status!==0){await loadCaptcha()}else{$('#le').textContent=S.lerr;$('#le').className='lerr on'}}
 }
 function localLogout(){S.token=null;S.me=null;S.data=null;localStorage.removeItem('po_token');loadCaptcha()}
 
