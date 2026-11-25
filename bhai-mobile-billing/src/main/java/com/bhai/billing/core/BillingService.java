@@ -2372,8 +2372,9 @@ public class BillingService {
             return blank(requested) ? null : checkBranch(cid, requested);
         }
         if (!c.admin() && !c.stock() && !c.warehouse()) throw new ApiException(403, "Purchase Order: Stock / Warehouse users மட்டும்");
-        if (c.admin()) return blank(requested) ? (write ? firstBranch(cid) : null) : checkBranch(cid, requested);
-        return userBranch(c, cid);
+        // admin / stock / warehouse may assign a PO to ANY branch or warehouse of the company; blank = own (or first) branch
+        if (blank(requested)) return write ? (c.admin() ? firstBranch(cid) : userBranch(c, cid)) : null;
+        return checkBranch(cid, requested);
     }
 
     private String checkBranch(String cid, String b) {
@@ -2381,15 +2382,11 @@ public class BillingService {
         return b.trim();
     }
 
-    /** warehouse / stock users a PO may be allocated to (admin / owner: every branch; stock / warehouse: own branch). */
+    /** every warehouse / stock user of the company a PO may be allocated to (the form filters by the chosen branch). */
     private List<Object> assigneePool(Ctx c, String cid) {
         List<Object> out = new ArrayList<>();
-        List<Object> args = new ArrayList<>();
-        args.add(cid);
-        String where = "";
-        if (!(c.admin() || c.owner())) { where = " AND branch_id = ?"; args.add(userBranch(c, cid)); }
-        for (Map<String, Object> r : db.query("SELECT username, full_name, user_type, branch_id FROM users WHERE company_id = ?" + where
-                + " AND active = 1 AND user_type IN ('warehouse','stock') ORDER BY branch_id, user_type = 'stock', full_name", args.toArray())) {
+        for (Map<String, Object> r : db.query("SELECT username, full_name, user_type, branch_id FROM users WHERE company_id = ?"
+                + " AND active = 1 AND user_type IN ('warehouse','stock') ORDER BY branch_id, user_type = 'stock', full_name", cid)) {
             Map<String, Object> n = new LinkedHashMap<>();
             n.put("user", str(r.get("username")));
             n.put("name", str(r.get("full_name")));
@@ -2550,7 +2547,7 @@ public class BillingService {
         o.put("orders", out);
         o.put("canEdit", !c.owner());
         o.put("branch", br);
-        if (c.admin() || c.owner()) o.put("branches", branchList(cid));
+        o.put("branches", branchList(cid));            // every branch of the company (shops + warehouses), for the branch filter + PO assignment
         o.put("assignees", assigneePool(c, cid));
         return o;
     }
@@ -2594,11 +2591,10 @@ public class BillingService {
     }
 
     private Map<String, Object> poRow(Ctx c, String cid, long id, boolean write) {
-        String br = poBranch(c, cid, null, write);
+        poBranch(c, cid, null, write);                 // permission check only (POs are company-wide: any branch may be opened / received)
         Map<String, Object> p = db.one("SELECT p.*, br.name AS branch_name, br.kind AS branch_kind FROM purchase_orders p LEFT JOIN branches br ON br.company_id = p.company_id AND br.id = p.branch_id "
                 + "WHERE p.company_id = ? AND p.id = ?", cid, id);
         if (p == null) throw new ApiException(404, "PO இல்லை");
-        if ((c.stock() || c.warehouse()) && !str(p.get("branch_id")).equals(br)) throw new ApiException(403, "வேறு கிளையின் PO");
         return p;
     }
 

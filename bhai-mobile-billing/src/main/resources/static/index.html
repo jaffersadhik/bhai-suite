@@ -4111,10 +4111,10 @@ async function loadSuppliers(){ try{ poSup=(await api("suppliers")).suppliers; }
 /* ---- create / edit ---- */
 async function openPoForm(po){
   await loadSuppliers();
-  const _brs=(poData&&poData.branches)||[];
+  const _brs=(poData&&poData.branches)||[], _own=_brs.find(b=>b.name===myBranch);
   poForm=po?{id:po.id, supplierId:po.supplierId, newSup:false, branch:po.branchId||"", assignee:po.assignedUser||"", orderDate:po.orderDate, expectedDate:po.expectedDate, supplierRef:po.supplierRef, notes:po.notes,
       other:po.other||"", discount:po.discount||"", paid:po.paid||"", lines:po.lines.map(l=>l.by==='weight'?{itemId:l.itemId,name:l.name,size:l.size,by:'weight',unit:l.unit,pu:l.unit,qty:fromG(l.qty,l.unit),unitCost:l.unitCost,gstPct:l.gstPct}:{itemId:l.itemId,name:l.name,size:l.size,qty:l.qty,unitCost:l.unitCost,gstPct:l.gstPct})}
-    :{id:0, supplierId:poSup.length?"":"__new", newSup:!poSup.length, branch:_brs.length?(poBr||_brs[0].id):"", assignee:"", orderDate:todayStr(), expectedDate:"", supplierRef:"", notes:"", other:"", discount:"", paid:"", lines:[]};
+    :{id:0, supplierId:poSup.length?"":"__new", newSup:!poSup.length, branch:_brs.length?(poBr||(_own&&_own.id)||_brs[0].id):"", assignee:"", orderDate:todayStr(), expectedDate:"", supplierRef:"", notes:"", other:"", discount:"", paid:"", lines:[]};
   renderPoForm(); showSheet();
 }
 function renderPoForm(){
@@ -4160,8 +4160,8 @@ function poAsgOpts(f){
 let poCsvForm=null;
 async function openPoCsv(){
   await loadSuppliers();
-  const brs=(poData&&poData.branches)||[];
-  poCsvForm={supplierId:poSup.length?"":"__new", branch:brs.length?(poBr||brs[0].id):"", assignee:"", orderDate:todayStr(), csv:""};
+  const brs=(poData&&poData.branches)||[], own=brs.find(b=>b.name===myBranch);
+  poCsvForm={supplierId:poSup.length?"":"__new", branch:brs.length?(poBr||(own&&own.id)||brs[0].id):"", assignee:"", orderDate:todayStr(), csv:""};
   renderPoCsv(); showSheet();
 }
 function renderPoCsv(){
