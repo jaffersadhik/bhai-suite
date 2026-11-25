@@ -4038,6 +4038,7 @@ function renderPoList(){
   return `${tabs}
     ${poData.branches&&poData.branches.length>1?`<div class="rp-br"><select id="poBranch" aria-label="Branch"><option value="">🏬 எல்லா கிளைகளும்</option>${poData.branches.map(b=>`<option value="${esc(b.id)}"${b.id===poBr?" selected":""}>${brIco(b)} ${esc(b.name)}</option>`).join("")}</select></div>`:myBranch?`<span class="brchip">🏬 கிளை: ${esc(myBranch)}</span>`:""}
     ${poData.canEdit&&catalog.setup?`<button class="cta leaf" id="poNew">➕ புதிய Purchase Order</button>`:""}
+    ${poData.canEdit&&catalog.setup?`<button class="cta ghost" id="poCsv">⬆ CSV-ல் PO ஏற்று (Bulk upload)</button>`:""}
     <button class="cta ghost" id="openSup">🏭 Supplier விவரம் (Suppliers)</button>
     <button class="cta ghost" id="openMoney">💳 Supplier பாக்கி + செலுத்திய தொகை (தேதி வாரியாக)</button>
     <div class="st-flt" style="margin-top:12px">${[["open","நிலுவையில் (வர வேண்டியவை)"],["received","வந்தவை"],["cancelled","ரத்து"],["all","எல்லாம்"]].map(f=>`<button data-poflt="${f[0]}" class="${poFlt===f[0]?"on":""}">${f[1]}</button>`).join("")}</div>
@@ -4110,9 +4111,10 @@ async function loadSuppliers(){ try{ poSup=(await api("suppliers")).suppliers; }
 /* ---- create / edit ---- */
 async function openPoForm(po){
   await loadSuppliers();
-  poForm=po?{id:po.id, supplierId:po.supplierId, newSup:false, orderDate:po.orderDate, expectedDate:po.expectedDate, supplierRef:po.supplierRef, notes:po.notes,
+  const _brs=(poData&&poData.branches)||[];
+  poForm=po?{id:po.id, supplierId:po.supplierId, newSup:false, branch:po.branchId||"", assignee:po.assignedUser||"", orderDate:po.orderDate, expectedDate:po.expectedDate, supplierRef:po.supplierRef, notes:po.notes,
       other:po.other||"", discount:po.discount||"", paid:po.paid||"", lines:po.lines.map(l=>l.by==='weight'?{itemId:l.itemId,name:l.name,size:l.size,by:'weight',unit:l.unit,pu:l.unit,qty:fromG(l.qty,l.unit),unitCost:l.unitCost,gstPct:l.gstPct}:{itemId:l.itemId,name:l.name,size:l.size,qty:l.qty,unitCost:l.unitCost,gstPct:l.gstPct})}
-    :{id:0, supplierId:poSup.length?"":"__new", newSup:!poSup.length, orderDate:todayStr(), expectedDate:"", supplierRef:"", notes:"", other:"", discount:"", paid:"", lines:[]};
+    :{id:0, supplierId:poSup.length?"":"__new", newSup:!poSup.length, branch:_brs.length?(poBr||_brs[0].id):"", assignee:"", orderDate:todayStr(), expectedDate:"", supplierRef:"", notes:"", other:"", discount:"", paid:"", lines:[]};
   renderPoForm(); showSheet();
 }
 function renderPoForm(){
@@ -4128,6 +4130,12 @@ function renderPoForm(){
     <div class="box frm"><h3>தேதி & விவரம்</h3>
       <div class="two"><label class="fld">ஆர்டர் தேதி *<input id="poDate" type="date" value="${esc(f.orderDate)}"></label><label class="fld">டெலிவரி எதிர்பார்ப்பு<input id="poExp" type="date" value="${esc(f.expectedDate||"")}"></label></div>
       <label class="fld">Supplier Invoice / DC / Ref எண்<input id="poRef" maxlength="40" autocomplete="off" value="${esc(f.supplierRef||"")}"></label></div>
+    <div class="box frm"><h3>கிளை & பொறுப்பு (Branch & Allocate)</h3>
+      ${(!f.id && poData && poData.branches && poData.branches.length>1)
+        ? `<label class="fld">எந்த கிளை / Warehouse-க்கு *<select id="poFormBr">${poData.branches.map(b=>`<option value="${esc(b.id)}"${b.id===f.branch?" selected":""}>${brIco(b)} ${esc(b.name)}</option>`).join("")}</select></label>`
+        : `<p class="hint">🏬 கிளை: ${esc(poBranchName(f.branch)||myBranch||"—")}</p>`}
+      <label class="fld">Warehouse user-க்கு allocate (பொறுப்பு)<select id="poAssignee">${poAsgOpts(f)}</select></label>
+      <p class="hint">இந்த PO-ஐ யார் பெற்று சரிபார்ப்பாரு என்று assign செய்யலாம் (optional)</p></div>
     <div class="box"><h3>ஐட்டங்கள் * <small style="font-weight:600;color:var(--muted)">(${f.lines.length})</small></h3>
       <div class="st-tools" style="margin-top:4px"><input id="poQ" type="search" placeholder="ஐட்டம் தேடு / barcode" autocomplete="off"><button id="poScan" aria-label="Scan">📷</button></div>
       <div class="posug" id="poSug"></div>
@@ -4143,6 +4151,56 @@ function renderPoForm(){
   supInfo(); renderPoLines();
 }
 function supInfo(){ const x=poSup&&poSup.find(s=>s.id===poForm.supplierId), el=$("#poSupInfo"); if(el) el.textContent=x?[x.phone&&"📞 "+x.phone,x.gstin&&"GST "+x.gstin,x.address].filter(Boolean).join(" · "):""; }
+function poBranchName(id){ const b=((poData&&poData.branches)||[]).find(x=>x.id===id); return b?b.name:""; }
+function poAsgOpts(f){
+  const all=(poData&&poData.assignees)||[]; const list=f.branch?all.filter(a=>a.branchId===f.branch):all;
+  return `<option value="">— Allocate இல்லை (none) —</option>`+list.map(a=>`<option value="${esc(a.user)}"${a.user===f.assignee?" selected":""}>${esc(a.name)} (${a.type==="warehouse"?"🏭":"📦"} ${esc(a.user)})</option>`).join("");
+}
+/* ---- bulk upload a PO from CSV (one CSV = one PO, all items -> one branch) ---- */
+let poCsvForm=null;
+async function openPoCsv(){
+  await loadSuppliers();
+  const brs=(poData&&poData.branches)||[];
+  poCsvForm={supplierId:poSup.length?"":"__new", branch:brs.length?(poBr||brs[0].id):"", assignee:"", orderDate:todayStr(), csv:""};
+  renderPoCsv(); showSheet();
+}
+function renderPoCsv(){
+  const f=poCsvForm, brs=(poData&&poData.branches)||[];
+  $("#sheetBody").innerHTML=`<h2>⬆ CSV-ல் Purchase Order ஏற்று</h2>
+    <p class="sub">ஒரு CSV = ஒரு PO. எல்லா ஐட்டங்களும் தேர்ந்தெடுத்த ஒரு கிளைக்கு. முதல் வரி header.</p>
+    <div class="box frm"><h3>Supplier *</h3>
+      <label class="fld"><select id="pcSup">${poSup.length?`<option value="">— Supplier தேர்வு —</option>`:""}${poSup.map(x=>`<option value="${esc(x.id)}"${x.id===f.supplierId?" selected":""}>${esc(x.name)}</option>`).join("")}<option value="__new"${f.supplierId==="__new"?" selected":""}>➕ புது Supplier</option></select></label>
+      <div id="pcSupNew" ${f.supplierId==="__new"?"":"hidden"}><label class="fld">புது Supplier பெயர் *<input id="pcsName" maxlength="60" autocomplete="off"></label></div></div>
+    <div class="box frm"><h3>கிளை & பொறுப்பு</h3>
+      ${brs.length>1?`<label class="fld">எந்த கிளை / Warehouse *<select id="pcBr">${brs.map(b=>`<option value="${esc(b.id)}"${b.id===f.branch?" selected":""}>${brIco(b)} ${esc(b.name)}</option>`).join("")}</select></label>`:`<p class="hint">🏬 கிளை: ${esc(poBranchName(f.branch)||myBranch||"—")}</p>`}
+      <label class="fld">Warehouse user-க்கு allocate<select id="pcAsg">${poAsgOpts(f)}</select></label>
+      <label class="fld">ஆர்டர் தேதி<input id="pcDate" type="date" value="${esc(f.orderDate)}"></label></div>
+    <div class="box frm"><h3>CSV</h3>
+      <p class="hint">நெடுவரிசை: <b>item, size, qty, cost, gst, by</b> — <b>item</b> & <b>qty</b> கட்டாயம். by = count / weight. பட்டியலில் உள்ள ஐட்டம் பெயர் match ஆனா auto-link ஆகும்.</p>
+      <button class="cta ghost" id="poCsvSample" style="height:40px">⬇ Sample CSV பதிவிறக்கு</button>
+      <label class="fld" style="margin-top:8px">CSV file<input type="file" id="pcFile" accept=".csv,text/csv"></label>
+      <label class="fld">அல்லது CSV-ஐ இங்கே paste பண்ணுங்க<textarea id="pcText" rows="7" style="width:100%;box-sizing:border-box;font-family:monospace" placeholder="item,size,qty,cost,gst,by">${esc(f.csv||"")}</textarea></label></div>
+    <button class="cta leaf" id="poCsvSave">PO உருவாக்கு (Create PO)</button>
+    <button class="cta ghost" data-close>ரத்து</button>`;
+}
+function poDownloadSample(){
+  const csv="item,size,qty,cost,gst,by\nRice,25kg,10,1200,5,count\nSugar,1kg,20,42,5,count\nLoose Dhall,,5000,80,0,weight\n";
+  const blob=new Blob([csv],{type:"text/csv"}), u=URL.createObjectURL(blob), a=document.createElement("a");
+  a.href=u; a.download="po-sample.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
+async function savePoCsv(){
+  const f=poCsvForm, fileEl=$("#pcFile"); let csv=$("#pcText")?$("#pcText").value:"";
+  if(fileEl&&fileEl.files&&fileEl.files[0]){ try{ csv=await fileEl.files[0].text(); }catch(e){ toast("File படிக்க முடியவில்லை"); return; } }
+  csv=(csv||"").trim(); if(!csv){ toast("CSV file அல்லது text கொடுக்கவும்"); return; }
+  const supSel=$("#pcSup")?$("#pcSup").value:f.supplierId;
+  const sup = supSel==="__new" ? {name:($("#pcsName")?$("#pcsName").value.trim():"")} : supSel?{id:supSel}:null;
+  if(!sup || (supSel==="__new" && !sup.name)){ toast("Supplier-ஐ தேர்வு செய்யவும் / பெயர் கொடுக்கவும்"); return; }
+  const branch=$("#pcBr")?$("#pcBr").value:f.branch;
+  const body={csv, supplier:sup, branch:branch||undefined, assignedUser:($("#pcAsg")?$("#pcAsg").value:f.assignee)||"", orderDate:$("#pcDate")?$("#pcDate").value:f.orderDate};
+  busy(true);
+  try{ const r=await api("po/import","POST",body); poCsvForm=null; poData=null; toast("PO உருவாக்கப்பட்டது: "+r.po.no); openPoDetail(r.po); if(view()==="po") loadPoList(); }
+  catch(e){ apiErr(e); } finally{ busy(false); }
+}
 function poNum(v){ const n=numIn(v); return isFinite(n)?n:0; }
 const poW = l => l.by==="weight";
 const poGrams = l => toG(poNum(l.qty), l.unit||"kg");            /* weight line: quantity in grams */
@@ -4199,7 +4257,7 @@ async function savePoForm(){
   if(!sup || (f.supplierId==="__new" && !sup.name)){ toast("Supplier-ஐ தேர்வு செய்யவும் / பெயர் கொடுக்கவும்"); return; }
   if(!f.lines.length){ toast("குறைந்தது ஒரு ஐட்டம் சேர்க்கவும்"); return; }
   const bad=f.lines.find(l=>poW(l)?!(poGrams(l)>=1):!(poNum(l.qty)>=1)); if(bad){ toast("அளவை சரி பார்க்கவும்: "+bad.name); return; }
-  const body={id:f.id||undefined, supplier:sup, orderDate:$("#poDate").value, expectedDate:$("#poExp").value, supplierRef:$("#poRef").value.trim(), notes:$("#poNotes").value.trim(),
+  const body={id:f.id||undefined, supplier:sup, branch:f.branch||undefined, assignedUser:f.assignee||"", orderDate:$("#poDate").value, expectedDate:$("#poExp").value, supplierRef:$("#poRef").value.trim(), notes:$("#poNotes").value.trim(),
     otherCharges:$("#poOther").value, discount:$("#poDisc").value, paid:$("#poPaid").value,
     lines:f.lines.map(l=>poW(l)?{itemId:l.itemId||"",name:l.name,size:l.size||"",by:"weight",unit:l.pu||l.unit,qty:poGrams(l),unitCost:l.unitCost===""?0:l.unitCost,gstPct:l.gstPct}:{itemId:l.itemId||"",name:l.name,size:l.size||"",qty:poNum(l.qty),unitCost:l.unitCost===""?0:l.unitCost,gstPct:l.gstPct})};
   busy(true);
@@ -4211,7 +4269,7 @@ async function openPoDetail(po){
   if(typeof po==="number"){ busy(true); try{ po=(await api("po/"+po)).po; }catch(e){ apiErr(e); return; } finally{ busy(false); } }
   poCur=po; const can=!isOwner(), rq=po.receivedQty;
   $("#sheetBody").innerHTML=`<h2>${esc(po.no)} <span class="pst ${po.status}" style="font-size:12px;vertical-align:middle">${PO_ST[po.status]||po.status}</span></h2>
-    <p class="sub">🏬 ${esc(po.branch)} · 👤 ${esc(po.by)} · ${esc(fmtDate(po.at))}</p>
+    <p class="sub">🏬 ${esc(po.branch)} · 👤 ${esc(po.by)} · ${esc(fmtDate(po.at))}${po.assignedTo?` · 🎯 பொறுப்பு: ${esc(po.assignedTo)}`:""}</p>
     <div class="box"><b style="font-size:15px">🏭 ${esc(po.supplier)}</b><p class="sub">${[po.supplierPhone&&"📞 "+po.supplierPhone,po.supplierGstin&&"GST "+po.supplierGstin,po.supplierAddress].filter(Boolean).map(esc).join(" · ")||""}</p>
       <p class="sub">📅 ஆர்டர்: ${esc(dLabel(po.orderDate))}${po.expectedDate?` · டெலிவரி: ${esc(dLabel(po.expectedDate))}`:""}${po.supplierRef?` · Ref: ${esc(po.supplierRef)}`:""}</p>
       ${po.notes?`<p class="sub">📝 ${esc(po.notes)}</p>`:""}${po.receivedAt?`<p class="sub">📦 கடைசி வரவு: ${esc(fmtDate(po.receivedAt))} · ${esc(po.receivedBy)}</p>`:""}</div>
@@ -4722,6 +4780,9 @@ document.addEventListener("click",e=>{
   if(d.supdel) return supDelete(d.supdel);
   if(d.supnewpo){ const sid=d.supnewpo; return openPoForm(null).then(()=>{ if(poForm){ poForm.supplierId=sid; renderPoForm(); } }); }
   if(t.id==="poNew") return openPoForm(null);
+  if(t.id==="poCsv") return openPoCsv();
+  if(t.id==="poCsvSample") return poDownloadSample();
+  if(t.id==="poCsvSave") return savePoCsv();
   if(d.poopen) return openPoDetail(Number(d.poopen));
   if(d.poadd){ return poAddLine(d.poadd,d.posz); }
   if(d.poldel!==undefined){ poForm.lines.splice(Number(d.poldel),1); renderPoLines(); return; }
@@ -4882,6 +4943,11 @@ document.addEventListener("change",e=>{
   if(id==="rDate" && e.target.value) loadReport(e.target.value);
   if(id==="rBranch"){ repBranch=e.target.value; loadReport(repDate); }
   if(id==="poSupSel"){ poForm.supplierId=e.target.value; $("#poSupNew").hidden=e.target.value!=="__new"; supInfo(); }
+  if(id==="poFormBr"){ poForm.branch=e.target.value; poForm.assignee=""; renderPoForm(); return; }
+  if(id==="poAssignee"){ poForm.assignee=e.target.value; return; }
+  if(id==="pcSup"){ poCsvForm.supplierId=e.target.value; const nn=$("#pcSupNew"); if(nn) nn.hidden=e.target.value!=="__new"; return; }
+  if(id==="pcBr"){ poCsvForm.branch=e.target.value; poCsvForm.assignee=""; renderPoCsv(); return; }
+  if(id==="pcAsg"){ poCsvForm.assignee=e.target.value; return; }
   if(e.target.dataset && e.target.dataset.pol!==undefined && poForm && e.target.tagName==="SELECT"){ const l=poForm.lines[Number(e.target.dataset.pol)], f=e.target.dataset.f, v=e.target.value;
     if(f==="by"){ if(v==="weight"){ l.by="weight"; l.unit=l.pu="kg"; } else { delete l.by; delete l.unit; delete l.pu; } l.qty=1; renderPoLines(); }
     else if(f==="unit"){ const g=poGrams(l); l.unit=v; if(!l.itemId) l.pu=v; l.qty=fromG(g,v); renderPoLines(); }

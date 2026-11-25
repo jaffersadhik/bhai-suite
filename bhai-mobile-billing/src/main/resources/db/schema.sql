@@ -310,12 +310,15 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
   created_at       DATETIME       NOT NULL,
   created_by_user  VARCHAR(30)    NOT NULL DEFAULT '',
   created_by_name  VARCHAR(60)    NOT NULL DEFAULT '',
+  assigned_user    VARCHAR(30)    NOT NULL DEFAULT '',   -- warehouse / stock user this PO is allocated to (handles / receives it)
+  assigned_name    VARCHAR(60)    NOT NULL DEFAULT '',
   received_at      DATETIME       NULL,
   received_by      VARCHAR(60)    NOT NULL DEFAULT '',
   updated_at       DATETIME       NOT NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uk_po_company_seq (company_id, po_seq),
   KEY idx_po_branch (company_id, branch_id, status),
+  KEY idx_po_assigned (company_id, assigned_user, status),
   CONSTRAINT fk_po_company FOREIGN KEY (company_id) REFERENCES companies (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

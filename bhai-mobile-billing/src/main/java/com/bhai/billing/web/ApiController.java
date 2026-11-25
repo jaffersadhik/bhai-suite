@@ -313,6 +313,11 @@ public class ApiController {
     public ResponseEntity<Object> savePo(@RequestHeader(value = AUTH, required = false) String auth,
                                          @RequestBody(required = false) Map<String, Object> body) { return run(() -> svc.savePo(auth, nn(body))); }
 
+    /** bulk-create one PO from CSV item lines (header carries branch / supplier / assignee / dates / charges) */
+    @PostMapping("/po/import")
+    public ResponseEntity<Object> importPo(@RequestHeader(value = AUTH, required = false) String auth,
+                                           @RequestBody(required = false) Map<String, Object> body) { return run(() -> svc.importPo(auth, nn(body))); }
+
     @PostMapping("/po/{id}/receive")
     public ResponseEntity<Object> receivePo(@RequestHeader(value = AUTH, required = false) String auth, @PathVariable("id") long id,
                                             @RequestBody(required = false) Map<String, Object> body) { return run(() -> svc.receivePo(auth, id, nn(body))); }

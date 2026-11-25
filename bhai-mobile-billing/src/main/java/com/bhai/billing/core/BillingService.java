@@ -209,6 +209,9 @@ public class BillingService {
         if (!hasColumn("auth_tokens", "ip")) db.update("ALTER TABLE auth_tokens ADD COLUMN ip VARCHAR(45) NULL");
         if (!hasColumn("auth_tokens", "device")) db.update("ALTER TABLE auth_tokens ADD COLUMN device VARCHAR(120) NULL");
         if (!hasColumn("po_lines", "wt_unit")) db.update("ALTER TABLE po_lines ADD COLUMN wt_unit VARCHAR(2) NULL");                 // PO weight lines: qty in grams, price per kg | g
+        if (!hasColumn("purchase_orders", "assigned_user")) db.update("ALTER TABLE purchase_orders ADD COLUMN assigned_user VARCHAR(30) NOT NULL DEFAULT '' AFTER created_by_name");   // warehouse / stock user allocated to the PO
+        if (!hasColumn("purchase_orders", "assigned_name")) db.update("ALTER TABLE purchase_orders ADD COLUMN assigned_name VARCHAR(60) NOT NULL DEFAULT '' AFTER assigned_user");
+        if (!hasIndex("purchase_orders", "idx_po_assigned")) db.update("ALTER TABLE purchase_orders ADD KEY idx_po_assigned (company_id, assigned_user, status)");
         if (!hasColumn("bill_lines", "wt_g")) db.update("ALTER TABLE bill_lines ADD COLUMN wt_g INT NULL");                           // grams of one portion (weight lines)
         if (!hasColumn("companies", "rate_change")) db.update("ALTER TABLE companies ADD COLUMN rate_change TINYINT(1) NOT NULL DEFAULT 0");
         if (!hasColumn("bill_lines", "cost")) db.update("ALTER TABLE bill_lines ADD COLUMN cost DECIMAL(10,2) NULL AFTER rate");   // unit cost at billing time
@@ -2378,6 +2381,51 @@ public class BillingService {
         return b.trim();
     }
 
+    /** warehouse / stock users a PO may be allocated to (admin / owner: every branch; stock / warehouse: own branch). */
+    private List<Object> assigneePool(Ctx c, String cid) {
+        List<Object> out = new ArrayList<>();
+        List<Object> args = new ArrayList<>();
+        args.add(cid);
+        String where = "";
+        if (!(c.admin() || c.owner())) { where = " AND branch_id = ?"; args.add(userBranch(c, cid)); }
+        for (Map<String, Object> r : db.query("SELECT username, full_name, user_type, branch_id FROM users WHERE company_id = ?" + where
+                + " AND active = 1 AND user_type IN ('warehouse','stock') ORDER BY branch_id, user_type = 'stock', full_name", args.toArray())) {
+            Map<String, Object> n = new LinkedHashMap<>();
+            n.put("user", str(r.get("username")));
+            n.put("name", str(r.get("full_name")));
+            n.put("type", str(r.get("user_type")));
+            n.put("branchId", str(r.get("branch_id")));
+            out.add(n);
+        }
+        return out;
+    }
+
+    /** resolve + validate the warehouse / stock user a PO (of branch br) is allocated to; "" = nobody. Returns the user's full name. */
+    private String assignName(String cid, String br, String username) {
+        if (blank(username)) return "";
+        Map<String, Object> au = db.one("SELECT full_name, branch_id FROM users WHERE company_id = ? AND username = ? AND active = 1 AND user_type IN ('warehouse','stock')", cid, username.trim());
+        if (au == null) throw new ApiException(400, "Allocate செய்ய தேர்வு செய்த warehouse / stock user தவறு");
+        if (!str(au.get("branch_id")).equals(br)) throw new ApiException(400, "அந்த user இந்த PO-வின் கிளையை சேர்ந்தவர் அல்ல (user must belong to the PO branch)");
+        return str(au.get("full_name"));
+    }
+
+    private static String cell(List<String> row, Integer i) { return i == null || i >= row.size() || row.get(i) == null ? "" : row.get(i); }
+
+    /** normalise a PO-CSV header name (English / Tamil aliases) to a canonical key. */
+    private static String poCsvKey(String h) {
+        String k = (h == null ? "" : h).trim().toLowerCase(Locale.ROOT);
+        return switch (k) {
+            case "item", "item name", "name", "product", "ஐட்டம்", "பொருள்", "பெயர்" -> "item";
+            case "size", "சைஸ்", "அளவு" -> "size";
+            case "qty", "quantity", "count", "எண்ணிக்கை" -> "qty";
+            case "cost", "unit_cost", "unitcost", "rate", "price", "அடக்கவிலை", "விலை" -> "cost";
+            case "gst", "gst%", "gst_pct", "tax" -> "gst";
+            case "by", "type", "sold_by", "முறை" -> "by";
+            case "unit", "wt_unit", "அலகு" -> "unit";
+            default -> k;
+        };
+    }
+
     private static LocalDate dateOrNull(Object o, String what) {
         String v = str(o).trim();
         if (v.isEmpty()) return null;
@@ -2503,6 +2551,7 @@ public class BillingService {
         o.put("canEdit", !c.owner());
         o.put("branch", br);
         if (c.admin() || c.owner()) o.put("branches", branchList(cid));
+        o.put("assignees", assigneePool(c, cid));
         return o;
     }
 
@@ -2529,6 +2578,8 @@ public class BillingService {
         n.put("balance", round2(dbl(r.get("total")) - dbl(r.get("paid"))));
         n.put("by", str(r.get("created_by_name")));
         n.put("at", iso(ldt(r.get("created_at"))));
+        n.put("assignedUser", str(r.get("assigned_user")));
+        n.put("assignedTo", str(r.get("assigned_name")));
         if (r.get("received_at") != null) { n.put("receivedAt", iso(ldt(r.get("received_at")))); n.put("receivedBy", str(r.get("received_by"))); }
         if (r.containsKey("q")) { n.put("qty", lng(r.get("q"))); n.put("receivedQty", lng(r.get("rq"))); }
         if (r.containsKey("wq")) { n.put("wtG", lng(r.get("wq"))); n.put("receivedWtG", lng(r.get("rwq"))); }   // weight lines: grams
@@ -2608,6 +2659,8 @@ public class BillingService {
         String cid = requireCompany(c);
         long id = lng(in.get("id"));
         String br = id == 0 ? poBranch(c, cid, str(in.get("branch")), true) : str(poRow(c, cid, id, true).get("branch_id"));
+        String assignedUser = str(in.get("assignedUser")).trim();                 // warehouse / stock user allocated to this PO ("" = nobody)
+        String assignedName = assignName(cid, br, assignedUser);
         LocalDate orderDate = dateOrNull(in.get("orderDate"), "ஆர்டர் தேதி");
         if (orderDate == null) orderDate = LocalDate.now(zone);
         LocalDate expected = dateOrNull(in.get("expectedDate"), "டெலிவரி தேதி");
@@ -2669,19 +2722,19 @@ public class BillingService {
                 long seq = lng(co.get("po_seq")) + 1;
                 t.update("UPDATE companies SET po_seq = ? WHERE id = ?", seq, cid);
                 pid = t.insert("INSERT INTO purchase_orders (company_id, branch_id, po_seq, po_no, supplier_id, supplier_name, order_date, expected_date, supplier_ref, notes, status, "
-                        + "subtotal, gst_total, other_charges, discount, total, paid, created_at, created_by_user, created_by_name, updated_at) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ordered', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        + "subtotal, gst_total, other_charges, discount, total, paid, created_at, created_by_user, created_by_name, assigned_user, assigned_name, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ordered', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         cid, br, seq, "PO-" + String.format("%04d", seq), sid, sname, od, expected, ref, notes,
                         BigDecimal.valueOf(subtotal), BigDecimal.valueOf(gstTotal), BigDecimal.valueOf(other), BigDecimal.valueOf(disc), BigDecimal.valueOf(total),
-                        BigDecimal.valueOf(paid), now, str(c.user.get("username")), str(c.user.get("full_name")), now);
+                        BigDecimal.valueOf(paid), now, str(c.user.get("username")), str(c.user.get("full_name")), assignedUser, assignedName, now);
             } else {
                 Map<String, Object> cur = t.one("SELECT status, (SELECT COALESCE(SUM(received_qty),0) FROM po_lines WHERE po_id = p.id) AS rq FROM purchase_orders p WHERE id = ? FOR UPDATE", pid);
                 if (!"ordered".equals(str(cur.get("status"))) || lng(cur.get("rq")) > 0)
                     throw new ApiException(409, "சரக்கு வந்த / ரத்தான PO-ஐ மாற்ற முடியாது");
                 t.update("UPDATE purchase_orders SET supplier_id = ?, supplier_name = ?, order_date = ?, expected_date = ?, supplier_ref = ?, notes = ?, subtotal = ?, gst_total = ?, "
-                        + "other_charges = ?, discount = ?, total = ?, paid = ?, updated_at = ? WHERE id = ?", sid, sname, od, expected, ref, notes,
+                        + "other_charges = ?, discount = ?, total = ?, paid = ?, assigned_user = ?, assigned_name = ?, updated_at = ? WHERE id = ?", sid, sname, od, expected, ref, notes,
                         BigDecimal.valueOf(subtotal), BigDecimal.valueOf(gstTotal), BigDecimal.valueOf(other), BigDecimal.valueOf(disc), BigDecimal.valueOf(total),
-                        BigDecimal.valueOf(paid), now, pid);
+                        BigDecimal.valueOf(paid), assignedUser, assignedName, now, pid);
                 t.update("DELETE FROM po_lines WHERE po_id = ?", pid);
             }
             List<Object[]> rows = new ArrayList<>();
@@ -2691,6 +2744,67 @@ public class BillingService {
         });
         syncPoLedger(cid, poId, str(c.user.get("full_name")));
         return poGet(auth, poId);
+    }
+
+    /**
+     * Bulk-create ONE purchase order from a CSV of item lines, then delegate to {@link #savePo} for all validation
+     * and ledger work. The header carries the order's branch / supplier / assignee / dates / charges (same body as
+     * savePo); the CSV rows carry only the lines. CSV columns (header row, any order, comma / tab / semicolon):
+     * item (required), size, qty (required), cost, gst, by (count|weight), unit (kg|g). Item names that match a
+     * catalog item (+ size) are linked by id so receiving updates catalog stock; unknown names stay as free text.
+     */
+    public Map<String, Object> importPo(String auth, Map<String, Object> in) {
+        Ctx c = ctx(auth);
+        String cid = requireCompany(c);
+        poBranch(c, cid, str(in.get("branch")), true);                 // permission / branch check up front (clear error before parsing)
+        String csv = str(in.get("csv"));
+        if (csv.isBlank()) throw new ApiException(400, "CSV காலியாக உள்ளது");
+        List<List<String>> table = CatalogImport.parseCsv(csv);
+        if (table.size() < 2) throw new ApiException(400, "CSV-ல் header வரி + குறைந்தது ஒரு ஐட்டம் வரி தேவை");
+        Map<String, Integer> col = new HashMap<>();
+        List<String> head = table.get(0);
+        for (int i = 0; i < head.size(); i++) col.putIfAbsent(poCsvKey(head.get(i)), i);
+        if (!col.containsKey("item") || !col.containsKey("qty"))
+            throw new ApiException(400, "CSV-ல் 'item' மற்றும் 'qty' நெடுவரிசை (header) தேவை. Sample CSV-ஐ பதிவிறக்கவும்");
+        if (table.size() - 1 > 300) throw new ApiException(400, "ஒரு PO-ல் அதிகபட்சம் 300 வரிகள்");
+
+        Map<String, String> nameToId = new HashMap<>();                // lower(name_ta | name_en) -> item id, to link CSV names to the catalog
+        for (Map<String, Object> it : db.query("SELECT id, name_ta, name_en FROM items WHERE company_id = ?", cid)) {
+            String iid = str(it.get("id"));
+            nameToId.putIfAbsent(str(it.get("name_ta")).toLowerCase(Locale.ROOT), iid);
+            String en = str(it.get("name_en"));
+            if (!en.isBlank()) nameToId.putIfAbsent(en.toLowerCase(Locale.ROOT), iid);
+        }
+        Set<String> sizeKnown = new HashSet<>();
+        for (Map<String, Object> z : db.query("SELECT item_id, size_label FROM item_sizes WHERE company_id = ?", cid))
+            sizeKnown.add(str(z.get("item_id")) + "|" + str(z.get("size_label")));
+
+        List<Object> lines = new ArrayList<>();
+        for (int r = 1; r < table.size(); r++) {
+            List<String> row = table.get(r);
+            String name = cell(row, col.get("item")).trim();
+            if (name.isEmpty()) continue;                              // skip blank rows
+            boolean wt = col.containsKey("by") && cell(row, col.get("by")).trim().toLowerCase(Locale.ROOT).startsWith("w");
+            String size = wt ? "" : cell(row, col.get("size")).trim();
+            Map<String, Object> l = new LinkedHashMap<>();
+            l.put("name", name);
+            l.put("size", size);
+            l.put("qty", cell(row, col.get("qty")).trim());
+            l.put("unitCost", cell(row, col.get("cost")).trim());
+            l.put("gstPct", cell(row, col.get("gst")).trim());
+            l.put("by", wt ? "weight" : "count");
+            if (wt) l.put("unit", cell(row, col.get("unit")).trim().toLowerCase(Locale.ROOT).startsWith("g") ? "g" : "kg");
+            String iid = nameToId.get(name.toLowerCase(Locale.ROOT));
+            if (iid != null && (wt || sizeKnown.contains(iid + "|" + size))) l.put("itemId", iid);
+            lines.add(l);
+        }
+        if (lines.isEmpty()) throw new ApiException(400, "CSV-ல் செல்லுபடியாகும் ஐட்டம் வரி இல்லை");
+
+        Map<String, Object> po = new LinkedHashMap<>(in);              // carry branch / supplier / assignedUser / dates / charges / notes
+        po.remove("csv");
+        po.remove("id");                                              // import always creates a new PO
+        po.put("lines", lines);
+        return savePo(auth, po);
     }
 
     /** goods received: {lines:[{line, qty}], updateCost} - adds to stock of the PO's branch; partial receipts allowed */
