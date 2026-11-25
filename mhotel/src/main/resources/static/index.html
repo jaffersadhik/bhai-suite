@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0e6b4a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Mukta+Malar:wght@600;800&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
+<title>mHotel</title>
+<style>
+:root{
+--pri:#0e6b4a;--pri2:#14805a;--pri-d:#09442f;--pri-l:#dff0e7;--gold:#e9b431;--gold-l:#fbe7ac;--bg:#f2f7f4;--card:#fff;--line:#dbe6df;--tx:#14231c;--mu:#5f6f66;
+--ok:#1faa59;--ok-l:#e3f5ea;--bad:#b3261e;--bad-l:#fdecea;--warn:#d9770a;--warn-l:#fff1dc;--r:14px;
+--body:'DM Sans','Noto Sans Tamil','Latha','Nirmala UI',system-ui,sans-serif;
+--head:'Mukta Malar','DM Sans','Noto Sans Tamil','Latha',system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--body);font-size:15px;line-height:1.4}
+#app{max-width:520px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative}
+#bar{position:sticky;top:0;z-index:20;background:var(--pri);color:#fff;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px}
+#bar .mark{width:42px;height:42px;border-radius:13px;background:var(--gold);color:var(--pri-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:22px;flex:none}
+#bar .t{flex:1;min-width:0}#bar .t b{display:block;font-family:var(--head);font-weight:800;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bar .t small{color:var(--gold-l);font-weight:600;font-size:12px}
+#bar button{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:13px;padding:8px 11px;font-size:15px;min-height:42px;min-width:42px;font-weight:700}
+#main{flex:1;padding:12px 12px 84px}
+#dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:#fff;border-top:1px solid var(--line);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+#dock button{flex:1;border:0;background:none;padding:8px 2px 7px;color:var(--mu);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:1px}
+#dock button i{font-style:normal;font-size:20px}#dock button.on{color:var(--pri);font-weight:700}
+h1,h2,h3{font-family:var(--head)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
+.card h3{margin:0 0 8px;font-size:15px}
+.row{display:flex;align-items:center;gap:10px}.sp{flex:1;min-width:0}.mu{color:var(--mu)}.sm{font-size:12px}.b{font-weight:700}.c{text-align:center}.rt{text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+.stat b{display:block;font-size:22px;line-height:1.1}.stat span{font-size:12px;color:var(--mu)}
+.stat.ok b{color:var(--ok)}.stat.bad b{color:var(--bad)}.stat.warn b{color:var(--warn)}.stat.pri b{color:var(--pri)}
+button,input,select,textarea{font:inherit}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:11px;padding:11px 16px;font-weight:600}
+.btn.sec{background:var(--pri-l);color:var(--pri)}.btn.bad{background:var(--bad-l);color:var(--bad)}.btn.gold{background:var(--gold);color:var(--pri-d)}.btn.sm{padding:7px 11px;font-size:13px;border-radius:9px}
+.btn:disabled{opacity:.5}.btn.full{width:100%}
+.f{display:block;margin-bottom:10px}.f>span{display:block;font-size:12px;color:var(--mu);margin-bottom:3px}
+.f input,.f select,.f textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--tx)}
+.seg{display:flex;background:#e3eee8;border-radius:11px;padding:3px;margin-bottom:10px;gap:3px}
+.seg button{flex:1;border:0;background:none;padding:8px 4px;border-radius:9px;color:var(--mu);font-size:13px}.seg button.on{background:#fff;color:var(--pri);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.li{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 11px;margin-bottom:8px}
+.chip{display:inline-block;background:var(--pri-l);color:var(--pri);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px 3px 2px 0;font-weight:700}
+.chip.ok{background:var(--ok-l);color:var(--ok)}.chip.bad{background:var(--bad-l);color:var(--bad)}.chip.warn{background:var(--warn-l);color:var(--warn)}.chip.gold{background:var(--gold-l);color:#7a5600}
+.tbl{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.tcell{border:1px solid var(--line);border-radius:var(--r);padding:14px 6px;text-align:center;background:var(--card)}
+.tcell.busy{background:var(--warn-l);border-color:var(--warn)}
+.tcell b{display:block;font-size:18px;font-family:var(--head)}.tcell span{font-size:11px;color:var(--mu)}
+.empty{text-align:center;color:var(--mu);padding:30px 10px}
+.qb{display:inline-flex;align-items:center;gap:8px}
+.qb button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;font-weight:700;color:var(--pri)}
+#toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);max-width:90%;background:#14231c;color:#fff;padding:10px 16px;border-radius:12px;z-index:60;font-size:14px;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}#toast.err{background:var(--bad)}
+/* login */
+.lg #app{background:linear-gradient(160deg,#0e6b4a 0%,#09442f 100%)}
+.login{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 20px;color:#fff}
+.login .brand{text-align:center;margin-bottom:22px}
+.login .lmark{width:72px;height:72px;border-radius:22px;background:var(--gold);color:var(--pri-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:40px;margin:0 auto 12px;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+.login h1{font-family:var(--head);font-size:30px;font-weight:800;margin:6px 0 0;color:#fff}.login h1 span{color:var(--gold)}
+.login .tag{font-size:13px;font-weight:600;opacity:.88;margin-top:4px}
+.lcard{background:var(--bg);color:var(--tx);border-radius:22px;padding:20px 16px;box-shadow:0 14px 34px rgba(0,0,0,.25)}
+.lcard h2{font-family:var(--head);font-size:21px;font-weight:800;margin:0 0 10px}
+.lerr{display:none;margin:10px 0 0;background:var(--bad-l);color:var(--bad);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700}.lerr.on{display:block}
+.lfoot{text-align:center;font-size:12px;opacity:.85;margin-top:16px}
+</style>
+</head>
+<body>
+<div id="app"><div id="root"></div></div>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const inr=n=>'₹'+(Math.round((+n||0)*100)/100).toLocaleString('en-IN');
+const TYPE={dine_in:'🍽 Dine-in',takeaway:'🥡 Takeaway',delivery:'🛵 Delivery'};
+const ST={open:'Open',billed:'Billed',paid:'Paid',cancelled:'Cancelled'};
+let S={token:localStorage.getItem('mh_token'),me:null,data:null,dash:null,view:'home',ordersFlt:'open',order:null,busy:false};
+
+async function api(path,method,body){
+  const r=await fetch('/api'+path,{method:method||'GET',headers:{'Content-Type':'application/json',...(S.token?{'X-Auth':S.token}:{})},body:body===undefined?undefined:JSON.stringify(body)});
+  let j=null; try{j=await r.json()}catch(e){}
+  if(r.status===401&&S.token&&path!=='/login'){localLogout();throw new Error((j&&j.error)||'மீண்டும் உள்நுழையவும்')}
+  if(!r.ok) throw new Error((j&&j.error)||('பிழை '+r.status));
+  return j;
+}
+function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',2600)}
+function busy(b){S.busy=b}
+
+/* ---------------- login ---------------- */
+function renderLogin(){
+  document.body.classList.add('lg');
+  $('#root').innerHTML=`<div class="login">
+    <div class="brand"><div class="lmark">mH</div><h1>m<span>Hotel</span></h1><p class="tag">Hotel / Restaurant Maintenance</p></div>
+    <div class="lcard"><h2>உள்நுழை (Login)</h2>
+      <label class="f"><span>பயனர் பெயர் (Username)</span><input id="lu" autocomplete="username" autocapitalize="none"></label>
+      <label class="f"><span>கடவுச்சொல் (Password)</span><input id="lp" type="password" autocomplete="current-password"></label>
+      <div class="lerr" id="le"></div>
+      <button class="btn full" id="lbtn" style="height:52px;border-radius:14px;margin-top:6px">உள்நுழை</button>
+    </div>
+    <p class="lfoot">Developed by Meeran Technologies</p></div>`;
+  $('#lbtn').onclick=doLogin;
+  $('#lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+}
+async function doLogin(){
+  const user=$('#lu').value.trim(),password=$('#lp').value;
+  if(!user||!password){showLe('பயனர் பெயர் / கடவுச்சொல் தேவை');return}
+  $('#lbtn').disabled=true;
+  try{
+    const r=await api('/login','POST',{user,password});
+    S.token=r.token;localStorage.setItem('mh_token',r.token);S.me=r.me;
+    document.body.classList.remove('lg');
+    await boot();
+  }catch(e){showLe(e.message);$('#lbtn').disabled=false}
+}
+function showLe(m){const e=$('#le');if(e){e.textContent=m;e.className='lerr on'}}
+function localLogout(){S.token=null;S.me=null;S.data=null;localStorage.removeItem('mh_token');renderLogin()}
+
+/* ---------------- shell ---------------- */
+async function boot(){
+  try{
+    const [me,data]=await Promise.all([api('/me'),api('/data')]);
+    S.me=me;S.data=data;S.view='home';render();
+  }catch(e){ if(S.token) toast(e.message,true); else renderLogin(); }
+}
+function render(){
+  if(!S.token){renderLogin();return}
+  const v=S.view;
+  const dockItems=[['home','🏠','முகப்பு'],['tables','🍽','Tables'],['orders','🧾','Orders'],['menu','📋','Menu'],['more','⋯','More']];
+  $('#root').innerHTML=`
+    <div id="bar"><div class="mark">mH</div><div class="t"><b>${esc(S.data&&S.data.shopName||'mHotel')}</b><small>${esc(S.me?S.me.name+' · '+S.me.role:'')}</small></div></div>
+    <div id="main">${screen(v)}</div>
+    <div id="dock">${dockItems.map(d=>`<button data-nav="${d[0]}" class="${v===d[0]?'on':''}"><i>${d[1]}</i>${d[2]}</button>`).join('')}</div>`;
+  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{S.view=b.dataset.nav;S.order=null;render();if(b.dataset.nav==='home')loadDash();if(b.dataset.nav==='orders')loadOrders()});
+  bindScreen(v);
+  if(v==='home'&&!S.dash)loadDash();
+}
+function screen(v){
+  if(v==='home')return homeScreen();
+  if(v==='tables')return tablesScreen();
+  if(v==='orders')return S.order?orderScreen():ordersScreen();
+  if(v==='menu')return menuScreen();
+  if(v==='more')return moreScreen();
+  return '';
+}
+function bindScreen(v){
+  if(v==='home'){
+    const q={dine_in:'🍽 Dine-in',takeaway:'🥡 Takeaway',delivery:'🛵 Delivery'};
+    document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>newOrder(b.dataset.new));
+  }
+  if(v==='tables')document.querySelectorAll('[data-tbl]').forEach(b=>b.onclick=()=>tableTap(b.dataset.tbl,b.dataset.oid));
+  if(v==='orders'&&!S.order){
+    document.querySelectorAll('[data-of]').forEach(b=>b.onclick=()=>{S.ordersFlt=b.dataset.of;loadOrders()});
+    document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openOrder(+b.dataset.open));
+  }
+  if(v==='orders'&&S.order)bindOrder();
+  if(v==='menu')bindMenu();
+  if(v==='more')bindMore();
+}
+
+/* ---------------- home / dashboard ---------------- */
+function homeScreen(){
+  const d=S.dash;
+  return `<div class="grid2">
+      <div class="stat pri"><b>${d?inr(d.todaySales):'…'}</b><span>இன்றைய விற்பனை</span></div>
+      <div class="stat ok"><b>${d?d.todayOrders:'…'}</b><span>இன்று paid orders</span></div>
+      <div class="stat warn"><b>${d?d.openOrders:'…'}</b><span>Open orders</span></div>
+      <div class="stat"><b>${d?d.tablesFree+'/'+d.tablesTotal:'…'}</b><span>Free tables</span></div>
+    </div>
+    <div class="card"><h3>புதிய Order</h3>
+      <div class="grid3">
+        <button class="btn" data-new="dine_in">🍽<br>Dine-in</button>
+        <button class="btn sec" data-new="takeaway">🥡<br>Takeaway</button>
+        <button class="btn gold" data-new="delivery">🛵<br>Delivery</button>
+      </div></div>
+    ${d&&d.byType&&d.byType.length?`<div class="card"><h3>இன்று வகை வாரியாக</h3>${d.byType.map(x=>`<div class="row"><span class="sp">${TYPE[x.type]||x.type}</span><span class="mu sm">${x.count} orders</span><b>${inr(x.total)}</b></div>`).join('<hr style="border:0;border-top:1px dashed var(--line);margin:6px 0">')}</div>`:''}`;
+}
+async function loadDash(){try{S.dash=await api('/dashboard');if(S.view==='home')render()}catch(e){toast(e.message,true)}}
+
+/* ---------------- tables ---------------- */
+function tablesScreen(){
+  const t=(S.data&&S.data.tables)||[];
+  if(!t.length)return `<div class="empty"><div style="font-size:34px">🍽</div>Table இல்லை.<br>More → Tables setup-ல் சேர்க்கவும்.</div>`;
+  return `<p class="mu sm" style="margin:2px 0 10px">Free table → புதிய dine-in · Busy table → open order</p>
+    <div class="tbl">${t.map(x=>`<button class="tcell ${x.busy?'busy':''}" data-tbl="${x.id}" data-oid="${x.orderId||''}"><b>${esc(x.label)}</b><span>${x.busy?'Busy':(x.seats?x.seats+' seats':'Free')}</span></button>`).join('')}</div>`;
+}
+async function tableTap(id,oid){
+  if(oid){openOrder(+oid);return}
+  busy(true);
+  try{const r=await api('/orders','POST',{type:'dine_in',tableId:+id});S.order=r.order;S.view='orders';render()}
+  catch(e){toast(e.message,true)} finally{busy(false)}
+}
+
+/* ---------------- orders list ---------------- */
+function ordersScreen(){
+  const list=(S.ordersData&&S.ordersData.orders)||[];
+  const flts=[['open','நிலுவை'],['paid','Paid'],['all','எல்லாம்']];
+  return `<div class="seg">${flts.map(f=>`<button data-of="${f[0]}" class="${S.ordersFlt===f[0]?'on':''}">${f[1]}</button>`).join('')}</div>
+    <div class="row" style="margin-bottom:10px"><button class="btn sm sec" data-new2="takeaway" onclick="newOrder('takeaway')">+ Takeaway</button> <button class="btn sm gold" onclick="newOrder('delivery')">+ Delivery</button></div>
+    ${list.length?list.map(o=>`<button class="li" data-open="${o.id}" style="text-align:left;width:100%;border:1px solid var(--line)">
+      <div class="sp"><b>${esc(o.no)}</b> <span class="chip ${o.status==='paid'?'ok':o.status==='cancelled'?'bad':'warn'}">${ST[o.status]||o.status}</span>
+        <div class="mu sm">${TYPE[o.type]||o.type}${o.table?' · '+esc(o.table):''}${o.partner?' · '+esc(o.partner):''}${o.customer?' · '+esc(o.customer):''}</div></div>
+      <b>${inr(o.total)}</b></button>`).join(''):`<div class="empty">Order இல்லை</div>`}`;
+}
+async function loadOrders(){try{S.ordersData=await api('/orders?status='+S.ordersFlt);if(S.view==='orders'&&!S.order)render()}catch(e){toast(e.message,true)}}
+window.newOrder=newOrder;
+async function newOrder(type){
+  if(type==='dine_in'){S.view='tables';render();toast('Free table-ஐ தேர்வு செய்யவும்');return}
+  const customer=prompt((type==='delivery'?'Delivery':'Takeaway')+' — வாடிக்கையாளர் பெயர் (optional):')||'';
+  const phone=prompt('மொபைல் (WhatsApp bill-க்கு, optional):')||'';
+  let partner='',ref='';
+  if(type==='delivery'){partner=(prompt('Partner: swiggy / zomato / other','swiggy')||'other').toLowerCase();ref=prompt('Partner order ref (optional):')||''}
+  busy(true);
+  try{const r=await api('/orders','POST',{type,customer,phone,partner,partnerRef:ref});S.order=r.order;S.view='orders';render()}
+  catch(e){toast(e.message,true)} finally{busy(false)}
+}
+async function openOrder(id){busy(true);try{const r=await api('/orders/'+id);S.order=r.order;S.view='orders';render()}catch(e){toast(e.message,true)}finally{busy(false)}}
+
+/* ---------------- order editor ---------------- */
+function orderScreen(){
+  const o=S.order,canBill=S.data&&S.data.canBill,editable=o.status==='open';
+  const menu=(S.data&&S.data.menu)||[];
+  const cats=[...new Set(menu.map(m=>m.category))];
+  return `<button class="btn sm sec" onclick="S.order=null;render();loadOrders()" style="margin-bottom:10px">← Orders</button>
+    <div class="card"><div class="row"><div class="sp"><b style="font-size:17px">${esc(o.no)}</b> <span class="chip ${o.status==='paid'?'ok':o.status==='cancelled'?'bad':'warn'}">${ST[o.status]}</span>
+      <div class="mu sm">${TYPE[o.type]||o.type}${o.table?' · '+esc(o.table):''}${o.partner?' · '+esc(o.partner)+(o.partnerRef?' #'+esc(o.partnerRef):''):''}</div>
+      ${o.customer||o.phone?`<div class="mu sm">👤 ${esc(o.customer||'-')}${o.phone?' · 📞 '+esc(o.phone):''}</div>`:''}</div></div></div>
+    ${editable?`<div class="card"><h3>Items சேர்</h3>
+      <div class="seg" id="catSeg">${cats.map((c,i)=>`<button data-cat="${esc(c)}" class="${i===0?'on':''}">${esc(c)}</button>`).join('')||'<span class="mu sm">Menu இல்லை</span>'}</div>
+      <div id="menuPick"></div></div>`:''}
+    <div class="card"><h3>Order (${o.lines.length})</h3>
+      ${o.lines.length?o.lines.map(l=>`<div class="row" style="margin-bottom:7px"><span class="sp">${esc(l.name)} <span class="mu sm">× ${l.qty}</span></span><b>${inr(l.amount)}</b></div>`).join(''):'<div class="mu sm">Items இல்லை</div>'}
+      <hr style="border:0;border-top:1px solid var(--line);margin:8px 0">
+      <div class="row"><span class="sp mu">Subtotal</span><b>${inr(o.subtotal)}</b></div>
+      ${o.discount>0?`<div class="row"><span class="sp mu">Discount</span><span>−${inr(o.discount)}</span></div>`:''}
+      ${o.tax>0?`<div class="row"><span class="sp mu">Tax ${o.taxPct}%</span><span>${inr(o.tax)}</span></div>`:''}
+      <div class="row" style="font-size:17px"><span class="sp b">Total</span><b style="color:var(--pri)">${inr(o.total)}</b></div>
+      ${o.billNo?`<div class="mu sm">Bill: ${esc(o.billNo)}</div>`:''}</div>
+    <div class="grid2">
+      ${editable&&canBill?`<button class="btn" id="btnBill">💵 Bill</button>`:''}
+      ${o.status==='billed'&&canBill?`<button class="btn ok" id="btnPay" style="background:var(--ok)">✅ Payment</button>`:''}
+      ${(o.status==='billed'||o.status==='paid')?`<button class="btn gold" id="btnWa">📤 WhatsApp bill</button>`:''}
+      ${editable?`<button class="btn bad" id="btnCancel">✖ Cancel</button>`:''}
+    </div>`;
+}
+function bindOrder(){
+  const o=S.order,menu=(S.data&&S.data.menu)||[];
+  if(o.status==='open'){
+    const cats=[...new Set(menu.map(m=>m.category))];
+    let cat=cats[0];
+    const paint=()=>{const box=$('#menuPick');if(!box)return;box.innerHTML=menu.filter(m=>m.category===cat).map(m=>`<div class="row" style="margin-bottom:7px"><span class="sp">${esc(m.nameTa||m.name)} <span class="mu sm">${inr(m.price)}</span></span><button class="btn sm" data-add="${m.id}">+ சேர்</button></div>`).join('')||'<div class="mu sm">இந்த category-ல் item இல்லை</div>';
+      box.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>addItem(+b.dataset.add))};
+    document.querySelectorAll('#catSeg [data-cat]').forEach(b=>b.onclick=()=>{cat=b.dataset.cat;document.querySelectorAll('#catSeg [data-cat]').forEach(x=>x.classList.toggle('on',x===b));paint()});
+    paint();
+  }
+  if($('#btnBill'))$('#btnBill').onclick=billOrder;
+  if($('#btnPay'))$('#btnPay').onclick=payOrder;
+  if($('#btnWa'))$('#btnWa').onclick=waBill;
+  if($('#btnCancel'))$('#btnCancel').onclick=cancelOrder;
+}
+function curLines(){return S.order.lines.map(l=>({itemId:l.itemId,name:l.name,qty:l.qty,price:l.price}))}
+async function addItem(menuId){
+  const m=(S.data.menu||[]).find(x=>x.id===menuId);if(!m)return;
+  const lines=curLines();const ex=lines.find(l=>l.itemId===menuId);
+  if(ex)ex.qty++;else lines.push({itemId:m.id,name:m.nameTa||m.name,qty:1,price:m.price});
+  await saveLines(lines);
+}
+async function saveLines(lines){busy(true);try{const r=await api('/orders/'+S.order.id+'/lines','POST',{lines});S.order=r.order;render()}catch(e){toast(e.message,true)}finally{busy(false)}}
+async function billOrder(){
+  const tp=prompt('GST / Tax % (0 / 5 / 12 / 18):',String(S.order.taxPct||5));if(tp===null)return;
+  const dc=prompt('Discount ₹ (optional):','0')||'0';
+  busy(true);try{const r=await api('/orders/'+S.order.id+'/bill','POST',{taxPct:+tp,discount:+dc});S.order=r.order;render();toast('Bill ready: '+r.order.billNo)}catch(e){toast(e.message,true)}finally{busy(false)}
+}
+async function payOrder(){
+  const mode=(prompt('Payment: cash / upi / card','cash')||'cash').toLowerCase();
+  busy(true);try{const r=await api('/orders/'+S.order.id+'/pay','POST',{mode});S.order=r.order;render();loadDash();toast('Paid ✅')}catch(e){toast(e.message,true)}finally{busy(false)}
+}
+async function waBill(){busy(true);try{const r=await api('/orders/'+S.order.id+'/whatsapp');window.open(r.url,'_blank','noopener')}catch(e){toast(e.message,true)}finally{busy(false)}}
+async function cancelOrder(){if(!confirm('Order-ஐ ரத்து செய்யவா?'))return;busy(true);try{const r=await api('/orders/'+S.order.id+'/cancel','POST',{});S.order=r.order;render();toast('Cancelled')}catch(e){toast(e.message,true)}finally{busy(false)}}
+
+/* ---------------- menu ---------------- */
+function menuScreen(){
+  const menu=(S.data&&S.data.menu)||[],canBill=S.data&&S.data.canBill;
+  const cats={};menu.forEach(m=>{(cats[m.category]=cats[m.category]||[]).push(m)});
+  return `${canBill?`<button class="btn full" id="addMenu" style="margin-bottom:10px">+ புதிய Menu item</button>`:''}
+    ${Object.keys(cats).length?Object.keys(cats).map(c=>`<div class="card"><h3>${esc(c)}</h3>${cats[c].map(m=>`<div class="row" style="margin-bottom:7px"><span class="sp">${esc(m.nameTa||m.name)}${m.nameTa&&m.name!==m.nameTa?` <span class="mu sm">${esc(m.name)}</span>`:''}</span><b>${inr(m.price)}</b>${canBill?` <button class="btn sm sec" data-edit="${m.id}">✏</button><button class="btn sm bad" data-del="${m.id}">🗑</button>`:''}</div>`).join('')}</div>`).join(''):`<div class="empty">Menu item இல்லை</div>`}`;
+}
+function bindMenu(){
+  if($('#addMenu'))$('#addMenu').onclick=()=>editMenu(null);
+  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editMenu((S.data.menu||[]).find(m=>m.id===+b.dataset.edit)));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>delMenu(+b.dataset.del));
+}
+async function editMenu(m){
+  const name=prompt('Item name (English):',m?m.name:'');if(name===null||!name.trim())return;
+  const nameTa=prompt('பெயர் (தமிழ், optional):',m?m.nameTa:'')||'';
+  const category=prompt('Category:',m?m.category:'General')||'General';
+  const price=prompt('Price ₹:',m?m.price:'');if(price===null)return;
+  busy(true);try{const r=await api('/menu','POST',{id:m?m.id:0,name:name.trim(),nameTa,category,price:+price});S.data.menu=r.menu;render();toast('சேமிக்கப்பட்டது')}catch(e){toast(e.message,true)}finally{busy(false)}
+}
+async function delMenu(id){if(!confirm('Menu item நீக்கவா?'))return;busy(true);try{const r=await api('/menu/'+id,'DELETE');S.data.menu=r.menu;render();toast('நீக்கப்பட்டது')}catch(e){toast(e.message,true)}finally{busy(false)}}
+
+/* ---------------- more ---------------- */
+function moreScreen(){
+  const admin=S.data&&S.data.isAdmin;
+  return `<div class="card"><h3>கணக்கு</h3>
+      <div class="row"><span class="sp">${esc(S.me.name)} <span class="chip">${esc(S.me.role)}</span></div></div>
+      <button class="btn sec full" id="chpw" style="margin-top:8px">🔑 கடவுச்சொல் மாற்று</button>
+      <button class="btn bad full" id="lo" style="margin-top:8px">↩ வெளியேறு (Logout)</button></div>
+    ${admin?`<div class="card"><h3>Setup (Admin)</h3>
+      <button class="btn sec full" id="setName" style="margin-bottom:8px">🏷 Hotel பெயர்</button>
+      <button class="btn sec full" id="tblSetup" style="margin-bottom:8px">🍽 Tables setup</button>
+      <button class="btn sec full" id="usersBtn">👥 Users</button></div>`:''}
+    <div class="card"><h3>Delivery webhook</h3><p class="mu sm">Swiggy / Zomato normalised order → <b>POST /api/delivery/webhook</b> with header <b>X-Webhook-Secret</b> (MHOTEL_WEBHOOK_SECRET). Real partner API integration needs their partner credentials.</p></div>`;
+}
+function bindMore(){
+  $('#chpw').onclick=async()=>{const o=prompt('பழைய கடவுச்சொல்:');if(!o)return;const n=prompt('புதிய கடவுச்சொல் (6+):');if(!n)return;try{await api('/password','POST',{old:o,new:n});toast('மாற்றப்பட்டது')}catch(e){toast(e.message,true)}};
+  $('#lo').onclick=async()=>{try{await api('/logout','POST',{})}catch(e){}localLogout()};
+  if($('#setName'))$('#setName').onclick=async()=>{const n=prompt('Hotel / Restaurant பெயர்:',S.data.shopName||'');if(n===null)return;try{await api('/settings/shop-name','POST',{name:n});S.data.shopName=n.trim()||'mHotel';render()}catch(e){toast(e.message,true)}};
+  if($('#tblSetup'))$('#tblSetup').onclick=tablesSetup;
+  if($('#usersBtn'))$('#usersBtn').onclick=usersSetup;
+}
+async function tablesSetup(){
+  const t=(S.data.tables||[]).map(x=>x.label).join(', ');
+  const label=prompt('புதிய Table பெயர்/எண் (எ.கா. T1). தற்போது: '+(t||'இல்லை'),'');if(!label)return;
+  const seats=prompt('Seats (optional):','4')||'0';
+  try{const r=await api('/tables','POST',{label,seats:+seats});S.data.tables=r.tables;toast('Table சேர்க்கப்பட்டது');render()}catch(e){toast(e.message,true)}
+}
+async function usersSetup(){
+  try{const r=await api('/users');const names=r.users.map(u=>u.username+' ('+u.role+')').join(', ');
+    const un=prompt('புதிய user — username. தற்போதையவை: '+names,'');if(!un)return;
+    const name=prompt('முழு பெயர்:','')||un;const role=(prompt('Role: admin / cashier / waiter','waiter')||'waiter');const pw=prompt('கடவுச்சொல் (6+):','');if(!pw)return;
+    await api('/users','POST',{username:un,name,role,password:pw});toast('User சேர்க்கப்பட்டது')
+  }catch(e){toast(e.message,true)}
+}
+
+/* ---------------- start ---------------- */
+if(S.token)boot();else renderLogin();
+</script>
+</body>
+</html>

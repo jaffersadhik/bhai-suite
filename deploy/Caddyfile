@@ -12,6 +12,10 @@
 	reverse_proxy app:8081
 }
 
+{$HOTEL_DOMAIN} {
+	reverse_proxy app:8083
+}
+
 {$WEBSITE_DOMAIN} {
 	reverse_proxy app:8082
 }
