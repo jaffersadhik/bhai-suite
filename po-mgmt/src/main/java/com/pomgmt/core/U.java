@@ -35,6 +35,10 @@ public final class U {
     }
 
     public static long lng(Object o) {
+        // MySQL Connector/J returns TINYINT(1) columns (active, over_budget, ...) as Boolean by default (tinyInt1isBit=true)
+        if (o instanceof Boolean b) {
+            return b ? 1L : 0L;
+        }
         if (o instanceof Number n) {
             return n.longValue();
         }
