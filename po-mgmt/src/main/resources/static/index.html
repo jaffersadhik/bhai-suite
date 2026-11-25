@@ -88,6 +88,19 @@ const DICT={
 };
 let LANG=localStorage.getItem('po_lang')||'en';
 const t=k=>(DICT[LANG]&&DICT[LANG][k])||k;
+/* translate server messages (captcha / login / auth) into the selected language */
+const SRV=[
+ [m=>/தடை|blocked/i.test(m),{en:"This IP is blocked after too many failed login attempts. Contact the System user.",ta:"பல முறை தவறான login முயற்சியால் இந்த IP தடை செய்யப்பட்டுள்ளது. System user-ஐ தொடர்பு கொள்ளவும்.",hi:"कई बार गलत लॉगिन के कारण यह IP ब्लॉक है। System user से संपर्क करें।",te:"అనేకసార్లు తప్పు లాగిన్ వల్ల ఈ IP బ్లాక్ అయింది. System userను సంప్రదించండి.",kn:"ಹಲವು ಬಾರಿ ತಪ್ಪು ಲಾಗಿನ್‌ನಿಂದ ಈ IP ಬ್ಲಾಕ್ ಆಗಿದೆ. System user ಅನ್ನು ಸಂಪರ್ಕಿಸಿ.",ml:"പലതവണ തെറ്റായ ലോഗിൻ മൂലം ഈ IP ബ്ലോക്കാണ്. System user-നെ ബന്ധപ്പെടുക.",ar:"تم حظر هذا الـ IP بعد محاولات دخول خاطئة كثيرة. تواصل مع مستخدم النظام."}],
+ [m=>/captcha/i.test(m)&&/தவறு/.test(m),{en:"Captcha wrong — type the characters from the new image.",ta:"Captcha தவறு — புதிய படத்தில் உள்ள எழுத்துகளை உள்ளிடவும்.",hi:"Captcha गलत — नई तस्वीर के अक्षर दर्ज करें।",te:"Captcha తప్పు — కొత్త చిత్రంలోని అక్షరాలు నమోదు చేయండి.",kn:"Captcha ತಪ್ಪು — ಹೊಸ ಚಿತ್ರದ ಅಕ್ಷರಗಳನ್ನು ನಮೂದಿಸಿ.",ml:"Captcha തെറ്റ് — പുതിയ ചിത്രത്തിലെ അക്ഷരങ്ങൾ നൽകുക.",ar:"كابتشا خاطئ — أدخل أحرف الصورة الجديدة."}],
+ [m=>/captcha|படத்தில்/i.test(m),{en:"Enter the characters shown in the captcha image.",ta:"படத்தில் உள்ள Captcha எழுத்துகளை உள்ளிடவும்.",hi:"कैप्चा तस्वीर में दिख रहे अक्षर दर्ज करें।",te:"Captcha చిత్రంలో చూపిన అక్షరాలు నమోదు చేయండి.",kn:"Captcha ಚಿತ್ರದಲ್ಲಿ ತೋರಿಸಿದ ಅಕ್ಷರಗಳನ್ನು ನಮೂದಿಸಿ.",ml:"Captcha ചിത്രത്തിൽ കാണുന്ന അക്ഷരങ്ങൾ നൽകുക.",ar:"أدخل الأحرف الظاهرة في صورة الكابتشا."}],
+ [m=>/தவறான பயனர்|invalid username/i.test(m),{en:"Invalid username or password.",ta:"தவறான பயனர் பெயர் அல்லது கடவுச்சொல்.",hi:"गलत यूज़रनेम या पासवर्ड।",te:"తప్పు యూజర్‌నేమ్ లేదా పాస్‌వర్డ్.",kn:"ತಪ್ಪು ಬಳಕೆದಾರ ಹೆಸರು ಅಥವಾ ಪಾಸ್‌ವರ್ಡ್.",ml:"തെറ്റായ യൂസർനെയിം അല്ലെങ്കിൽ പാസ്‌വേഡ്.",ar:"اسم المستخدم أو كلمة المرور غير صحيحة."}],
+ [m=>/பழைய கடவுச்சொல்|old password/i.test(m),{en:"Old password is wrong.",ta:"பழைய கடவுச்சொல் தவறு.",hi:"पुराना पासवर्ड गलत है।",te:"పాత పాస్‌వర్డ్ తప్పు.",kn:"ಹಳೆಯ ಪಾಸ್‌ವರ್ಡ್ ತಪ್ಪು.",ml:"പഴയ പാസ്‌വേഡ് തെറ്റാണ്.",ar:"كلمة المرور القديمة خاطئة."}],
+ [m=>/குறைந்தது 6|at least 6/i.test(m),{en:"Password must be at least 6 characters.",ta:"கடவுச்சொல் குறைந்தது 6 எழுத்து.",hi:"पासवर्ड कम से कम 6 अक्षर का हो।",te:"పాస్‌వర్డ్ కనీసం 6 అక్షరాలు.",kn:"ಪಾಸ್‌ವರ್ಡ್ ಕನಿಷ್ಠ 6 ಅಕ್ಷರ.",ml:"പാസ്‌വേഡ് കുറഞ്ഞത് 6 അക്ഷരം.",ar:"كلمة المرور 6 أحرف على الأقل."}],
+ [m=>/session expired|மீண்டும் உள்நுழை/i.test(m),{en:"Session expired — log in again.",ta:"அமர்வு முடிந்தது — மீண்டும் உள்நுழையவும்.",hi:"सत्र समाप्त — फिर से लॉगिन करें।",te:"సెషన్ ముగిసింది — మళ్లీ లాగిన్ అవ్వండి.",kn:"ಸೆಷನ್ ಮುಗಿದಿದೆ — ಮತ್ತೆ ಲಾಗಿನ್ ಆಗಿ.",ml:"സെഷൻ കഴിഞ്ഞു — വീണ്ടും ലോഗിൻ ചെയ്യുക.",ar:"انتهت الجلسة — سجّل الدخول مجددًا."}],
+ [m=>/login required|^உள்நுழையவும்/i.test(m),{en:"Login required.",ta:"உள்நுழையவும்.",hi:"लॉगिन आवश्यक।",te:"లాగిన్ అవసరం.",kn:"ಲಾಗಿನ್ ಅಗತ್ಯ.",ml:"ലോഗിൻ ആവശ്യമാണ്.",ar:"تسجيل الدخول مطلوب."}],
+ [m=>/கடவுச்சொல் தேவை|required/i.test(m)&&/பயனர்|user/i.test(m),{en:"Username / password required.",ta:"பயனர் பெயர் / கடவுச்சொல் தேவை.",hi:"यूज़रनेम / पासवर्ड आवश्यक।",te:"యూజర్‌నేమ్ / పాస్‌వర్డ్ అవసరం.",kn:"ಬಳಕೆದಾರ ಹೆಸರು / ಪಾಸ್‌ವರ್ಡ್ ಅಗತ್ಯ.",ml:"യൂസർനെയിം / പാസ്‌വേഡ് ആവശ്യമാണ്.",ar:"اسم المستخدم / كلمة المرور مطلوبة."}]
+];
+function tr(raw){raw=raw==null?'':String(raw);for(const row of SRV){try{if(row[0](raw))return row[1][LANG]||row[1].en||raw}catch(e){}}return raw}
 function setLang(l){LANG=l;localStorage.setItem('po_lang',l);document.documentElement.lang=l;document.documentElement.dir=(l==='ar')?'rtl':'ltr';if(S.token)render();else renderLogin()}
 
 const PST={draft:'Draft',pending:'Pending',approved:'Approved',rejected:'Rejected',sent:'Sent',partial:'Partial',completed:'Completed',cancelled:'Cancelled'};
@@ -136,14 +149,14 @@ async function doLogin(){
   S.lerr='';$('#lbtn').disabled=true;
   try{const r=await api('/login','POST',{user,password,captchaId:(S.cap&&S.cap.id)||'',captcha});
     S.token=r.token;localStorage.setItem('po_token',r.token);S.me=r.me;S.lerr='';document.body.classList.remove('lg');await boot()}
-  catch(e){S.lerr=e.message||'Login failed';$('#lbtn').disabled=false;
+  catch(e){S.lerr=tr(e.message)||'Login failed';$('#lbtn').disabled=false;
     // reload captcha (fresh picture each attempt) and keep the error visible via S.lerr; if no reload, show it directly
     if(e.status!==undefined&&e.status!==0){await loadCaptcha()}else{$('#le').textContent=S.lerr;$('#le').className='lerr on'}}
 }
 function localLogout(){S.token=null;S.me=null;S.data=null;localStorage.removeItem('po_token');loadCaptcha()}
 
 /* ---------------- shell ---------------- */
-async function boot(){try{const [me,data]=await Promise.all([api('/me'),api('/data')]);S.me=me;S.data=data;S.view='home';render();loadDash()}catch(e){if(S.token)toast(e.message,true);else loadCaptcha()}}
+async function boot(){try{const [me,data]=await Promise.all([api('/me'),api('/data')]);S.me=me;S.data=data;S.view='home';render();loadDash()}catch(e){if(S.token)toast(tr(e.message),true);else loadCaptcha()}}
 function render(){
   if(!S.token){loadCaptcha();return}
   document.documentElement.dir=(LANG==='ar')?'rtl':'ltr';
@@ -223,7 +236,7 @@ async function submitEntry(allow){
     toast('✅ '+r.commonRef+' — '+r.branchPos.length+' branch POs ('+r.totalQty+' pcs)');
     if(confirm(r.commonRef+' created:\n\n'+r.branchPos.map(p=>p.poNumber+' · '+p.branch+' · '+p.totalQty+' pcs · '+inr(p.amount)+(p.overBudget?' ⚠':'')).join('\n')+'\n\nPrint all branch POs now?')) for(const p of r.branchPos) await printPo(p.poNumber);
     S.view='pos';S.posFlt='pending';render();loadPos();
-  }catch(e2){if(String(e2.message).includes('Budget')||String(e2.message).includes('budget')){if(confirm(e2.message+'\n\nProceed with over-budget exception?'))submitEntry(true)}else toast(e2.message,true)}
+  }catch(e2){if(String(e2.message).includes('Budget')||String(e2.message).includes('budget')||String(e2.message).includes('பட்ஜெட்')){if(confirm(tr(e2.message)+'\n\nProceed with over-budget exception?'))submitEntry(true)}else toast(tr(e2.message),true)}
 }
 
 /* ---------------- POs ---------------- */
@@ -244,15 +257,15 @@ function bindPos(){
   document.querySelectorAll('[data-rc]').forEach(b=>b.onclick=()=>receive(b.dataset.rc));
   document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>printPo(b.dataset.pr));
 }
-async function loadPos(){try{S.posData=await api('/pos?status='+encodeURIComponent(S.posFlt));if(S.view==='pos')render()}catch(e){toast(e.message,true)}}
-async function decide(no,dec){let reason='';if(dec==='reject'){reason=prompt('Reject reason:')||'';if(!reason)return}try{await api('/po/approve','POST',{poNumber:no,decision:dec,reason});toast(dec==='approve'?'Approved':'Rejected');loadPos()}catch(e){toast(e.message,true)}}
+async function loadPos(){try{S.posData=await api('/pos?status='+encodeURIComponent(S.posFlt));if(S.view==='pos')render()}catch(e){toast(tr(e.message),true)}}
+async function decide(no,dec){let reason='';if(dec==='reject'){reason=prompt('Reject reason:')||'';if(!reason)return}try{await api('/po/approve','POST',{poNumber:no,decision:dec,reason});toast(dec==='approve'?'Approved':'Rejected');loadPos()}catch(e){toast(tr(e.message),true)}}
 async function receive(no){try{const d=await api('/po?no='+encodeURIComponent(no));const receipts=[];
   for(const l of d.po.lines){const pend=l.qty-l.received_qty;if(pend<=0)continue;const v=prompt(`${l.size}: ordered ${l.qty}, received ${l.received_qty}, pending ${pend}\nReceived now?`,'0');if(v===null)return;const q=+v||0;if(q>0)receipts.push({size:l.size,qty:q})}
-  if(!receipts.length){toast('Nothing');return}await api('/po/receive','POST',{poNumber:no,receipts});toast('Received ✅');loadPos()}catch(e){toast(e.message,true)}}
+  if(!receipts.length){toast('Nothing');return}await api('/po/receive','POST',{poNumber:no,receipts});toast('Received ✅');loadPos()}catch(e){toast(tr(e.message),true)}}
 
 /* ---------------- PDF print (per-branch PO) ---------------- */
 async function printPo(no){
-  let p; try{p=(await api('/po?no='+encodeURIComponent(no))).po}catch(e){toast(e.message,true);return}
+  let p; try{p=(await api('/po?no='+encodeURIComponent(no))).po}catch(e){toast(tr(e.message),true);return}
   const rows=p.lines.map(l=>`<tr><td>${esc(l.item_code)} ${esc(l.description)}</td><td>${esc(l.size)}</td><td style="text-align:right">${l.qty}</td><td style="text-align:right">₹${l.rate}</td><td style="text-align:right">₹${l.amount}</td></tr>`).join('');
   const w=window.open('','_blank');if(!w){toast('Allow popups to print',true);return}
   w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(p.po_number)}</title>
@@ -280,7 +293,7 @@ function budgetScreen(){const list=(S.budgets&&S.budgets.budgets)||[];
 }
 function bindBudget(){if($('#setBud'))$('#setBud').onclick=setBudget}
 async function loadBudgets(){try{S.budgets=await api('/budgets');if(S.view==='budget')render()}catch(e){}}
-async function setBudget(){const period=prompt('Period (e.g. 2026-Q4):','2026-Q4');if(!period)return;const branch=prompt('Branch code (R1..R15):','R1');if(!branch)return;const item=prompt('Item code (SHIRT-001..):','SHIRT-001');if(!item)return;const qty=prompt('Approved budget qty:','500');if(qty===null)return;try{await api('/budget','POST',{period,branch,item,budgetQty:+qty});toast('Budget set');loadBudgets()}catch(e){toast(e.message,true)}}
+async function setBudget(){const period=prompt('Period (e.g. 2026-Q4):','2026-Q4');if(!period)return;const branch=prompt('Branch code (R1..R15):','R1');if(!branch)return;const item=prompt('Item code (SHIRT-001..):','SHIRT-001');if(!item)return;const qty=prompt('Approved budget qty:','500');if(qty===null)return;try{await api('/budget','POST',{period,branch,item,budgetQty:+qty});toast('Budget set');loadBudgets()}catch(e){toast(tr(e.message),true)}}
 
 /* ---------------- reports ---------------- */
 function reportScreen(){const kinds=[['budget_vs_ordered','Budget vs Ordered'],['branch_wise','Branch-wise'],['supplier_wise','Supplier-wise'],['item_wise','Item-wise'],['size_wise','Size-wise'],['rate_comparison','Rate comparison'],['ordered_vs_received','Ordered vs Received'],['user_wise','User-wise'],['approval','Approval'],['cancelled','Cancelled']];const r=S.rep;
@@ -290,7 +303,7 @@ function reportScreen(){const kinds=[['budget_vs_ordered','Budget vs Ordered'],[
 }
 function repTable(rows){if(!rows.length)return '<p class="mu sm">No data</p>';const cols=Object.keys(rows[0]);return `<table class="rep"><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</table>`}
 function bindReport(){document.querySelectorAll('[data-rk]').forEach(b=>b.onclick=()=>{S.repKind=b.dataset.rk;loadReport()})}
-async function loadReport(){try{S.rep=await api('/report?report='+S.repKind+(S.repKind==='budget_vs_ordered'?'&period=2026-Q4':''));if(S.view==='report')render()}catch(e){toast(e.message,true)}}
+async function loadReport(){try{S.rep=await api('/report?report='+S.repKind+(S.repKind==='budget_vs_ordered'?'&period=2026-Q4':''));if(S.view==='report')render()}catch(e){toast(tr(e.message),true)}}
 
 /* ---------------- more ---------------- */
 function moreScreen(){
@@ -303,12 +316,12 @@ function moreScreen(){
 }
 function bindMore(){
   $('#lang2').onclick=langSheet;
-  $('#chpw').onclick=async()=>{const o=prompt('Old password:');if(!o)return;const n=prompt('New (6+):');if(!n)return;try{await api('/password','POST',{old:o,new:n});toast('Changed')}catch(e){toast(e.message,true)}};
+  $('#chpw').onclick=async()=>{const o=prompt('Old password:');if(!o)return;const n=prompt('New (6+):');if(!n)return;try{await api('/password','POST',{old:o,new:n});toast('Changed')}catch(e){toast(tr(e.message),true)}};
   $('#lo').onclick=async()=>{try{await api('/logout','POST',{})}catch(e){}localLogout()};
-  if($('#usersBtn'))$('#usersBtn').onclick=async()=>{try{const r=await api('/users');const u=prompt('New user — username. Existing: '+r.users.map(x=>x.username+'('+x.role+')').join(', '));if(!u)return;const name=prompt('Full name:')||u;const role=prompt('Role: purchase_executive/purchase_manager/approver/admin/management','purchase_executive')||'purchase_executive';const pw=prompt('Password (6+):');if(!pw)return;await api('/users','POST',{username:u,name,role,password:pw});toast('User added')}catch(e){toast(e.message,true)}};
-  if($('#addSup'))$('#addSup').onclick=async()=>{const name=prompt('Supplier name:');if(!name)return;try{await api('/suppliers','POST',{name,gstin:prompt('GSTIN:')||''});S.data=await api('/data');toast('Added')}catch(e){toast(e.message,true)}};
-  if($('#addAg'))$('#addAg').onclick=async()=>{const sups=S.data.suppliers||[];const sid=prompt('Supplier id ('+sups.map(s=>s.id+'='+s.name).join(', ')+'):');if(!sid)return;const name=prompt('Agency name:');if(!name)return;try{await api('/agencies','POST',{supplierId:+sid,name,location:prompt('Location:')||''});S.data=await api('/data');toast('Agency added')}catch(e){toast(e.message,true)}};
-  if($('#addIt'))$('#addIt').onclick=async()=>{const code=prompt('Item code:');if(!code)return;const description=prompt('Description:');if(!description)return;const sizes=(prompt('Sizes (comma):','S,M,L,XL,XXL')||'').split(',').map(x=>x.trim()).filter(Boolean);try{await api('/items','POST',{itemCode:code,description,category:prompt('Category:')||'',gstPct:+prompt('GST %:','5')||5,sizes});S.data=await api('/data');toast('Item added')}catch(e){toast(e.message,true)}};
+  if($('#usersBtn'))$('#usersBtn').onclick=async()=>{try{const r=await api('/users');const u=prompt('New user — username. Existing: '+r.users.map(x=>x.username+'('+x.role+')').join(', '));if(!u)return;const name=prompt('Full name:')||u;const role=prompt('Role: purchase_executive/purchase_manager/approver/admin/management','purchase_executive')||'purchase_executive';const pw=prompt('Password (6+):');if(!pw)return;await api('/users','POST',{username:u,name,role,password:pw});toast('User added')}catch(e){toast(tr(e.message),true)}};
+  if($('#addSup'))$('#addSup').onclick=async()=>{const name=prompt('Supplier name:');if(!name)return;try{await api('/suppliers','POST',{name,gstin:prompt('GSTIN:')||''});S.data=await api('/data');toast('Added')}catch(e){toast(tr(e.message),true)}};
+  if($('#addAg'))$('#addAg').onclick=async()=>{const sups=S.data.suppliers||[];const sid=prompt('Supplier id ('+sups.map(s=>s.id+'='+s.name).join(', ')+'):');if(!sid)return;const name=prompt('Agency name:');if(!name)return;try{await api('/agencies','POST',{supplierId:+sid,name,location:prompt('Location:')||''});S.data=await api('/data');toast('Agency added')}catch(e){toast(tr(e.message),true)}};
+  if($('#addIt'))$('#addIt').onclick=async()=>{const code=prompt('Item code:');if(!code)return;const description=prompt('Description:');if(!description)return;const sizes=(prompt('Sizes (comma):','S,M,L,XL,XXL')||'').split(',').map(x=>x.trim()).filter(Boolean);try{await api('/items','POST',{itemCode:code,description,category:prompt('Category:')||'',gstPct:+prompt('GST %:','5')||5,sizes});S.data=await api('/data');toast('Item added')}catch(e){toast(tr(e.message),true)}};
   if($('#impIt'))$('#impIt').onclick=importItemsSheet;
 }
 function importItemsSheet(){
@@ -320,7 +333,7 @@ function importItemsSheet(){
     <label class="f">or paste CSV<textarea id="csvT" rows="7" style="width:100%;font-family:monospace" placeholder="item_code,description,category,brand,colour,hsn,gst,sizes&#10;SHIRT-010,Check Shirt,Shirts,Allen,Blue,6205,5,S|M|L|XL"></textarea></label>
     <button class="btn full" id="impGo">Import</button></div>`;
   el.querySelector('#smp').onclick=()=>{const csv="item_code,description,category,brand,colour,hsn,gst,sizes\nSHIRT-010,Check Shirt,Shirts,Allen,Blue,6205,5,S|M|L|XL|XXL\nTSHIRT-010,Polo T-Shirt,T-Shirts,Ruf&Tuf,Red,6109,5,S|M|L|XL\n";const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='items-sample.csv';a.click()};
-  el.querySelector('#impGo').onclick=async()=>{const f=el.querySelector('#csvF');let csv=el.querySelector('#csvT').value;if(f&&f.files&&f.files[0]){try{csv=await f.files[0].text()}catch(e){}}csv=(csv||'').trim();if(!csv){toast('Give CSV',true);return}try{const r=await api('/items/import','POST',{csv});S.data=await api('/data');el.remove();toast('Imported: '+r.added+' added, '+r.skipped+' skipped')}catch(e){toast(e.message,true)}};
+  el.querySelector('#impGo').onclick=async()=>{const f=el.querySelector('#csvF');let csv=el.querySelector('#csvT').value;if(f&&f.files&&f.files[0]){try{csv=await f.files[0].text()}catch(e){}}csv=(csv||'').trim();if(!csv){toast('Give CSV',true);return}try{const r=await api('/items/import','POST',{csv});S.data=await api('/data');el.remove();toast('Imported: '+r.added+' added, '+r.skipped+' skipped')}catch(e){toast(tr(e.message),true)}};
   document.body.appendChild(el);
 }
 
