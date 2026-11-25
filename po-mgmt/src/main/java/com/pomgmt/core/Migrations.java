@@ -17,7 +17,9 @@ public class Migrations {
     }
 
     public void run() {
-        // Example for future changes:
-        // if (!hasColumn("orders", "note")) db.update("ALTER TABLE orders ADD COLUMN note VARCHAR(200) NOT NULL DEFAULT ''");
+        // branch type (warehouse / branch / shop) — added for branch management
+        if (!hasColumn("branches", "type")) {
+            db.update("ALTER TABLE branches ADD COLUMN type VARCHAR(16) NOT NULL DEFAULT 'branch'");
+        }
     }
 }

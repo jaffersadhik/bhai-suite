@@ -73,7 +73,36 @@ public class PurchaseService {
 
     // ================================================================ masters
     public List<Object> branches() {
-        return new ArrayList<>(db.query("SELECT id, code, name, address, active FROM branches ORDER BY id"));
+        return new ArrayList<>(db.query("SELECT id, code, name, type, address, active FROM branches ORDER BY id"));
+    }
+
+    /** branch management: add or edit a branch (admin only). type = warehouse / branch / shop. */
+    public Map<String, Object> saveBranch(Ctx c, Map<String, Object> in) {
+        c.needAdmin();
+        long id = U.lng(in.get("id"));
+        String code = U.clip(in.get("code"), 8).toUpperCase().trim();
+        String name = U.clip(in.get("name"), 60);
+        String type = U.str(in.get("type"));
+        if (type.isEmpty()) type = "branch";
+        if (!List.of("warehouse", "branch", "shop").contains(type)) {
+            throw new ApiException(400, "Type: warehouse / branch / shop");
+        }
+        String address = U.clip(in.get("address"), 200);
+        boolean active = !Boolean.FALSE.equals(in.get("active"));
+        if (code.isEmpty() || name.isEmpty()) {
+            throw new ApiException(400, "கிளை code மற்றும் பெயர் தேவை");
+        }
+        if (id == 0) {
+            if (db.one("SELECT id FROM branches WHERE code = ?", code) != null) {
+                throw new ApiException(400, "இந்த code ஏற்கனவே உள்ளது: " + code);
+            }
+            db.insert("INSERT INTO branches (code, name, type, address, active) VALUES (?, ?, ?, ?, ?)",
+                    code, name, type, address, active ? 1 : 0);
+        } else {
+            db.update("UPDATE branches SET code = ?, name = ?, type = ?, address = ?, active = ? WHERE id = ?",
+                    code, name, type, address, active ? 1 : 0, id);
+        }
+        return obj("branches", branches());
     }
 
     public List<Object> suppliers() {

@@ -239,6 +239,11 @@ public class ApiController {
     }
 
     // ---- users (admin)
+    @PostMapping("/branches")
+    public ResponseEntity<Object> saveBranch(@RequestHeader(value = "X-Auth", required = false) String t, @RequestBody(required = false) Map<String, Object> b) {
+        return run(t, c -> core.purchase.saveBranch(c, body(b)));
+    }
+
     @GetMapping("/users")
     public ResponseEntity<Object> users(@RequestHeader(value = "X-Auth", required = false) String t) {
         return run(t, c -> Map.of("users", core.auth.users(c)));
