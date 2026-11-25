@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api")
 public class ApiController {
     private static final Logger LOG = Logger.getLogger(ApiController.class.getName());
+    private static final org.slf4j.Logger DLOG = org.slf4j.LoggerFactory.getLogger(ApiController.class);
     private static final Map<String, Object> OK = Map.of("ok", true);
 
     private final Core core;
@@ -99,12 +100,10 @@ public class ApiController {
         Map<String, Object> m = body(b);
         String ip = clientIp(req);
         String user = U.s(m.get("user")) == null ? "" : U.s(m.get("user")).trim().toLowerCase();
-        if (LOG.isLoggable(Level.FINE)) {
-            LOG.fine("POST /login ip=" + ip + " user='" + user + "'"
-                    + " captchaId=" + (m.get("captchaId") == null || m.get("captchaId").toString().isEmpty() ? "(none)" : "present")
-                    + " captchaLen=" + (m.get("captcha") == null ? 0 : m.get("captcha").toString().length())
-                    + " passLen=" + (m.get("password") == null ? 0 : m.get("password").toString().length()));
-        }
+        DLOG.debug("POST /login ip={} user='{}' captchaId={} captchaLen={} passLen={}", ip, user,
+                m.get("captchaId") == null || m.get("captchaId").toString().isEmpty() ? "(none)" : "present",
+                m.get("captcha") == null ? 0 : m.get("captcha").toString().length(),
+                m.get("password") == null ? 0 : m.get("password").toString().length());
         return guard(() -> {
             sec.beforeLogin(ip, user, m.get("captchaId") == null ? null : m.get("captchaId").toString(),
                     m.get("captcha") == null ? null : m.get("captcha").toString());

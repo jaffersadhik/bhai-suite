@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple token auth: username + SHA-256(salt+password); session tokens kept as SHA-256 hashes.
@@ -16,7 +16,7 @@ import java.util.logging.Logger;
  */
 public class AuthService {
     static final List<String> ROLES = List.of("purchase_executive", "purchase_manager", "approver", "admin", "management");
-    private static final Logger LOG = Logger.getLogger(AuthService.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(AuthService.class);
 
     private final Db db;
     private final ZoneId zone;
@@ -46,31 +46,29 @@ public class AuthService {
     public Map<String, Object> login(String username, String password) {
         String u = U.str(username).toLowerCase();
         // DEBUG (POMGMT_LOG_LEVEL=DEBUG): password is logged as length only, never in clear, so the log stays safe to share
-        LOG.fine(() -> "login attempt: user='" + u + "' passLen=" + U.str(password).length());
+        LOG.debug("login attempt: user='{}' passLen={}", u, U.str(password).length());
         if (u.isEmpty() || U.str(password).isEmpty()) {
-            LOG.fine("login FAIL: username / password empty");
+            LOG.debug("login FAIL: username / password empty");
             throw new ApiException(400, "பயனர் பெயர் / கடவுச்சொல் தேவை");
         }
         Map<String, Object> row = db.one("SELECT * FROM users WHERE username = ?", u);
         if (row == null) {
-            LOG.fine(() -> "login FAIL: username not found in this database: '" + u + "'");
+            LOG.debug("login FAIL: username not found in this database: '{}'", u);
             throw new ApiException(401, "தவறான பயனர் பெயர் அல்லது கடவுச்சொல்");
         }
         boolean active = U.intv(row.get("active")) != 0;
         boolean match = U.sha256(U.str(row.get("pass_salt")) + password).equals(U.str(row.get("pass_hash")));
-        if (LOG.isLoggable(Level.FINE)) {
-            String ph = U.str(row.get("pass_hash"));
-            LOG.fine("login check: user='" + u + "' found=true active=" + active + " hashMatch=" + match
-                    + " storedHashPrefix=" + (ph.length() >= 8 ? ph.substring(0, 8) : ph));
-        }
+        String ph = U.str(row.get("pass_hash"));
+        LOG.debug("login check: user='{}' found=true active={} hashMatch={} storedHashPrefix={}",
+                u, active, match, ph.length() >= 8 ? ph.substring(0, 8) : ph);
         if (!active || !match) {
-            LOG.fine(() -> "login FAIL: " + (!active ? "account inactive" : "password mismatch (wrong password for existing user)") + " -> user='" + u + "'");
+            LOG.debug("login FAIL: {} -> user='{}'", !active ? "account inactive" : "password mismatch (wrong password for existing user)", u);
             throw new ApiException(401, "தவறான பயனர் பெயர் அல்லது கடவுச்சொல்");
         }
         String token = U.token();
         db.update("INSERT INTO sessions (token_hash, user_id, created_at, last_seen) VALUES (?, ?, ?, ?)",
                 U.sha256(token), U.lng(row.get("id")), now(), now());
-        LOG.fine(() -> "login OK: user='" + u + "' role=" + U.str(row.get("role")));
+        LOG.debug("login OK: user='{}' role={}", u, U.str(row.get("role")));
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("token", token);
         out.put("me", me(row));
