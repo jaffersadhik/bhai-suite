@@ -202,7 +202,7 @@ function newScreen(){
     <div class="grid2"><label class="f"><span>${esc(t('Budget period'))}</span><input id="ePeriod" value="${esc(e.period)}" placeholder="2026-Q4"></label><label class="f"><span>${esc(t('Order book ref'))}</span><input id="eObr" value="${esc(e.orderBookRef)}"></label></div></div>
   <div class="card"><h3>2 · ${esc(t('Branch'))}</h3>
     <p class="mu sm" style="margin:-4px 0 8px">${esc(t('One PO = one branch'))}</p>
-    <div class="br-grid">${(S.data.branches||[]).filter(b=>b.active!==false&&b.active!==0).map(b=>`<label class="${e.branches[0]===b.code?'on':''}"><input type="radio" name="pobr" data-br="${b.code}" ${e.branches[0]===b.code?'checked':''}>${esc(b.code)}</label>`).join('')}</div></div>
+    <label class="f" style="margin:0"><select id="poBranch"><option value="">${esc(t('Select a branch'))}</option>${(S.data.branches||[]).filter(b=>b.active!==false&&b.active!==0).map(b=>`<option value="${esc(b.code)}" ${e.branches[0]===b.code?'selected':''}>${esc(b.code)} — ${esc(b.name)}</option>`).join('')}</select></label></div>
   <div class="card"><h3>3 · ${esc(t('Items & size-wise qty'))}</h3>
     <div id="eItems">${e.items.map((it,ix)=>itemBlock(it,ix)).join('')||'<p class="mu sm">Add an item</p>'}</div>
     <div class="row" style="gap:6px;margin-top:6px"><button class="btn sec sp" id="addItem">+ ${esc(t('Add item'))}</button><button class="btn sec sp" id="poCsv">📥 ${esc(t('CSV'))}</button></div></div>
@@ -211,8 +211,10 @@ function newScreen(){
   <button class="btn gold full" id="eSubmit" style="height:52px;margin-bottom:8px">✅ ${esc(t('Create PO'))}</button>`;
 }
 function itemBlock(it,ix){const item=(S.data.items||[]).find(x=>String(x.id)===String(it.itemId));const sizes=item?item.sizes:[];
-  return `<div class="card" style="background:var(--bg);margin-bottom:8px"><div class="row"><b class="sp">${item?esc(item.description)+' ('+esc(item.item_code)+')':'Item'}</b><button class="btn bad sm" data-rmit="${ix}">✖</button></div>
-    <label class="f"><span>Item</span><select data-item="${ix}">${(S.data.items||[]).map(x=>`<option value="${x.id}"${String(x.id)===String(it.itemId)?' selected':''}>${esc(x.item_code)} · ${esc(x.description)}</option>`).join('')}</select></label>
+  const cats=catOptions();const cat=it.cat!==undefined?it.cat:(catList()[0]||'');const inCat=itemsInCat(cat);
+  return `<div class="card" style="background:var(--bg);margin-bottom:8px"><div class="row"><b class="sp">${item?esc(item.description)+' ('+esc(item.item_code)+')':esc(t('Item'))}</b><button class="btn bad sm" data-rmit="${ix}">✖</button></div>
+    <div class="grid2"><label class="f"><span>${esc(t('Category'))}</span><select data-cat="${ix}">${cats.map(c=>`<option value="${esc(c[0])}" ${c[0]===cat?'selected':''}>${esc(c[1])}</option>`).join('')}</select></label>
+    <label class="f"><span>${esc(t('Item'))}</span><select data-item="${ix}">${inCat.map(x=>`<option value="${x.id}"${String(x.id)===String(it.itemId)?' selected':''}>${esc(x.item_code)} · ${esc(x.description)}</option>`).join('')}</select></label></div>
     <label class="f"><span>${esc(t('Rate'))} ₹</span><input data-rate="${ix}" inputmode="decimal" value="${it.rate||''}" placeholder="0"></label>
     ${sizes.length?sizes.map(sz=>`<div class="szrow"><b>${esc(sz)}</b><input data-qty="${ix}|${esc(sz)}" inputmode="numeric" value="${(it.qty&&it.qty[sz])||''}" placeholder="0"></div>`).join(''):'<p class="mu sm">no sizes</p>'}</div>`;
 }
@@ -220,10 +222,11 @@ function bindNew(){
   if(!S.data.canCreate)return;const e=S.entry;
   const re=()=>{if($('#eSup'))e.supplierId=$('#eSup').value;if($('#eAg'))e.agencyId=$('#eAg').value;if($('#ePeriod'))e.period=$('#ePeriod').value;if($('#eObr'))e.orderBookRef=$('#eObr').value;if($('#eDel'))e.deliveryDate=$('#eDel').value;if($('#eRem'))e.remarks=$('#eRem').value};
   if($('#eSup'))$('#eSup').onchange=()=>{re();e.agencyId='';render()};
-  document.querySelectorAll('[data-br]').forEach(rb=>rb.onchange=()=>{re();e.branches=[rb.dataset.br];render()});
+  if($('#poBranch'))$('#poBranch').onchange=()=>{re();e.branches=$('#poBranch').value?[$('#poBranch').value]:[]};
   if($('#poCsv'))$('#poCsv').onclick=()=>{re();poCsvSheet()};
-  if($('#addItem'))$('#addItem').onclick=()=>{re();e.items.push({itemId:(S.data.items[0]||{}).id,rate:'',qty:{}});render()};
+  if($('#addItem'))$('#addItem').onclick=()=>{re();const cat=(catList()[0]||'');const first=itemsInCat(cat)[0];e.items.push({cat,itemId:first?first.id:'',rate:'',qty:{}});render()};
   document.querySelectorAll('[data-rmit]').forEach(b=>b.onclick=()=>{re();e.items.splice(+b.dataset.rmit,1);render()});
+  document.querySelectorAll('[data-cat]').forEach(s=>s.onchange=()=>{re();const it=e.items[+s.dataset.cat];it.cat=s.value;const first=itemsInCat(s.value)[0];it.itemId=first?first.id:'';it.qty={};render()});
   document.querySelectorAll('[data-item]').forEach(s=>s.onchange=()=>{re();e.items[+s.dataset.item].itemId=s.value;e.items[+s.dataset.item].qty={};render()});
   document.querySelectorAll('[data-rate]').forEach(i=>i.oninput=()=>{e.items[+i.dataset.rate].rate=i.value});
   document.querySelectorAll('[data-qty]').forEach(i=>i.oninput=()=>{const[ix,sz]=i.dataset.qty.split('|');e.items[+ix].qty=e.items[+ix].qty||{};e.items[+ix].qty[sz]=i.value});
@@ -272,7 +275,7 @@ function poCsvSheet(){
     if(ci<0||cs<0||cq<0){toast('CSV: item_code, size, qty',true);return}
     const items=S.data.items||[],e=S.entry;let added=0,skipped=0;const byCode={};
     for(let r=1;r<rows.length;r++){if(!rows[r].trim())continue;const f2=rows[r].split(',').map(x=>x.trim());const it=items.find(x=>x.item_code===f2[ci]);if(!it){skipped++;continue;}
-      let entry=byCode[f2[ci]];if(!entry){entry=e.items.find(x=>String(x.itemId)===String(it.id))||{itemId:it.id,rate:'',qty:{}};if(!e.items.includes(entry))e.items.push(entry);byCode[f2[ci]]=entry;}
+      let entry=byCode[f2[ci]];if(!entry){entry=e.items.find(x=>String(x.itemId)===String(it.id))||{itemId:it.id,cat:(it.category||'').trim(),rate:'',qty:{}};if(!e.items.includes(entry))e.items.push(entry);byCode[f2[ci]]=entry;}
       if((it.sizes||[]).includes(f2[cs])){entry.qty[f2[cs]]=(+f2[cq]||0);if(cr>=0&&f2[cr])entry.rate=+f2[cr];added++;}else skipped++;}
     el.remove();render();toast(t('Added')+': '+added+' · '+t('Skipped')+': '+skipped);
   };
@@ -354,15 +357,19 @@ function bindBudget(){
 async function loadBudgets(){try{S.budgets=await api('/budgets');if(S.view==='budget')render()}catch(e){}}
 function budgetForm(bud){
   const items=S.data.items||[],branches=S.data.branches||[],ed=!!bud;
+  const curItem=ed?items.find(x=>x.item_code===bud.item):null;
+  const curCat=ed&&curItem?(curItem.category||'').trim():(catList()[0]||'');
   const el=sheetEl(`<h3>${ed?esc(t('Revise budget')):esc(t('Set / revise budget'))}</h3>
     <label class="f"><span>${esc(t('Budget period'))}</span><input id="bgp" value="${ed?esc(bud.period):'2026-Q4'}" placeholder="2026-Q4"></label>
     <label class="f"><span>${esc(t('Branch'))}</span><select id="bgb">${branches.map(b=>`<option value="${esc(b.code)}" ${ed&&bud.branch===b.code?'selected':''}>${esc(b.code)} — ${esc(b.name)}</option>`).join('')}</select></label>
-    <label class="f"><span>Item</span><select id="bgi">${items.map(i=>`<option value="${esc(i.item_code)}" ${ed&&bud.item===i.item_code?'selected':''}>${esc(i.item_code)} · ${esc(i.description)}</option>`).join('')}</select></label>
+    <label class="f"><span>${esc(t('Category'))}</span><select id="bgc">${catOptions().map(c=>`<option value="${esc(c[0])}" ${c[0]===curCat?'selected':''}>${esc(c[1])}</option>`).join('')}</select></label>
+    <label class="f"><span>${esc(t('Item'))}</span><select id="bgi"></select></label>
     <label class="f"><span>Size</span><select id="bgs"></select></label>
     <label class="f"><span>${esc(t('Quantity'))}</span><input id="bgq" inputmode="numeric" value="${ed?esc(bud.budget_qty):''}" placeholder="500"></label>
     <button class="btn full" id="bgsave" style="margin-top:8px">${esc(t('Save'))}</button>`);
+  const fillItems=()=>{const its=itemsInCat(el.querySelector('#bgc').value);el.querySelector('#bgi').innerHTML=its.map(i=>`<option value="${esc(i.item_code)}" ${ed&&bud.item===i.item_code?'selected':''}>${esc(i.item_code)} · ${esc(i.description)}</option>`).join('');fillSizes()};
   const fillSizes=()=>{const it=items.find(x=>x.item_code===el.querySelector('#bgi').value);const sz=it?it.sizes:[];el.querySelector('#bgs').innerHTML='<option value="">'+esc(t('All'))+'</option>'+sz.map(s=>`<option value="${esc(s)}" ${ed&&bud.size===s?'selected':''}>${esc(s)}</option>`).join('')};
-  fillSizes();el.querySelector('#bgi').onchange=fillSizes;
+  fillItems();el.querySelector('#bgc').onchange=fillItems;el.querySelector('#bgi').onchange=fillSizes;
   el.querySelector('#bgsave').onclick=async()=>{
     const body={period:el.querySelector('#bgp').value.trim(),branch:el.querySelector('#bgb').value,item:el.querySelector('#bgi').value,size:el.querySelector('#bgs').value,budgetQty:+el.querySelector('#bgq').value||0};
     if(!body.period){toast(t('Budget period')+' ?',true);return}
@@ -429,6 +436,10 @@ const PO_ROLES=[
  ['admin','Admin','Full access incl. users & branches'],
  ['management','Management','View dashboards & reports only']];
 const BR_TYPES=[['warehouse','Warehouse'],['branch','Branch'],['shop','Shop']];
+/* category-first item selection helpers */
+const catList=()=>{const s=[...new Set((S.data&&S.data.items||[]).map(x=>(x.category||'').trim()).filter(Boolean))];s.sort();return s};
+const catOptions=()=>[['',t('All')]].concat(catList().map(c=>[c,c]));
+const itemsInCat=cat=>(S.data&&S.data.items||[]).filter(x=>!cat||(x.category||'').trim()===cat);
 const roleLabel=r=>{const x=PO_ROLES.find(z=>z[0]===r);return x?t(x[1]):r};
 const brTypeLabel=tp=>{const x=BR_TYPES.find(z=>z[0]===tp);return x?t(x[1]):(tp||t('Branch'))};
 function sheetEl(inner){const el=document.createElement('div');el.className='sheet';el.onclick=e=>{if(e.target===el)el.remove()};el.innerHTML='<div class="inner"><button class="sheet-x" aria-label="Close">✕</button>'+inner+'</div>';el.querySelector('.sheet-x').onclick=()=>el.remove();document.body.appendChild(el);return el}
