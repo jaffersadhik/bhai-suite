@@ -99,6 +99,12 @@ public class ApiController {
         Map<String, Object> m = body(b);
         String ip = clientIp(req);
         String user = U.s(m.get("user")) == null ? "" : U.s(m.get("user")).trim().toLowerCase();
+        if (LOG.isLoggable(Level.FINE)) {
+            LOG.fine("POST /login ip=" + ip + " user='" + user + "'"
+                    + " captchaId=" + (m.get("captchaId") == null || m.get("captchaId").toString().isEmpty() ? "(none)" : "present")
+                    + " captchaLen=" + (m.get("captcha") == null ? 0 : m.get("captcha").toString().length())
+                    + " passLen=" + (m.get("password") == null ? 0 : m.get("password").toString().length()));
+        }
         return guard(() -> {
             sec.beforeLogin(ip, user, m.get("captchaId") == null ? null : m.get("captchaId").toString(),
                     m.get("captcha") == null ? null : m.get("captcha").toString());

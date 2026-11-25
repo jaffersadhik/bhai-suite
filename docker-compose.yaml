@@ -125,6 +125,7 @@ services:
       POMGMT_DB_PASS: ${DB_PASS}
       POMGMT_ZONE: Asia/Kolkata
       POMGMT_BUDGET_ENFORCEMENT: ${POMGMT_BUDGET_ENFORCEMENT:-warn}   # off | warn | strict
+      POMGMT_LOG_LEVEL: ${POMGMT_LOG_LEVEL:-INFO}                     # DEBUG = log every login (user, pass length, hash match, pass/fail) to the container log; INFO normal; ERROR quiet
       # --- login security (captcha + per-IP failure counting + IP block) - same for MBill and MSchool, see SUITE.md "Login security" ---
       LOGIN_CAPTCHA: ${LOGIN_CAPTCHA:-true}                       # false = no captcha (the IP block stays)
       LOGIN_MAX_FAILS: ${LOGIN_MAX_FAILS:-10}                     # more than this many wrong user/password tries from one IP in a day -> IP blocked
