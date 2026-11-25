@@ -125,7 +125,9 @@ services:
       POMGMT_DB_PASS: ${DB_PASS}
       POMGMT_ZONE: Asia/Kolkata
       POMGMT_BUDGET_ENFORCEMENT: ${POMGMT_BUDGET_ENFORCEMENT:-warn}   # off | warn | strict
-      POMGMT_LOG_LEVEL: ${POMGMT_LOG_LEVEL:-INFO}                     # DEBUG = log every login (user, pass length, hash match, pass/fail) to the container log; INFO normal; ERROR quiet
+      # one log switch for ALL modules (mbill / mschool / mhotel / po-mgmt). DEBUG by default; set INFO/WARN/ERROR to quieten.
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      LOG_DIR: /var/logs                                             # where logback writes <module>.log inside the container (exposed below as a volume)
       # --- login security (captcha + per-IP failure counting + IP block) - same for MBill and MSchool, see SUITE.md "Login security" ---
       LOGIN_CAPTCHA: ${LOGIN_CAPTCHA:-true}                       # false = no captcha (the IP block stays)
       LOGIN_MAX_FAILS: ${LOGIN_MAX_FAILS:-10}                     # more than this many wrong user/password tries from one IP in a day -> IP blocked
@@ -141,6 +143,7 @@ services:
       - "${PO_PORT:-127.0.0.1:8084}:8084"              # Purchase Order Management (localhost only by default; Caddy publishes it with PO_DOMAIN. Set PO_PORT=8084 to open it directly)
     volumes:
       - "${CTL_DIR:-./ctl}:/ctl"                       # build info + rollback requests (deploy/oracle scripts)
+      - "${LOGS_DIR:-./logs}:/var/logs"                # per-module log files land here on the host: ./logs/mbill.log, mschool.log, mhotel.log, po-mgmt.log
 
 volumes:
   # Named volumes stored in folders on the local disk (bind). The folders must exist first.

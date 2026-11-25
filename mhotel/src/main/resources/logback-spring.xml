@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shared log configuration for the bhai-suite Spring Boot modules.
+  * Each module writes its own file: ${LOG_DIR}/<spring.application.name>.log
+    -> mbill.log, mschool.log, mhotel.log, po-mgmt.log
+  * LOG_DIR defaults to /var/logs (override with env LOG_DIR).
+  * Default level is DEBUG (override with env LOG_LEVEL = DEBUG|INFO|WARN|ERROR).
+  * Also logs to the console so `docker logs` / `docker compose logs` keep working.
+  * Rolls daily and at 20MB; keeps 14 days, 500MB total, gzipped.
+-->
+<configuration>
+  <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="app"/>
+  <property name="LOG_DIR" value="${LOG_DIR:-/var/logs}"/>
+  <property name="LOG_LEVEL" value="${LOG_LEVEL:-DEBUG}"/>
+  <property name="PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [${APP_NAME}] [%thread] %logger{36} - %msg%n"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder><pattern>${PATTERN}</pattern></encoder>
+  </appender>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${APP_NAME}.log</file>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${LOG_DIR}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+      <maxFileSize>20MB</maxFileSize>
+      <maxHistory>14</maxHistory>
+      <totalSizeCap>500MB</totalSizeCap>
+    </rollingPolicy>
+    <encoder><pattern>${PATTERN}</pattern></encoder>
+  </appender>
+
+  <!-- keep the noisiest frameworks at INFO so the DEBUG files stay readable -->
+  <logger name="org.springframework" level="INFO"/>
+  <logger name="org.apache" level="INFO"/>
+  <logger name="org.hibernate" level="INFO"/>
+  <logger name="com.zaxxer.hikari" level="INFO"/>
+
+  <root level="${LOG_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>
