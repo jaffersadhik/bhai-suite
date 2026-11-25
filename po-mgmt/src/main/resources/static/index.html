@@ -133,7 +133,7 @@ function renderLogin(){
       <label class="f"><span>${esc(t('Password'))}</span><div class="pwwrap"><input id="lp" type="password" autocomplete="current-password"><button type="button" class="pweye" id="eye">👁</button></div></label>
       ${c.enabled?`<label class="f" style="margin-bottom:4px"><span>Captcha</span></label>
       <div class="cap"><span class="capimg">${c.image?`<img src="${esc(c.image)}" alt="captcha">`:'…'}</span><button type="button" class="caprf" id="capRf">↻</button></div>
-      <label class="f"><input id="lc" autocomplete="off" placeholder="Enter the characters above"></label>`:''}
+      <label class="f"><input id="lc" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:2px" placeholder="Enter the characters above"></label>`:''}
       <div class="lerr${S.lerr?' on':''}" id="le">${esc(S.lerr||'')}</div>
       <button class="btn full" id="lbtn" style="height:50px;border-radius:14px;margin-top:6px">${esc(t('Login'))}</button>
       <p class="mu sm" style="margin:12px 0 0;text-align:center">admin / admin1234 · demo: exec1 · mgr1 · appr1 / demo1234</p>
