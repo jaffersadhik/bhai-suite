@@ -18,6 +18,12 @@ public class AppConfig {
         return new Core(new JdbcDb(ds), ZoneId.of(zone), enforcement);
     }
 
+    /** login captcha + per-IP failed-login counting + IP block (tables ip_fail_day / ip_block created in the po_mgmt database) */
+    @Bean
+    public com.suite.security.LoginSecurity loginSecurity(DataSource ds, @Value("${po.zone:Asia/Kolkata}") String zone) {
+        return com.suite.security.LoginSecurity.fromEnvironment(ds, ZoneId.of(zone));
+    }
+
     /** schema.sql has already run by now (spring.sql.init). */
     @Bean
     public CommandLineRunner startup(Core core) {

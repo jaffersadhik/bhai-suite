@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ta">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -8,19 +8,18 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Mukta+Malar:wght@600;800&family=Noto+Sans+Tamil:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;700&family=Mukta+Malar:wght@600;800&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Devanagari:wght@400;700&family=Noto+Sans+Telugu:wght@400;700&family=Noto+Sans+Kannada:wght@400;700&family=Noto+Sans+Malayalam:wght@400;700&family=Noto+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet">
 <title>Purchase Order Management</title>
 <style>
-:root{
---pri:#0e6b4a;--pri2:#14805a;--pri-d:#09442f;--pri-l:#dff0e7;--gold:#e9b431;--gold-l:#fbe7ac;--bg:#f2f7f4;--card:#fff;--line:#dbe6df;--tx:#14231c;--mu:#5f6f66;
---ok:#1faa59;--ok-l:#e3f5ea;--bad:#b3261e;--bad-l:#fdecea;--warn:#d9770a;--warn-l:#fff1dc;--r:14px;
---body:'DM Sans','Noto Sans Tamil','Latha',system-ui,sans-serif;--head:'Mukta Malar','DM Sans','Noto Sans Tamil',system-ui,sans-serif}
+:root{--pri:#0e6b4a;--pri2:#14805a;--pri-d:#09442f;--pri-l:#dff0e7;--gold:#e9b431;--gold-l:#fbe7ac;--bg:#f2f7f4;--card:#fff;--line:#dbe6df;--tx:#14231c;--mu:#5f6f66;--ok:#1faa59;--ok-l:#e3f5ea;--bad:#b3261e;--bad-l:#fdecea;--warn:#d9770a;--warn-l:#fff1dc;--r:14px;
+--body:'DM Sans','Noto Sans Tamil','Noto Sans Devanagari','Noto Sans Telugu','Noto Sans Kannada','Noto Sans Malayalam','Noto Sans Arabic',system-ui,sans-serif;--head:'Mukta Malar','DM Sans','Noto Sans Tamil',system-ui,sans-serif}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--body);font-size:15px;line-height:1.4}
 #app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
 #bar{position:sticky;top:0;z-index:20;background:var(--pri);color:#fff;padding:10px 14px;padding-top:calc(10px + env(safe-area-inset-top));display:flex;align-items:center;gap:10px}
-#bar .mark{width:42px;height:42px;border-radius:13px;background:var(--gold);color:var(--pri-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:18px;flex:none}
-#bar .t{flex:1;min-width:0}#bar .t b{display:block;font-family:var(--head);font-weight:800;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bar .t small{color:var(--gold-l);font-weight:600;font-size:12px}
+#bar .mark{width:42px;height:42px;border-radius:13px;background:var(--gold);color:var(--pri-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:17px;flex:none}
+#bar .t{flex:1;min-width:0}#bar .t b{display:block;font-family:var(--head);font-weight:800;font-size:17px}#bar .t small{color:var(--gold-l);font-weight:600;font-size:12px}
+#bar button{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:11px;padding:6px 10px;font-size:16px;min-height:38px;font-weight:700}
 #main{flex:1;padding:12px 12px 84px}
 #dock{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:560px;background:#fff;border-top:1px solid var(--line);display:flex;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
 #dock button{flex:1;border:0;background:none;padding:8px 2px 7px;color:var(--mu);font-size:11px;display:flex;flex-direction:column;align-items:center;gap:1px}
@@ -29,9 +28,8 @@ h1,h2,h3{font-family:var(--head)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;margin-bottom:10px}
 .card h3{margin:0 0 8px;font-size:15px}
 .row{display:flex;align-items:center;gap:10px}.sp{flex:1;min-width:0}.mu{color:var(--mu)}.sm{font-size:12px}.b{font-weight:700}.rt{text-align:right}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
-.stat b{display:block;font-size:20px;line-height:1.1}.stat span{font-size:12px;color:var(--mu)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}.stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--mu)}
 .stat.ok b{color:var(--ok)}.stat.bad b{color:var(--bad)}.stat.warn b{color:var(--warn)}.stat.pri b{color:var(--pri)}
 button,input,select,textarea{font:inherit}
 .btn{background:var(--pri);color:#fff;border:0;border-radius:11px;padding:11px 16px;font-weight:600}
@@ -39,31 +37,35 @@ button,input,select,textarea{font:inherit}
 .btn:disabled{opacity:.5}.btn.full{width:100%}
 .f{display:block;margin-bottom:10px}.f>span{display:block;font-size:12px;color:var(--mu);margin-bottom:3px}
 .f input,.f select,.f textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--tx)}
+.pwwrap{position:relative}.pwwrap input{padding-right:44px}.pweye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;font-size:18px;padding:6px;color:var(--mu)}
 .seg{display:flex;flex-wrap:wrap;background:#e3eee8;border-radius:11px;padding:3px;margin-bottom:10px;gap:3px}
-.seg button{flex:1;border:0;background:none;padding:8px 4px;border-radius:9px;color:var(--mu);font-size:12.5px}.seg button.on{background:#fff;color:var(--pri);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.seg button{flex:1;border:0;background:none;padding:8px 4px;border-radius:9px;color:var(--mu);font-size:12.5px}.seg button.on{background:#fff;color:var(--pri);font-weight:700}
 .chip{display:inline-block;background:var(--pri-l);color:var(--pri);border-radius:20px;padding:2px 9px;font-size:12px;margin:2px 3px 2px 0;font-weight:700}
 .chip.ok{background:var(--ok-l);color:var(--ok)}.chip.bad{background:var(--bad-l);color:var(--bad)}.chip.warn{background:var(--warn-l);color:var(--warn)}
 .br-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-.br-grid label{display:flex;flex-direction:column;align-items:center;border:1px solid var(--line);border-radius:10px;padding:7px 2px;font-size:12px;font-weight:700;cursor:pointer}
-.br-grid label.on{background:var(--pri);color:#fff;border-color:var(--pri)}
-.br-grid input{display:none}
-.szrow{display:grid;grid-template-columns:48px 1fr;gap:8px;align-items:center;margin-bottom:6px}
-.szrow b{font-family:var(--head)}
-table.rep{width:100%;border-collapse:collapse;font-size:13px}
-table.rep th,table.rep td{border-bottom:1px solid var(--line);padding:6px 5px;text-align:left}
-table.rep th{color:var(--mu);font-weight:700;font-size:11.5px}
+.br-grid label{display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:10px;padding:9px 2px;font-size:12px;font-weight:700;cursor:pointer}
+.br-grid label.on{background:var(--pri);color:#fff;border-color:var(--pri)}.br-grid input{display:none}
+.szrow{display:grid;grid-template-columns:48px 1fr;gap:8px;align-items:center;margin-bottom:6px}.szrow b{font-family:var(--head)}
+table.rep{width:100%;border-collapse:collapse;font-size:13px}table.rep th,table.rep td{border-bottom:1px solid var(--line);padding:6px 5px;text-align:left}table.rep th{color:var(--mu);font-weight:700;font-size:11.5px}
 .empty{text-align:center;color:var(--mu);padding:28px 10px}
 #toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);max-width:92%;background:#14231c;color:#fff;padding:10px 16px;border-radius:12px;z-index:60;font-size:14px;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s;white-space:pre-line}
 #toast.show{opacity:1}#toast.err{background:var(--bad)}
 .lg #app{background:linear-gradient(160deg,#0e6b4a 0%,#09442f 100%)}
-.login{max-width:460px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 20px;color:#fff}
-.login .lmark{width:72px;height:72px;border-radius:22px;background:var(--gold);color:var(--pri-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:34px;margin:0 auto 12px}
-.login h1{font-family:var(--head);font-size:26px;font-weight:800;margin:6px 0 0;color:#fff;text-align:center}.login h1 span{color:var(--gold)}
-.login .tag{font-size:13px;opacity:.88;margin:4px 0 20px;text-align:center}
+.login{max-width:460px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px 20px;color:#fff;position:relative}
+.langbtn{position:absolute;top:calc(16px + env(safe-area-inset-top));right:16px;background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:12px;padding:8px 11px;font-size:16px;font-weight:700}
+.login .lmark{width:72px;height:72px;border-radius:22px;background:var(--gold);color:var(--pri-d);display:grid;place-items:center;font-family:var(--head);font-weight:800;font-size:30px;margin:0 auto 12px}
+.login h1{font-family:var(--head);font-size:25px;font-weight:800;margin:6px 0 0;color:#fff;text-align:center}.login h1 span{color:var(--gold)}
+.login .tag{font-size:13px;opacity:.88;margin:4px 0 18px;text-align:center}
 .lcard{background:var(--bg);color:var(--tx);border-radius:22px;padding:20px 16px;box-shadow:0 14px 34px rgba(0,0,0,.25)}
 .lcard h2{font-family:var(--head);font-size:20px;font-weight:800;margin:0 0 10px}
+.cap{display:flex;gap:8px;align-items:stretch;margin:2px 0 8px}
+.cap .capimg{flex:1;border:1.5px solid var(--line);border-radius:12px;background:#fff;padding:2px;display:flex;align-items:center;justify-content:center;min-height:56px}
+.cap .capimg img{width:100%;max-width:230px;height:auto}
+.cap .caprf{flex:0 0 48px;border:1.5px solid var(--line);border-radius:12px;background:var(--pri-l);color:var(--pri-d);font-size:20px}
 .lerr{display:none;margin:10px 0 0;background:var(--bad-l);color:var(--bad);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:700}.lerr.on{display:block}
-.lfoot{text-align:center;font-size:12px;opacity:.85;margin-top:16px}
+.lfoot{text-align:center;font-size:12px;opacity:.85;margin-top:14px}
+.sheet{position:fixed;inset:0;background:rgba(9,30,22,.5);z-index:40;display:flex;align-items:flex-end}
+.sheet .inner{background:#fff;width:100%;max-width:560px;margin:0 auto;border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom));max-height:80vh;overflow:auto}
 </style>
 </head>
 <body>
@@ -73,108 +75,127 @@ table.rep th{color:var(--mu);font-weight:700;font-size:11.5px}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const inr=n=>'₹'+(Math.round((+n||0)*100)/100).toLocaleString('en-IN');
+/* ---------------- i18n (default English; all languages via selector) ---------------- */
+const LANGS=[['en','English'],['ta','தமிழ்'],['hi','हिन्दी'],['te','తెలుగు'],['kn','ಕನ್ನಡ'],['ml','മലയാളം'],['ar','العربية']];
+const DICT={
+ en:{}, /* base */
+ ta:{"Login":"உள்நுழை","Username":"பயனர் பெயர்","Password":"கடவுச்சொல்","Logout":"வெளியேறு","Home":"முகப்பு","New PO":"புதிய PO","POs":"POs","Budget":"பட்ஜெட்","More":"மேலும்","Purchase Orders":"பர்ச்சேஸ் ஆர்டர்","Committed qty":"ஒதுக்கப்பட்ட அளவு","Committed value":"ஒதுக்கப்பட்ட மதிப்பு","Pending approvals":"நிலுவை ஒப்புதல்","Over-budget POs":"பட்ஜெட் மீறல் POs","New Purchase Entry":"புதிய Purchase Entry","Supplier & Agency":"Supplier & Agency","Supplier":"Supplier","Agency":"Agency","Branches":"கிளைகள்","Select all":"எல்லாம் தேர்வு","Clear":"நீக்கு","Items & size-wise qty":"Items & size அளவு","Add item":"Item சேர்","Create PO":"PO உருவாக்கு","Approve":"ஒப்புதல்","Reject":"நிராகரி","Receive":"பெறு","View":"பார்","Create & print":"உருவாக்கி அச்சிடு","Print":"அச்சிடு","Rate":"விலை","Quantity":"அளவு","Reports":"அறிக்கைகள்","Change password":"கடவுச்சொல் மாற்று","Users":"பயனர்கள்","Masters":"Masters","Add supplier":"Supplier சேர்","Add agency":"Agency சேர்","Add item (master)":"Item சேர்","Import items (CSV)":"Items ஏற்று (CSV)","Set / revise budget":"Budget அமை","Approved budgets":"அங்கீகரிக்கப்பட்ட budgets","Delivery date":"டெலிவரி தேதி","Remarks":"குறிப்பு","Order book ref":"Order book ref","Budget period":"Budget period","All":"எல்லாம்","Pending":"நிலுவை","Approved":"அங்கீகரிக்கப்பட்டது","Partial":"பகுதி","Done":"முடிந்தது"},
+ hi:{"Login":"लॉगिन","Username":"यूज़रनेम","Password":"पासवर्ड","Logout":"लॉगआउट","Home":"होम","New PO":"नया PO","POs":"POs","Budget":"बजट","More":"और","Purchase Orders":"परचेज़ ऑर्डर","Committed qty":"प्रतिबद्ध मात्रा","Committed value":"प्रतिबद्ध मूल्य","Pending approvals":"लंबित स्वीकृति","Over-budget POs":"बजट से अधिक POs","New Purchase Entry":"नई परचेज़ एंट्री","Supplier & Agency":"सप्लायर व एजेंसी","Supplier":"सप्लायर","Agency":"एजेंसी","Branches":"शाखाएँ","Select all":"सभी चुनें","Clear":"साफ़","Items & size-wise qty":"आइटम व साइज़ मात्रा","Add item":"आइटम जोड़ें","Create PO":"PO बनाएँ","Approve":"स्वीकृत","Reject":"अस्वीकार","Receive":"प्राप्त","View":"देखें","Create & print":"बनाएँ व प्रिंट","Print":"प्रिंट","Rate":"दर","Quantity":"मात्रा","Reports":"रिपोर्ट","Change password":"पासवर्ड बदलें","Users":"उपयोगकर्ता","Masters":"मास्टर","Add supplier":"सप्लायर जोड़ें","Add agency":"एजेंसी जोड़ें","Add item (master)":"आइटम जोड़ें","Import items (CSV)":"आइटम इम्पोर्ट (CSV)","Set / revise budget":"बजट सेट करें","Approved budgets":"स्वीकृत बजट","Delivery date":"डिलीवरी तिथि","Remarks":"टिप्पणी","Order book ref":"ऑर्डर बुक रेफ","Budget period":"बजट अवधि","All":"सभी","Pending":"लंबित","Approved":"स्वीकृत","Partial":"आंशिक","Done":"पूर्ण"},
+ te:{"Login":"లాగిన్","Username":"యూజర్‌నేమ్","Password":"పాస్‌వర్డ్","Logout":"లాగ్ అవుట్","Home":"హోమ్","New PO":"కొత్త PO","POs":"POs","Budget":"బడ్జెట్","More":"మరిన్ని","Purchase Orders":"పర్చేజ్ ఆర్డర్లు","Committed qty":"కేటాయించిన పరిమాణం","Committed value":"కేటాయించిన విలువ","Pending approvals":"పెండింగ్ ఆమోదాలు","Over-budget POs":"బడ్జెట్ మించిన POs","New Purchase Entry":"కొత్త పర్చేజ్ ఎంట్రీ","Supplier & Agency":"సప్లయర్ & ఏజెన్సీ","Supplier":"సప్లయర్","Agency":"ఏజెన్సీ","Branches":"శాఖలు","Select all":"అన్నీ ఎంచుకో","Clear":"క్లియర్","Items & size-wise qty":"ఐటమ్‌లు & సైజ్ పరిమాణం","Add item":"ఐటమ్ జోడించు","Create PO":"PO సృష్టించు","Approve":"ఆమోదించు","Reject":"తిరస్కరించు","Receive":"స్వీకరించు","View":"చూడు","Create & print":"సృష్టించి ప్రింట్","Print":"ప్రింట్","Rate":"రేటు","Quantity":"పరిమాణం","Reports":"రిపోర్ట్‌లు","Change password":"పాస్‌వర్డ్ మార్చు","Users":"వినియోగదారులు","Masters":"మాస్టర్స్","Add supplier":"సప్లయర్ జోడించు","Add agency":"ఏజెన్సీ జోడించు","Add item (master)":"ఐటమ్ జోడించు","Import items (CSV)":"ఐటమ్‌లు దిగుమతి (CSV)","Set / revise budget":"బడ్జెట్ సెట్","Approved budgets":"ఆమోదిత బడ్జెట్‌లు","Delivery date":"డెలివరీ తేదీ","Remarks":"వ్యాఖ్యలు","Order book ref":"ఆర్డర్ బుక్ రెఫ్","Budget period":"బడ్జెట్ కాలం","All":"అన్నీ","Pending":"పెండింగ్","Approved":"ఆమోదించబడింది","Partial":"పాక్షిక","Done":"పూర్తి"},
+ kn:{"Login":"ಲಾಗಿನ್","Username":"ಬಳಕೆದಾರ ಹೆಸರು","Password":"ಪಾಸ್‌ವರ್ಡ್","Logout":"ಲಾಗ್ ಔಟ್","Home":"ಮುಖಪುಟ","New PO":"ಹೊಸ PO","POs":"POs","Budget":"ಬಜೆಟ್","More":"ಇನ್ನಷ್ಟು","Purchase Orders":"ಪರ್ಚೇಸ್ ಆರ್ಡರ್‌ಗಳು","Committed qty":"ಮೀಸಲಿಟ್ಟ ಪ್ರಮಾಣ","Committed value":"ಮೀಸಲಿಟ್ಟ ಮೌಲ್ಯ","Pending approvals":"ಬಾಕಿ ಅನುಮೋದನೆಗಳು","Over-budget POs":"ಬಜೆಟ್ ಮೀರಿದ POs","New Purchase Entry":"ಹೊಸ ಪರ್ಚೇಸ್ ಎಂಟ್ರಿ","Supplier & Agency":"ಸರಬರಾಜುದಾರ & ಏಜೆನ್ಸಿ","Supplier":"ಸರಬರಾಜುದಾರ","Agency":"ಏಜೆನ್ಸಿ","Branches":"ಶಾಖೆಗಳು","Select all":"ಎಲ್ಲಾ ಆಯ್ಕೆ","Clear":"ತೆರವು","Items & size-wise qty":"ಐಟಂಗಳು & ಗಾತ್ರ ಪ್ರಮಾಣ","Add item":"ಐಟಂ ಸೇರಿಸಿ","Create PO":"PO ರಚಿಸಿ","Approve":"ಅನುಮೋದಿಸಿ","Reject":"ತಿರಸ್ಕರಿಸಿ","Receive":"ಸ್ವೀಕರಿಸಿ","View":"ನೋಡಿ","Create & print":"ರಚಿಸಿ ಮುದ್ರಿಸಿ","Print":"ಮುದ್ರಿಸಿ","Rate":"ದರ","Quantity":"ಪ್ರಮಾಣ","Reports":"ವರದಿಗಳು","Change password":"ಪಾಸ್‌ವರ್ಡ್ ಬದಲಿಸಿ","Users":"ಬಳಕೆದಾರರು","Masters":"ಮಾಸ್ಟರ್‌ಗಳು","Add supplier":"ಸರಬರಾಜುದಾರ ಸೇರಿಸಿ","Add agency":"ಏಜೆನ್ಸಿ ಸೇರಿಸಿ","Add item (master)":"ಐಟಂ ಸೇರಿಸಿ","Import items (CSV)":"ಐಟಂ ಆಮದು (CSV)","Set / revise budget":"ಬಜೆಟ್ ಹೊಂದಿಸಿ","Approved budgets":"ಅನುಮೋದಿತ ಬಜೆಟ್","Delivery date":"ವಿತರಣೆ ದಿನಾಂಕ","Remarks":"ಟಿಪ್ಪಣಿ","Order book ref":"ಆರ್ಡರ್ ಬುಕ್ ರೆಫ್","Budget period":"ಬಜೆಟ್ ಅವಧಿ","All":"ಎಲ್ಲಾ","Pending":"ಬಾಕಿ","Approved":"ಅನುಮೋದಿತ","Partial":"ಭಾಗಶಃ","Done":"ಮುಗಿದಿದೆ"},
+ ml:{"Login":"ലോഗിൻ","Username":"യൂസർനെയിം","Password":"പാസ്‌വേഡ്","Logout":"ലോഗൗട്ട്","Home":"ഹോം","New PO":"പുതിയ PO","POs":"POs","Budget":"ബജറ്റ്","More":"കൂടുതൽ","Purchase Orders":"പർച്ചേസ് ഓർഡറുകൾ","Committed qty":"നീക്കിവച്ച അളവ്","Committed value":"നീക്കിവച്ച മൂല്യം","Pending approvals":"തീർപ്പാകാത്ത അംഗീകാരം","Over-budget POs":"ബജറ്റ് കവിഞ്ഞ POs","New Purchase Entry":"പുതിയ പർച്ചേസ് എൻട്രി","Supplier & Agency":"സപ്ലയർ & ഏജൻസി","Supplier":"സപ്ലയർ","Agency":"ഏജൻസി","Branches":"ശാഖകൾ","Select all":"എല്ലാം തിരഞ്ഞെടുക്കുക","Clear":"മായ്ക്കുക","Items & size-wise qty":"ഐറ്റങ്ങൾ & സൈസ് അളവ്","Add item":"ഐറ്റം ചേർക്കുക","Create PO":"PO ഉണ്ടാക്കുക","Approve":"അംഗീകരിക്കുക","Reject":"നിരസിക്കുക","Receive":"സ്വീകരിക്കുക","View":"കാണുക","Create & print":"ഉണ്ടാക്കി പ്രിന്റ്","Print":"പ്രിന്റ്","Rate":"നിരക്ക്","Quantity":"അളവ്","Reports":"റിപ്പോർട്ടുകൾ","Change password":"പാസ്‌വേഡ് മാറ്റുക","Users":"ഉപയോക്താക്കൾ","Masters":"മാസ്റ്റേഴ്‌സ്","Add supplier":"സപ്ലയർ ചേർക്കുക","Add agency":"ഏജൻസി ചേർക്കുക","Add item (master)":"ഐറ്റം ചേർക്കുക","Import items (CSV)":"ഐറ്റം ഇമ്പോർട്ട് (CSV)","Set / revise budget":"ബജറ്റ് സെറ്റ്","Approved budgets":"അംഗീകൃത ബജറ്റുകൾ","Delivery date":"ഡെലിവറി തീയതി","Remarks":"കുറിപ്പ്","Order book ref":"ഓർഡർ ബുക്ക് റെഫ്","Budget period":"ബജറ്റ് കാലയളവ്","All":"എല്ലാം","Pending":"തീർപ്പാകാത്തത്","Approved":"അംഗീകരിച്ചു","Partial":"ഭാഗികം","Done":"പൂർത്തിയായി"},
+ ar:{"Login":"تسجيل الدخول","Username":"اسم المستخدم","Password":"كلمة المرور","Logout":"خروج","Home":"الرئيسية","New PO":"طلب جديد","POs":"الطلبات","Budget":"الميزانية","More":"المزيد","Purchase Orders":"أوامر الشراء","Committed qty":"الكمية المحجوزة","Committed value":"القيمة المحجوزة","Pending approvals":"بانتظار الموافقة","Over-budget POs":"طلبات تتجاوز الميزانية","New Purchase Entry":"إدخال شراء جديد","Supplier & Agency":"المورّد والوكالة","Supplier":"المورّد","Agency":"الوكالة","Branches":"الفروع","Select all":"تحديد الكل","Clear":"مسح","Items & size-wise qty":"الأصناف والكمية حسب المقاس","Add item":"إضافة صنف","Create PO":"إنشاء طلب","Approve":"اعتماد","Reject":"رفض","Receive":"استلام","View":"عرض","Create & print":"إنشاء وطباعة","Print":"طباعة","Rate":"السعر","Quantity":"الكمية","Reports":"التقارير","Change password":"تغيير كلمة المرور","Users":"المستخدمون","Masters":"القوائم","Add supplier":"إضافة مورّد","Add agency":"إضافة وكالة","Add item (master)":"إضافة صنف","Import items (CSV)":"استيراد أصناف (CSV)","Set / revise budget":"ضبط الميزانية","Approved budgets":"الميزانيات المعتمدة","Delivery date":"تاريخ التسليم","Remarks":"ملاحظات","Order book ref":"مرجع دفتر الطلب","Budget period":"فترة الميزانية","All":"الكل","Pending":"معلّق","Approved":"معتمد","Partial":"جزئي","Done":"مكتمل"}
+};
+let LANG=localStorage.getItem('po_lang')||'en';
+const t=k=>(DICT[LANG]&&DICT[LANG][k])||k;
+function setLang(l){LANG=l;localStorage.setItem('po_lang',l);document.documentElement.lang=l;document.documentElement.dir=(l==='ar')?'rtl':'ltr';if(S.token)render();else renderLogin()}
+
 const PST={draft:'Draft',pending:'Pending',approved:'Approved',rejected:'Rejected',sent:'Sent',partial:'Partial',completed:'Completed',cancelled:'Cancelled'};
 const pcls=s=>({approved:'ok',completed:'ok',rejected:'bad',cancelled:'bad'})[s]||'warn';
-let S={token:localStorage.getItem('po_token'),me:null,data:null,dash:null,view:'home',entry:null,posData:null,posFlt:'pending',budgets:null,rep:null,repKind:'budget_vs_ordered'};
+let S={token:localStorage.getItem('po_token'),me:null,data:null,dash:null,view:'home',entry:null,posData:null,posFlt:'pending',budgets:null,rep:null,repKind:'budget_vs_ordered',cap:{}};
 
 async function api(path,method,body){
   const r=await fetch('/api'+path,{method:method||'GET',headers:{'Content-Type':'application/json',...(S.token?{'X-Auth':S.token}:{})},body:body===undefined?undefined:JSON.stringify(body)});
   let j=null; try{j=await r.json()}catch(e){}
-  if(r.status===401&&S.token&&path!=='/login'){localLogout();throw new Error((j&&j.error)||'மீண்டும் உள்நுழையவும்')}
-  if(!r.ok) throw new Error((j&&j.error)||('பிழை '+r.status));
+  if(r.status===401&&S.token&&path!=='/login'){localLogout();throw Object.assign(new Error((j&&j.error)||'Login again'),{status:r.status})}
+  if(!r.ok) throw Object.assign(new Error((j&&j.error)||('Error '+r.status)),{status:r.status,captcha:j&&j.captcha,blocked:j&&j.blocked});
   return j;
 }
-function toast(m,err){const t=$('#toast');t.textContent=m;t.className='show'+(err?' err':'');clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',err?5000:2600)}
+function toast(m,err){const el=$('#toast');el.textContent=m;el.className='show'+(err?' err':'');clearTimeout(toast.t);toast.t=setTimeout(()=>el.className='',err?5000:2600)}
+function langSheet(){
+  const el=document.createElement('div');el.className='sheet';el.onclick=e=>{if(e.target===el)el.remove()};
+  el.innerHTML=`<div class="inner"><h3>Language / மொழி</h3>${LANGS.map(l=>`<button class="btn ${l[0]===LANG?'':'sec'} full" data-l="${l[0]}" style="margin-bottom:8px">${l[1]}</button>`).join('')}</div>`;
+  el.querySelectorAll('[data-l]').forEach(b=>b.onclick=()=>{el.remove();setLang(b.dataset.l)});
+  document.body.appendChild(el);
+}
 
-/* ---- login ---- */
+/* ---------------- login (MBill-style: captcha + show-password + language) ---------------- */
+async function loadCaptcha(){try{S.cap=await api('/captcha')}catch(e){S.cap={}}renderLogin()}
 function renderLogin(){
-  document.body.classList.add('lg');
-  $('#root').innerHTML=`<div class="login"><div class="lmark">PO</div><h1>Purchase <span>Order</span></h1><p class="tag">Centralized Purchase Order Management</p>
-    <div class="lcard"><h2>உள்நுழை (Login)</h2>
-      <label class="f"><span>Username</span><input id="lu" autocomplete="username" autocapitalize="none"></label>
-      <label class="f"><span>Password</span><input id="lp" type="password" autocomplete="current-password"></label>
+  document.body.classList.add('lg');const c=S.cap||{};
+  $('#root').innerHTML=`<div class="login"><button class="langbtn" id="langBtn">🌐 ${esc((LANGS.find(l=>l[0]===LANG)||['','EN'])[1])}</button>
+    <div class="lmark">PO</div><h1>Purchase <span>Order</span></h1><p class="tag">Centralized Purchase Order Management</p>
+    <div class="lcard"><h2>${esc(t('Login'))}</h2>
+      <label class="f"><span>${esc(t('Username'))}</span><input id="lu" autocomplete="username" autocapitalize="none"></label>
+      <label class="f"><span>${esc(t('Password'))}</span><div class="pwwrap"><input id="lp" type="password" autocomplete="current-password"><button type="button" class="pweye" id="eye">👁</button></div></label>
+      ${c.enabled?`<label class="f" style="margin-bottom:4px"><span>Captcha</span></label>
+      <div class="cap"><span class="capimg">${c.image?`<img src="${esc(c.image)}" alt="captcha">`:'…'}</span><button type="button" class="caprf" id="capRf">↻</button></div>
+      <label class="f"><input id="lc" autocomplete="off" placeholder="Enter the characters above"></label>`:''}
       <div class="lerr" id="le"></div>
-      <button class="btn full" id="lbtn" style="height:50px;border-radius:14px;margin-top:6px">உள்நுழை</button>
-      <p class="mu sm" style="margin:12px 0 0;text-align:center">admin / admin1234 · demo: exec1,mgr1,appr1 / demo1234</p>
+      <button class="btn full" id="lbtn" style="height:50px;border-radius:14px;margin-top:6px">${esc(t('Login'))}</button>
+      <p class="mu sm" style="margin:12px 0 0;text-align:center">admin / admin1234 · demo: exec1 · mgr1 · appr1 / demo1234</p>
     </div><p class="lfoot">Meeran Technologies</p></div>`;
+  document.documentElement.dir=(LANG==='ar')?'rtl':'ltr';
   $('#lbtn').onclick=doLogin; $('#lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+  $('#eye').onclick=()=>{const p=$('#lp');p.type=p.type==='password'?'text':'password';$('#eye').textContent=p.type==='password'?'👁':'🙈'};
+  $('#langBtn').onclick=langSheet; if($('#capRf'))$('#capRf').onclick=loadCaptcha;
 }
 async function doLogin(){
-  const user=$('#lu').value.trim(),password=$('#lp').value;
-  if(!user||!password){$('#le').textContent='Username / password தேவை';$('#le').className='lerr on';return}
+  const user=$('#lu').value.trim(),password=$('#lp').value,captcha=$('#lc')?$('#lc').value.trim():'';
+  if(!user||!password){$('#le').textContent=t('Username')+' / '+t('Password')+' ?';$('#le').className='lerr on';return}
   $('#lbtn').disabled=true;
-  try{const r=await api('/login','POST',{user,password});S.token=r.token;localStorage.setItem('po_token',r.token);S.me=r.me;document.body.classList.remove('lg');await boot()}
-  catch(e){$('#le').textContent=e.message;$('#le').className='lerr on';$('#lbtn').disabled=false}
+  try{const r=await api('/login','POST',{user,password,captchaId:(S.cap&&S.cap.id)||'',captcha});
+    S.token=r.token;localStorage.setItem('po_token',r.token);S.me=r.me;document.body.classList.remove('lg');await boot()}
+  catch(e){$('#le').textContent=e.message;$('#le').className='lerr on';$('#lbtn').disabled=false;if(e.status!==undefined&&e.status!==0)loadCaptcha()}
 }
-function localLogout(){S.token=null;S.me=null;S.data=null;localStorage.removeItem('po_token');renderLogin()}
+function localLogout(){S.token=null;S.me=null;S.data=null;localStorage.removeItem('po_token');loadCaptcha()}
 
-/* ---- shell ---- */
-async function boot(){try{const [me,data]=await Promise.all([api('/me'),api('/data')]);S.me=me;S.data=data;S.view='home';render();loadDash()}catch(e){if(S.token)toast(e.message,true);else renderLogin()}}
+/* ---------------- shell ---------------- */
+async function boot(){try{const [me,data]=await Promise.all([api('/me'),api('/data')]);S.me=me;S.data=data;S.view='home';render();loadDash()}catch(e){if(S.token)toast(e.message,true);else loadCaptcha()}}
 function render(){
-  if(!S.token){renderLogin();return}
-  const v=S.view, dock=[['home','🏠','Home'],['new','➕','New PO'],['pos','🧾','POs'],['budget','🎯','Budget'],['more','⋯','More']];
-  $('#root').innerHTML=`<div id="bar"><div class="mark">PO</div><div class="t"><b>Purchase Orders</b><small>${esc(S.me?S.me.name+' · '+S.me.role:'')}</small></div></div>
+  if(!S.token){loadCaptcha();return}
+  document.documentElement.dir=(LANG==='ar')?'rtl':'ltr';
+  const v=S.view,dock=[['home','🏠','Home'],['new','➕','New PO'],['pos','🧾','POs'],['budget','🎯','Budget'],['more','⋯','More']];
+  $('#root').innerHTML=`<div id="bar"><div class="mark">PO</div><div class="t"><b>${esc(t('Purchase Orders'))}</b><small>${esc(S.me?S.me.name+' · '+S.me.role:'')}</small></div><button id="lang">🌐</button></div>
     <div id="main">${screen(v)}</div>
-    <div id="dock">${dock.map(d=>`<button data-nav="${d[0]}" class="${v===d[0]?'on':''}"><i>${d[1]}</i>${d[2]}</button>`).join('')}</div>`;
+    <div id="dock">${dock.map(d=>`<button data-nav="${d[0]}" class="${v===d[0]?'on':''}"><i>${d[1]}</i>${esc(t(d[2]))}</button>`).join('')}</div>`;
+  $('#lang').onclick=langSheet;
   document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{S.view=b.dataset.nav;render();if(b.dataset.nav==='pos')loadPos();if(b.dataset.nav==='budget')loadBudgets();if(b.dataset.nav==='home')loadDash()});
   bind(v);
 }
 function screen(v){return ({home:homeScreen,new:newScreen,pos:posScreen,budget:budgetScreen,more:moreScreen,report:reportScreen}[v]||(()=>''))()}
 function bind(v){({home:()=>{},new:bindNew,pos:bindPos,budget:bindBudget,more:bindMore,report:bindReport}[v]||(()=>{}))()}
 
-/* ---- home ---- */
-function homeScreen(){
-  const d=S.dash;
+function homeScreen(){const d=S.dash;
   return `<div class="grid2">
-    <div class="stat pri"><b>${d?d.committedQty:'…'}</b><span>Committed qty</span></div>
-    <div class="stat ok"><b>${d?inr(d.committedValue):'…'}</b><span>Committed value</span></div>
-    <div class="stat warn"><b>${d?d.pendingApprovals:'…'}</b><span>Pending approvals</span></div>
-    <div class="stat bad"><b>${d?d.overBudgetPos:'…'}</b><span>Over-budget POs</span></div></div>
-    <div class="card"><div class="row"><span class="sp mu sm">Branches ${d?d.branches:'…'} · Suppliers ${d?d.suppliers:'…'} · Items ${d?d.items:'…'} · Open POs ${d?d.openPos:'…'}</span></div></div>
-    <button class="btn full" onclick="S.view='new';render()">➕ புதிய Purchase Entry</button>
-    <div class="card" style="margin-top:10px"><h3>Reports</h3><div class="grid2">
-      ${[['budget_vs_ordered','🎯 Budget vs Ordered'],['branch_wise','🏬 Branch-wise'],['supplier_wise','🏭 Supplier-wise'],['ordered_vs_received','📦 Ordered vs Received'],['rate_comparison','₹ Rate comparison'],['item_wise','👕 Item-wise']].map(r=>`<button class="btn sec sm" onclick="S.repKind='${r[0]}';S.view='report';render();loadReport()">${r[1]}</button>`).join('')}
-    </div></div>`;
+    <div class="stat pri"><b>${d?d.committedQty:'…'}</b><span>${esc(t('Committed qty'))}</span></div>
+    <div class="stat ok"><b>${d?inr(d.committedValue):'…'}</b><span>${esc(t('Committed value'))}</span></div>
+    <div class="stat warn"><b>${d?d.pendingApprovals:'…'}</b><span>${esc(t('Pending approvals'))}</span></div>
+    <div class="stat bad"><b>${d?d.overBudgetPos:'…'}</b><span>${esc(t('Over-budget POs'))}</span></div></div>
+    <button class="btn full" onclick="S.view='new';render()">➕ ${esc(t('New Purchase Entry'))}</button>
+    <div class="card" style="margin-top:10px"><h3>${esc(t('Reports'))}</h3><div class="grid2">
+      ${[['budget_vs_ordered','Budget vs Ordered'],['branch_wise','Branch-wise'],['supplier_wise','Supplier-wise'],['ordered_vs_received','Ordered vs Received'],['rate_comparison','Rate comparison'],['size_wise','Size-wise']].map(r=>`<button class="btn sec sm" onclick="S.repKind='${r[0]}';S.view='report';render();loadReport()">${r[1]}</button>`).join('')}</div></div>`;
 }
 async function loadDash(){try{S.dash=await api('/dashboard');if(S.view==='home')render()}catch(e){}}
 
-/* ---- new purchase entry (the core feature) ---- */
+/* ---------------- new purchase entry ---------------- */
 function newScreen(){
-  if(!S.data.canCreate) return `<div class="empty">PO உருவாக்க உங்களுக்கு அனுமதி இல்லை</div>`;
+  if(!S.data.canCreate)return `<div class="empty">No permission to create POs</div>`;
   const e=S.entry||(S.entry={supplierId:'',agencyId:'',period:'2026-Q4',branches:[],items:[],orderBookRef:'',deliveryDate:'',remarks:''});
   const sup=(S.data.suppliers||[]).find(s=>String(s.id)===String(e.supplierId));
-  return `<div class="card"><h3>1 · Supplier & Agency</h3>
-    <label class="f"><span>Supplier *</span><select id="eSup">${(S.data.suppliers||[]).map(s=>`<option value="${s.id}"${String(s.id)===String(e.supplierId)?' selected':''}>${esc(s.name)}</option>`).join('')||'<option value="">— Supplier இல்லை —</option>'}</select></label>
-    ${sup&&sup.agencies&&sup.agencies.length?`<label class="f"><span>Agency</span><select id="eAg"><option value="">— None —</option>${sup.agencies.map(a=>`<option value="${a.id}"${String(a.id)===String(e.agencyId)?' selected':''}>${esc(a.name)}</option>`).join('')}</select></label>`:''}
-    <div class="grid2"><label class="f"><span>Budget period</span><input id="ePeriod" value="${esc(e.period)}" placeholder="2026-Q4"></label>
-    <label class="f"><span>Order book ref</span><input id="eObr" value="${esc(e.orderBookRef)}"></label></div></div>
-  <div class="card"><h3>2 · Branches <small class="mu">(${e.branches.length} selected)</small></h3>
-    <div class="row" style="margin-bottom:8px"><button class="btn sec sm" id="brAll">Select all</button><button class="btn sec sm" id="brNone">Clear</button></div>
+  return `<div class="card"><h3>1 · ${esc(t('Supplier & Agency'))}</h3>
+    <label class="f"><span>${esc(t('Supplier'))} *</span><select id="eSup">${(S.data.suppliers||[]).map(s=>`<option value="${s.id}"${String(s.id)===String(e.supplierId)?' selected':''}>${esc(s.name)}</option>`).join('')||'<option value="">— none —</option>'}</select></label>
+    ${sup&&sup.agencies&&sup.agencies.length?`<label class="f"><span>${esc(t('Agency'))}</span><select id="eAg"><option value="">— None —</option>${sup.agencies.map(a=>`<option value="${a.id}"${String(a.id)===String(e.agencyId)?' selected':''}>${esc(a.name)}</option>`).join('')}</select></label>`:''}
+    <div class="grid2"><label class="f"><span>${esc(t('Budget period'))}</span><input id="ePeriod" value="${esc(e.period)}" placeholder="2026-Q4"></label><label class="f"><span>${esc(t('Order book ref'))}</span><input id="eObr" value="${esc(e.orderBookRef)}"></label></div></div>
+  <div class="card"><h3>2 · ${esc(t('Branches'))} <small class="mu">(${e.branches.length})</small></h3>
+    <div class="row" style="margin-bottom:8px"><button class="btn sec sm" id="brAll">${esc(t('Select all'))}</button><button class="btn sec sm" id="brNone">${esc(t('Clear'))}</button></div>
     <div class="br-grid">${(S.data.branches||[]).map(b=>`<label class="${e.branches.includes(b.code)?'on':''}"><input type="checkbox" data-br="${b.code}" ${e.branches.includes(b.code)?'checked':''}>${esc(b.code)}</label>`).join('')}</div></div>
-  <div class="card"><h3>3 · Items & size-wise qty</h3>
-    <div id="eItems">${e.items.map((it,ix)=>itemBlock(it,ix)).join('')||'<p class="mu sm">Item சேர்க்கவும்</p>'}</div>
-    <button class="btn sec full" id="addItem" style="margin-top:6px">+ Item சேர்</button></div>
-  <div class="card"><h3>4 · Delivery & remarks</h3>
-    <div class="grid2"><label class="f"><span>Delivery date</span><input id="eDel" type="date" value="${esc(e.deliveryDate)}"></label>
-    <label class="f"><span>Remarks</span><input id="eRem" value="${esc(e.remarks)}"></label></div>
-    <p class="mu sm">Budget: ஒவ்வொரு branch-ம் item qty-ஐ approved budget-ஓட compare பண்ணி over-budget-ஐ block பண்ணும் (period கொடுத்தா).</p></div>
-  <button class="btn gold full" id="eSubmit" style="height:52px;margin-bottom:8px">✅ PO உருவாக்கு (auto branch POs)</button>`;
+  <div class="card"><h3>3 · ${esc(t('Items & size-wise qty'))}</h3>
+    <div id="eItems">${e.items.map((it,ix)=>itemBlock(it,ix)).join('')||'<p class="mu sm">Add an item</p>'}</div>
+    <button class="btn sec full" id="addItem" style="margin-top:6px">+ ${esc(t('Add item'))}</button></div>
+  <div class="card"><h3>4 · ${esc(t('Delivery date'))} & ${esc(t('Remarks'))}</h3>
+    <div class="grid2"><label class="f"><span>${esc(t('Delivery date'))}</span><input id="eDel" type="date" value="${esc(e.deliveryDate)}"></label><label class="f"><span>${esc(t('Remarks'))}</span><input id="eRem" value="${esc(e.remarks)}"></label></div></div>
+  <button class="btn gold full" id="eSubmit" style="height:52px;margin-bottom:8px">✅ ${esc(t('Create PO'))}</button>`;
 }
-function itemBlock(it,ix){
-  const item=(S.data.items||[]).find(x=>String(x.id)===String(it.itemId));
-  const sizes=item?item.sizes:[];
-  return `<div class="card" style="background:var(--bg);margin-bottom:8px"><div class="row"><b class="sp">${item?esc(item.description)+' ('+esc(item.item_code)+')':'Item தேர்வு'}</b><button class="btn bad sm" data-rmit="${ix}">✖</button></div>
+function itemBlock(it,ix){const item=(S.data.items||[]).find(x=>String(x.id)===String(it.itemId));const sizes=item?item.sizes:[];
+  return `<div class="card" style="background:var(--bg);margin-bottom:8px"><div class="row"><b class="sp">${item?esc(item.description)+' ('+esc(item.item_code)+')':'Item'}</b><button class="btn bad sm" data-rmit="${ix}">✖</button></div>
     <label class="f"><span>Item</span><select data-item="${ix}">${(S.data.items||[]).map(x=>`<option value="${x.id}"${String(x.id)===String(it.itemId)?' selected':''}>${esc(x.item_code)} · ${esc(x.description)}</option>`).join('')}</select></label>
-    <label class="f"><span>Rate ₹ / piece</span><input data-rate="${ix}" inputmode="decimal" value="${it.rate||''}" placeholder="0"></label>
-    ${sizes.length?`<div class="mu sm" style="margin-bottom:4px">Size-wise qty:</div>${sizes.map(sz=>`<div class="szrow"><b>${esc(sz)}</b><input data-qty="${ix}|${esc(sz)}" inputmode="numeric" value="${(it.qty&&it.qty[sz])||''}" placeholder="0"></div>`).join('')}`:'<p class="mu sm">இந்த item-க்கு size இல்ல</p>'}</div>`;
+    <label class="f"><span>${esc(t('Rate'))} ₹</span><input data-rate="${ix}" inputmode="decimal" value="${it.rate||''}" placeholder="0"></label>
+    ${sizes.length?sizes.map(sz=>`<div class="szrow"><b>${esc(sz)}</b><input data-qty="${ix}|${esc(sz)}" inputmode="numeric" value="${(it.qty&&it.qty[sz])||''}" placeholder="0"></div>`).join(''):'<p class="mu sm">no sizes</p>'}</div>`;
 }
 function bindNew(){
-  if(!S.data.canCreate)return; const e=S.entry;
-  const re=()=>{ // re-read field values into e before re-render
-    if($('#eSup'))e.supplierId=$('#eSup').value; if($('#eAg'))e.agencyId=$('#eAg').value;
-    if($('#ePeriod'))e.period=$('#ePeriod').value; if($('#eObr'))e.orderBookRef=$('#eObr').value;
-    if($('#eDel'))e.deliveryDate=$('#eDel').value; if($('#eRem'))e.remarks=$('#eRem').value;
-  };
+  if(!S.data.canCreate)return;const e=S.entry;
+  const re=()=>{if($('#eSup'))e.supplierId=$('#eSup').value;if($('#eAg'))e.agencyId=$('#eAg').value;if($('#ePeriod'))e.period=$('#ePeriod').value;if($('#eObr'))e.orderBookRef=$('#eObr').value;if($('#eDel'))e.deliveryDate=$('#eDel').value;if($('#eRem'))e.remarks=$('#eRem').value};
   if($('#eSup'))$('#eSup').onchange=()=>{re();e.agencyId='';render()};
   if($('#brAll'))$('#brAll').onclick=()=>{re();e.branches=(S.data.branches||[]).map(b=>b.code);render()};
   if($('#brNone'))$('#brNone').onclick=()=>{re();e.branches=[];render()};
@@ -188,114 +209,122 @@ function bindNew(){
 }
 async function submitEntry(allow){
   const e=S.entry;
-  if($('#eSup'))e.supplierId=$('#eSup').value; if($('#eAg'))e.agencyId=$('#eAg').value;
-  if($('#ePeriod'))e.period=$('#ePeriod').value; if($('#eDel'))e.deliveryDate=$('#eDel').value; if($('#eRem'))e.remarks=$('#eRem').value; if($('#eObr'))e.orderBookRef=$('#eObr').value;
-  if(!e.supplierId){toast('Supplier தேர்வு செய்யவும்',true);return}
-  if(!e.branches.length){toast('குறைந்தது ஒரு branch',true);return}
+  if($('#eSup'))e.supplierId=$('#eSup').value;if($('#eAg'))e.agencyId=$('#eAg').value;if($('#ePeriod'))e.period=$('#ePeriod').value;if($('#eDel'))e.deliveryDate=$('#eDel').value;if($('#eRem'))e.remarks=$('#eRem').value;if($('#eObr'))e.orderBookRef=$('#eObr').value;
+  if(!e.supplierId){toast('Select supplier',true);return}
+  if(!e.branches.length){toast('Select at least one branch',true);return}
   const lines=[];
-  e.items.forEach(it=>{const sizes=((S.data.items||[]).find(x=>String(x.id)===String(it.itemId))||{}).sizes||[];
-    sizes.forEach(sz=>{const q=+((it.qty||{})[sz]||0);if(q>0)lines.push({item:it.itemId,size:sz,qty:q,rate:+it.rate||0})})});
-  if(!lines.length){toast('Item size qty கொடுக்கவும்',true);return}
-  let exceptionReason='';
-  if(allow){exceptionReason=prompt('Over-budget exception காரணம்:')||'';if(!exceptionReason){return}}
+  e.items.forEach(it=>{const sizes=((S.data.items||[]).find(x=>String(x.id)===String(it.itemId))||{}).sizes||[];sizes.forEach(sz=>{const q=+((it.qty||{})[sz]||0);if(q>0)lines.push({item:it.itemId,size:sz,qty:q,rate:+it.rate||0})})});
+  if(!lines.length){toast('Enter size-wise quantity',true);return}
+  let exceptionReason='';if(allow){exceptionReason=prompt('Over-budget exception reason:')||'';if(!exceptionReason)return}
   const body={supplierId:+e.supplierId,agencyId:+e.agencyId||null,period:e.period,orderBookRef:e.orderBookRef,deliveryDate:e.deliveryDate,remarks:e.remarks,branches:e.branches,lines,allowOverBudget:allow,exceptionReason};
-  try{const r=await api('/entry','POST',body);
-    S.entry=null;
+  try{const r=await api('/entry','POST',body);S.entry=null;
     toast('✅ '+r.commonRef+' — '+r.branchPos.length+' branch POs ('+r.totalQty+' pcs)');
-    alert(r.commonRef+' உருவாக்கப்பட்டது:\n\n'+r.branchPos.map(p=>p.poNumber+' · '+p.branch+' · '+p.totalQty+' pcs · '+inr(p.amount)+(p.overBudget?' ⚠ over-budget':'')).join('\n')+(r.warnings.length?'\n\n⚠ '+r.warnings.join('\n'):''));
+    if(confirm(r.commonRef+' created:\n\n'+r.branchPos.map(p=>p.poNumber+' · '+p.branch+' · '+p.totalQty+' pcs · '+inr(p.amount)+(p.overBudget?' ⚠':'')).join('\n')+'\n\nPrint all branch POs now?')) for(const p of r.branchPos) await printPo(p.poNumber);
     S.view='pos';S.posFlt='pending';render();loadPos();
-  }catch(e2){
-    if(String(e2.message).includes('Budget')){ if(confirm(e2.message+'\n\nOver-budget exception-ஆ தொடரவா?')) submitEntry(true); }
-    else toast(e2.message,true);
-  }
+  }catch(e2){if(String(e2.message).includes('Budget')||String(e2.message).includes('budget')){if(confirm(e2.message+'\n\nProceed with over-budget exception?'))submitEntry(true)}else toast(e2.message,true)}
 }
 
-/* ---- POs ---- */
-function posScreen(){
-  const list=(S.posData&&S.posData.purchaseOrders)||[];
+/* ---------------- POs ---------------- */
+function posScreen(){const list=(S.posData&&S.posData.purchaseOrders)||[];
   const flts=[['pending','Pending'],['approved','Approved'],['partial','Partial'],['completed','Done'],['','All']];
-  return `<div class="seg">${flts.map(f=>`<button data-pf="${f[0]}" class="${S.posFlt===f[0]?'on':''}">${f[1]}</button>`).join('')}</div>
-    ${list.length?list.map(p=>`<div class="card" style="margin-bottom:8px"><div class="row"><div class="sp"><b>${esc(p.po_number)}</b> <span class="chip ${pcls(p.status)}">${PST[p.status]||p.status}</span>${p.over_budget?'<span class="chip bad">⚠ over-budget</span>':''}
+  return `<div class="seg">${flts.map(f=>`<button data-pf="${f[0]}" class="${S.posFlt===f[0]?'on':''}">${esc(t(f[1]))}</button>`).join('')}</div>
+    ${list.length?list.map(p=>`<div class="card" style="margin-bottom:8px"><div class="row"><div class="sp"><b>${esc(p.po_number)}</b> <span class="chip ${pcls(p.status)}">${PST[p.status]||p.status}</span>${p.over_budget?'<span class="chip bad">⚠</span>':''}
       <div class="mu sm">${esc(p.common_ref)} · ${esc(p.supplier)} · ${esc(p.branch)} · ${p.total_qty} pcs (recv ${p.received_qty})</div></div><b>${inr(p.subtotal)}</b></div>
-      <div class="row" style="margin-top:8px;gap:6px">
-        ${S.data.canApprove&&p.status==='pending'?`<button class="btn sm" data-ap="${esc(p.po_number)}">✅ Approve</button><button class="btn bad sm" data-rj="${esc(p.po_number)}">✖ Reject</button>`:''}
-        ${S.data.canCreate&&['approved','sent','partial'].includes(p.status)?`<button class="btn sec sm" data-rc="${esc(p.po_number)}">📦 Receive</button>`:''}
-        <button class="btn sec sm" data-view="${esc(p.po_number)}">View</button></div></div>`).join(''):`<div class="empty">PO இல்லை</div>`}`;
+      <div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap">
+        ${S.data.canApprove&&p.status==='pending'?`<button class="btn sm" data-ap="${esc(p.po_number)}">✅ ${esc(t('Approve'))}</button><button class="btn bad sm" data-rj="${esc(p.po_number)}">✖ ${esc(t('Reject'))}</button>`:''}
+        ${S.data.canCreate&&['approved','sent','partial'].includes(p.status)?`<button class="btn sec sm" data-rc="${esc(p.po_number)}">📦 ${esc(t('Receive'))}</button>`:''}
+        <button class="btn sec sm" data-pr="${esc(p.po_number)}">🖨 ${esc(t('Print'))}</button></div></div>`).join(''):`<div class="empty">No POs</div>`}`;
 }
 function bindPos(){
   document.querySelectorAll('[data-pf]').forEach(b=>b.onclick=()=>{S.posFlt=b.dataset.pf;loadPos()});
   document.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>decide(b.dataset.ap,'approve'));
   document.querySelectorAll('[data-rj]').forEach(b=>b.onclick=()=>decide(b.dataset.rj,'reject'));
   document.querySelectorAll('[data-rc]').forEach(b=>b.onclick=()=>receive(b.dataset.rc));
-  document.querySelectorAll('[data-view]').forEach(b=>b.onclick=()=>viewPo(b.dataset.view));
+  document.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>printPo(b.dataset.pr));
 }
 async function loadPos(){try{S.posData=await api('/pos?status='+encodeURIComponent(S.posFlt));if(S.view==='pos')render()}catch(e){toast(e.message,true)}}
-async function decide(no,dec){let reason='';if(dec==='reject'){reason=prompt('Reject காரணம்:')||'';if(!reason)return}
-  try{await api('/po/approve','POST',{poNumber:no,decision:dec,reason});toast(dec==='approve'?'Approved':'Rejected');loadPos()}catch(e){toast(e.message,true)}}
-async function receive(no){
-  try{const d=await api('/po?no='+encodeURIComponent(no));const lines=d.po.lines;
-    const receipts=[];
-    for(const l of lines){const pend=l.qty-l.received_qty;if(pend<=0)continue;const v=prompt(`${l.size}: ordered ${l.qty}, received ${l.received_qty}, pending ${pend}\nஇப்போ எத்தனை வந்தது?`,'0');if(v===null)return;const q=+v||0;if(q>0)receipts.push({size:l.size,qty:q})}
-    if(!receipts.length){toast('எதுவும் இல்ல');return}
-    await api('/po/receive','POST',{poNumber:no,receipts});toast('Received ✅');loadPos()
-  }catch(e){toast(e.message,true)}}
-async function viewPo(no){try{const d=await api('/po?no='+encodeURIComponent(no));const p=d.po;
-  alert(`${p.po_number}  [${PST[p.status]||p.status}]\n${p.common_ref} · ${p.supplier} · ${p.branch_name}\nOrdered by: ${p.ordered_by}${p.approved_by?'\nApproved by: '+p.approved_by:''}\n\n`+p.lines.map(l=>`${l.size}: ${l.qty} @ ₹${l.rate} = ₹${l.amount} (recv ${l.received_qty})`).join('\n')+`\n\nSubtotal: ₹${p.subtotal}`+(p.over_budget?'\n⚠ OVER BUDGET: '+p.exception_reason:''))}catch(e){toast(e.message,true)}}
+async function decide(no,dec){let reason='';if(dec==='reject'){reason=prompt('Reject reason:')||'';if(!reason)return}try{await api('/po/approve','POST',{poNumber:no,decision:dec,reason});toast(dec==='approve'?'Approved':'Rejected');loadPos()}catch(e){toast(e.message,true)}}
+async function receive(no){try{const d=await api('/po?no='+encodeURIComponent(no));const receipts=[];
+  for(const l of d.po.lines){const pend=l.qty-l.received_qty;if(pend<=0)continue;const v=prompt(`${l.size}: ordered ${l.qty}, received ${l.received_qty}, pending ${pend}\nReceived now?`,'0');if(v===null)return;const q=+v||0;if(q>0)receipts.push({size:l.size,qty:q})}
+  if(!receipts.length){toast('Nothing');return}await api('/po/receive','POST',{poNumber:no,receipts});toast('Received ✅');loadPos()}catch(e){toast(e.message,true)}}
 
-/* ---- budget ---- */
-function budgetScreen(){
-  const list=(S.budgets&&S.budgets.budgets)||[];
-  return `${S.data.canApprove?`<button class="btn full" id="setBud" style="margin-bottom:10px">➕ Budget set / revise</button>`:''}
-    <div class="card"><h3>Approved budgets</h3>
-    ${list.length?`<table class="rep"><tr><th>Period</th><th>Branch</th><th>Item</th><th class="rt">Qty</th></tr>${list.map(b=>`<tr><td>${esc(b.period)}</td><td>${esc(b.branch)}</td><td>${esc(b.item)}</td><td class="rt">${b.budget_qty}</td></tr>`).join('')}</table>`:'<p class="mu sm">Budget இல்லை</p>'}</div>`;
+/* ---------------- PDF print (per-branch PO) ---------------- */
+async function printPo(no){
+  let p; try{p=(await api('/po?no='+encodeURIComponent(no))).po}catch(e){toast(e.message,true);return}
+  const rows=p.lines.map(l=>`<tr><td>${esc(l.item_code)} ${esc(l.description)}</td><td>${esc(l.size)}</td><td style="text-align:right">${l.qty}</td><td style="text-align:right">₹${l.rate}</td><td style="text-align:right">₹${l.amount}</td></tr>`).join('');
+  const w=window.open('','_blank');if(!w){toast('Allow popups to print',true);return}
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(p.po_number)}</title>
+    <style>body{font-family:Arial,sans-serif;color:#14231c;padding:24px;max-width:760px;margin:auto}
+    h1{color:#0e6b4a;margin:0}.muted{color:#5f6f66;font-size:13px}.box{border:1px solid #dbe6df;border-radius:10px;padding:12px;margin:12px 0}
+    table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid #dbe6df;padding:7px 6px;text-align:left}th{background:#f2f7f4}
+    .tot{text-align:right;font-weight:800;font-size:16px;margin-top:10px;color:#0e6b4a}@media print{.noprint{display:none}}</style></head>
+    <body><div style="display:flex;justify-content:space-between;align-items:center"><div><h1>PURCHASE ORDER</h1><div class="muted">Purchase Order Management</div></div>
+      <div style="text-align:right"><div style="font-size:20px;font-weight:800">${esc(p.po_number)}</div><div class="muted">Ref: ${esc(p.common_ref)} · ${esc(p.status)}</div></div></div>
+    <div class="box"><b>Supplier:</b> ${esc(p.supplier)}<br><b>Branch:</b> ${esc(p.branch)} — ${esc(p.branch_name)}<br>
+      <b>Order book:</b> ${esc(p.order_book_ref||'-')} · <b>Delivery:</b> ${esc(p.delivery_date||'-')}<br>
+      <b>Ordered by:</b> ${esc(p.ordered_by)}${p.approved_by?' · <b>Approved by:</b> '+esc(p.approved_by):''}</div>
+    <table><thead><tr><th>Item</th><th>Size</th><th style="text-align:right">Qty</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="tot">Total: ₹${p.subtotal}</div>${p.over_budget?`<p style="color:#b3261e"><b>Over budget:</b> ${esc(p.exception_reason)}</p>`:''}
+    ${p.remarks?`<p class="muted">Remarks: ${esc(p.remarks)}</p>`:''}
+    <button class="noprint btn" onclick="window.print()" style="margin-top:16px;background:#0e6b4a;color:#fff;border:0;border-radius:8px;padding:10px 18px">Print / Save as PDF</button>
+    </body></html>`);
+  w.document.close();setTimeout(()=>{try{w.print()}catch(e){}},400);
 }
-function bindBudget(){ if($('#setBud'))$('#setBud').onclick=setBudget; }
+
+/* ---------------- budget ---------------- */
+function budgetScreen(){const list=(S.budgets&&S.budgets.budgets)||[];
+  return `${S.data.canApprove?`<button class="btn full" id="setBud" style="margin-bottom:10px">➕ ${esc(t('Set / revise budget'))}</button>`:''}
+    <div class="card"><h3>${esc(t('Approved budgets'))}</h3>${list.length?`<table class="rep"><tr><th>Period</th><th>Branch</th><th>Item</th><th class="rt">Qty</th></tr>${list.map(b=>`<tr><td>${esc(b.period)}</td><td>${esc(b.branch)}</td><td>${esc(b.item)}</td><td class="rt">${b.budget_qty}</td></tr>`).join('')}</table>`:'<p class="mu sm">No budgets</p>'}</div>`;
+}
+function bindBudget(){if($('#setBud'))$('#setBud').onclick=setBudget}
 async function loadBudgets(){try{S.budgets=await api('/budgets');if(S.view==='budget')render()}catch(e){}}
-async function setBudget(){
-  const period=prompt('Period (எ.கா. 2026-Q4):','2026-Q4');if(!period)return;
-  const branch=prompt('Branch code (R1..R15):','R1');if(!branch)return;
-  const item=prompt('Item code (SHIRT-001..):','SHIRT-001');if(!item)return;
-  const qty=prompt('Approved budget qty:','500');if(qty===null)return;
-  try{await api('/budget','POST',{period,branch,item,budgetQty:+qty});toast('Budget set');loadBudgets()}catch(e){toast(e.message,true)}
-}
+async function setBudget(){const period=prompt('Period (e.g. 2026-Q4):','2026-Q4');if(!period)return;const branch=prompt('Branch code (R1..R15):','R1');if(!branch)return;const item=prompt('Item code (SHIRT-001..):','SHIRT-001');if(!item)return;const qty=prompt('Approved budget qty:','500');if(qty===null)return;try{await api('/budget','POST',{period,branch,item,budgetQty:+qty});toast('Budget set');loadBudgets()}catch(e){toast(e.message,true)}}
 
-/* ---- reports ---- */
-function reportScreen(){
-  const kinds=[['budget_vs_ordered','Budget vs Ordered'],['branch_wise','Branch-wise'],['supplier_wise','Supplier-wise'],['item_wise','Item-wise'],['size_wise','Size-wise'],['rate_comparison','Rate comparison'],['ordered_vs_received','Ordered vs Received'],['user_wise','User-wise'],['approval','Approval'],['cancelled','Cancelled']];
-  const r=S.rep;
-  return `<button class="btn sec sm" onclick="S.view='home';render()" style="margin-bottom:10px">← Home</button>
+/* ---------------- reports ---------------- */
+function reportScreen(){const kinds=[['budget_vs_ordered','Budget vs Ordered'],['branch_wise','Branch-wise'],['supplier_wise','Supplier-wise'],['item_wise','Item-wise'],['size_wise','Size-wise'],['rate_comparison','Rate comparison'],['ordered_vs_received','Ordered vs Received'],['user_wise','User-wise'],['approval','Approval'],['cancelled','Cancelled']];const r=S.rep;
+  return `<button class="btn sec sm" onclick="S.view='home';render()" style="margin-bottom:10px">← ${esc(t('Home'))}</button>
     <div class="seg">${kinds.map(k=>`<button data-rk="${k[0]}" class="${S.repKind===k[0]?'on':''}">${k[1]}</button>`).join('')}</div>
-    <div class="card">${r&&r.rows?repTable(r.rows):'<p class="mu sm">ஏற்றுகிறது…</p>'}</div>`;
+    <div class="card">${r&&r.rows?repTable(r.rows):'<p class="mu sm">…</p>'}</div>`;
 }
-function repTable(rows){
-  if(!rows.length)return '<p class="mu sm">தரவு இல்லை</p>';
-  const cols=Object.keys(rows[0]);
-  return `<table class="rep"><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</table>`;
-}
+function repTable(rows){if(!rows.length)return '<p class="mu sm">No data</p>';const cols=Object.keys(rows[0]);return `<table class="rep"><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}</tr>`).join('')}</table>`}
 function bindReport(){document.querySelectorAll('[data-rk]').forEach(b=>b.onclick=()=>{S.repKind=b.dataset.rk;loadReport()})}
 async function loadReport(){try{S.rep=await api('/report?report='+S.repKind+(S.repKind==='budget_vs_ordered'?'&period=2026-Q4':''));if(S.view==='report')render()}catch(e){toast(e.message,true)}}
 
-/* ---- more ---- */
+/* ---------------- more ---------------- */
 function moreScreen(){
   return `<div class="card"><div class="row"><span class="sp">${esc(S.me.name)} <span class="chip">${esc(S.me.role)}</span></div></div>
-    <button class="btn sec full" id="chpw" style="margin-top:8px">🔑 கடவுச்சொல் மாற்று</button>
-    ${S.data.isAdmin?`<button class="btn sec full" id="usersBtn" style="margin-top:8px">👥 Users</button>`:''}
-    <button class="btn bad full" id="lo" style="margin-top:8px">↩ Logout</button></div>
-    <div class="card"><h3>Masters</h3>
-    ${S.data.canCreate?`<button class="btn sec full" id="addSup" style="margin-bottom:8px">🏭 Supplier சேர்</button><button class="btn sec full" id="addAg" style="margin-bottom:8px">🏢 Agency சேர்</button><button class="btn sec full" id="addIt">👕 Item சேர்</button>`:'<p class="mu sm">View only</p>'}</div>`;
+    <button class="btn sec full" id="lang2" style="margin-top:8px">🌐 Language / மொழி</button>
+    <button class="btn sec full" id="chpw" style="margin-top:8px">🔑 ${esc(t('Change password'))}</button>
+    ${S.data.isAdmin?`<button class="btn sec full" id="usersBtn" style="margin-top:8px">👥 ${esc(t('Users'))}</button>`:''}
+    <button class="btn bad full" id="lo" style="margin-top:8px">↩ ${esc(t('Logout'))}</button></div>
+    <div class="card"><h3>${esc(t('Masters'))}</h3>${S.data.canCreate?`<button class="btn sec full" id="addSup" style="margin-bottom:8px">🏭 ${esc(t('Add supplier'))}</button><button class="btn sec full" id="addAg" style="margin-bottom:8px">🏢 ${esc(t('Add agency'))}</button><button class="btn sec full" id="addIt" style="margin-bottom:8px">👕 ${esc(t('Add item (master)'))}</button><button class="btn sec full" id="impIt">📥 ${esc(t('Import items (CSV)'))}</button>`:'<p class="mu sm">View only</p>'}</div>`;
 }
 function bindMore(){
-  $('#chpw').onclick=async()=>{const o=prompt('பழைய கடவுச்சொல்:');if(!o)return;const n=prompt('புதிய (6+):');if(!n)return;try{await api('/password','POST',{old:o,new:n});toast('மாற்றப்பட்டது')}catch(e){toast(e.message,true)}};
+  $('#lang2').onclick=langSheet;
+  $('#chpw').onclick=async()=>{const o=prompt('Old password:');if(!o)return;const n=prompt('New (6+):');if(!n)return;try{await api('/password','POST',{old:o,new:n});toast('Changed')}catch(e){toast(e.message,true)}};
   $('#lo').onclick=async()=>{try{await api('/logout','POST',{})}catch(e){}localLogout()};
-  if($('#usersBtn'))$('#usersBtn').onclick=async()=>{try{const r=await api('/users');const u=prompt('புது user — username. உள்ளவை: '+r.users.map(x=>x.username+'('+x.role+')').join(', '));if(!u)return;const name=prompt('பெயர்:')||u;const role=prompt('Role: purchase_executive/purchase_manager/approver/admin/management','purchase_executive')||'purchase_executive';const pw=prompt('Password (6+):');if(!pw)return;await api('/users','POST',{username:u,name,role,password:pw});toast('User சேர்க்கப்பட்டது')}catch(e){toast(e.message,true)}};
-  if($('#addSup'))$('#addSup').onclick=async()=>{const name=prompt('Supplier பெயர்:');if(!name)return;const gstin=prompt('GSTIN:')||'';try{await api('/suppliers','POST',{name,gstin});S.data=await api('/data');toast('சேர்க்கப்பட்டது')}catch(e){toast(e.message,true)}};
-  if($('#addAg'))$('#addAg').onclick=async()=>{const sups=S.data.suppliers||[];const sid=prompt('Supplier id ('+sups.map(s=>s.id+'='+s.name).join(', ')+'):');if(!sid)return;const name=prompt('Agency பெயர்:');if(!name)return;try{await api('/agencies','POST',{supplierId:+sid,name,location:prompt('Location:')||''});S.data=await api('/data');toast('Agency சேர்க்கப்பட்டது')}catch(e){toast(e.message,true)}};
-  if($('#addIt'))$('#addIt').onclick=async()=>{const code=prompt('Item code:');if(!code)return;const description=prompt('Description:');if(!description)return;const sizes=(prompt('Sizes (comma): ','S,M,L,XL,XXL')||'').split(',').map(x=>x.trim()).filter(Boolean);try{await api('/items','POST',{itemCode:code,description,category:prompt('Category:')||'',gstPct:+prompt('GST %:','5')||5,sizes});S.data=await api('/data');toast('Item சேர்க்கப்பட்டது')}catch(e){toast(e.message,true)}};
+  if($('#usersBtn'))$('#usersBtn').onclick=async()=>{try{const r=await api('/users');const u=prompt('New user — username. Existing: '+r.users.map(x=>x.username+'('+x.role+')').join(', '));if(!u)return;const name=prompt('Full name:')||u;const role=prompt('Role: purchase_executive/purchase_manager/approver/admin/management','purchase_executive')||'purchase_executive';const pw=prompt('Password (6+):');if(!pw)return;await api('/users','POST',{username:u,name,role,password:pw});toast('User added')}catch(e){toast(e.message,true)}};
+  if($('#addSup'))$('#addSup').onclick=async()=>{const name=prompt('Supplier name:');if(!name)return;try{await api('/suppliers','POST',{name,gstin:prompt('GSTIN:')||''});S.data=await api('/data');toast('Added')}catch(e){toast(e.message,true)}};
+  if($('#addAg'))$('#addAg').onclick=async()=>{const sups=S.data.suppliers||[];const sid=prompt('Supplier id ('+sups.map(s=>s.id+'='+s.name).join(', ')+'):');if(!sid)return;const name=prompt('Agency name:');if(!name)return;try{await api('/agencies','POST',{supplierId:+sid,name,location:prompt('Location:')||''});S.data=await api('/data');toast('Agency added')}catch(e){toast(e.message,true)}};
+  if($('#addIt'))$('#addIt').onclick=async()=>{const code=prompt('Item code:');if(!code)return;const description=prompt('Description:');if(!description)return;const sizes=(prompt('Sizes (comma):','S,M,L,XL,XXL')||'').split(',').map(x=>x.trim()).filter(Boolean);try{await api('/items','POST',{itemCode:code,description,category:prompt('Category:')||'',gstPct:+prompt('GST %:','5')||5,sizes});S.data=await api('/data');toast('Item added')}catch(e){toast(e.message,true)}};
+  if($('#impIt'))$('#impIt').onclick=importItemsSheet;
+}
+function importItemsSheet(){
+  const el=document.createElement('div');el.className='sheet';el.onclick=e=>{if(e.target===el)el.remove()};
+  el.innerHTML=`<div class="inner"><h3>${esc(t('Import items (CSV)'))}</h3>
+    <p class="mu sm">Columns: <b>item_code, description, category, brand, colour, hsn, gst, sizes</b> (sizes split by | ; or /). Excel → Save As CSV, then paste or choose the file.</p>
+    <button class="btn sec sm" id="smp" style="margin-bottom:8px">⬇ Sample CSV</button>
+    <label class="f">CSV file<input type="file" id="csvF" accept=".csv,text/csv"></label>
+    <label class="f">or paste CSV<textarea id="csvT" rows="7" style="width:100%;font-family:monospace" placeholder="item_code,description,category,brand,colour,hsn,gst,sizes&#10;SHIRT-010,Check Shirt,Shirts,Allen,Blue,6205,5,S|M|L|XL"></textarea></label>
+    <button class="btn full" id="impGo">Import</button></div>`;
+  el.querySelector('#smp').onclick=()=>{const csv="item_code,description,category,brand,colour,hsn,gst,sizes\nSHIRT-010,Check Shirt,Shirts,Allen,Blue,6205,5,S|M|L|XL|XXL\nTSHIRT-010,Polo T-Shirt,T-Shirts,Ruf&Tuf,Red,6109,5,S|M|L|XL\n";const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='items-sample.csv';a.click()};
+  el.querySelector('#impGo').onclick=async()=>{const f=el.querySelector('#csvF');let csv=el.querySelector('#csvT').value;if(f&&f.files&&f.files[0]){try{csv=await f.files[0].text()}catch(e){}}csv=(csv||'').trim();if(!csv){toast('Give CSV',true);return}try{const r=await api('/items/import','POST',{csv});S.data=await api('/data');el.remove();toast('Imported: '+r.added+' added, '+r.skipped+' skipped')}catch(e){toast(e.message,true)}};
+  document.body.appendChild(el);
 }
 
-/* ---- start ---- */
-window.S=S;
-if(S.token)boot();else renderLogin();
+/* ---------------- start ---------------- */
+window.S=S;document.documentElement.dir=(LANG==='ar')?'rtl':'ltr';
+if(S.token)boot();else loadCaptcha();
 </script>
 </body>
 </html>

@@ -158,6 +158,60 @@ public class PurchaseService {
         return obj("items", items());
     }
 
+    /** bulk item master import from CSV / Excel-exported CSV. Columns: item_code, description, category, brand, colour, hsn, gst, sizes (sizes split by | ; or /). */
+    public Map<String, Object> importItems(Ctx c, String csv) {
+        c.needCreate();
+        if (U.blank(csv)) throw new ApiException(400, "CSV காலியாக உள்ளது");
+        String[] lines = csv.replace("\r", "").split("\n");
+        if (lines.length < 2) throw new ApiException(400, "Header வரி + குறைந்தது ஒரு item வரி தேவை");
+        String[] head = splitCsv(lines[0]);
+        java.util.HashMap<String, Integer> col = new java.util.HashMap<>();
+        for (int i = 0; i < head.length; i++) col.put(head[i].trim().toLowerCase(), i);
+        if (!col.containsKey("item_code") || !col.containsKey("description"))
+            throw new ApiException(400, "CSV-ல் 'item_code' மற்றும் 'description' columns தேவை");
+        int added = 0, skipped = 0;
+        for (int r = 1; r < lines.length; r++) {
+            if (lines[r].trim().isEmpty()) continue;
+            String[] f = splitCsv(lines[r]);
+            String code = cell(f, col.get("item_code"));
+            if (code.isEmpty() || db.one("SELECT id FROM items WHERE item_code = ?", code) != null) { skipped++; continue; }
+            long iid = db.insert("INSERT INTO items (item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
+                    + "VALUES (?, '', ?, ?, ?, ?, ?, ?, 1)", code, cell(f, col.get("category")), cell(f, col.get("brand")),
+                    cell(f, col.get("description")), cell(f, col.get("colour")), cell(f, col.get("hsn")), U.dbl(cell(f, col.get("gst"))));
+            int i = 0;
+            for (String s : cell(f, col.get("sizes")).split("[|;/]")) {
+                s = s.trim();
+                if (!s.isEmpty()) db.insert("INSERT INTO item_sizes (item_id, size, sort_order) VALUES (?, ?, ?)", iid, s, i++);
+            }
+            added++;
+        }
+        Map<String, Object> o = obj("items", items());
+        o.put("added", added);
+        o.put("skipped", skipped);
+        return o;
+    }
+
+    private static String[] splitCsv(String line) {
+        List<Object> out = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean q = false;
+        for (int i = 0; i < line.length(); i++) {
+            char ch = line.charAt(i);
+            if (q) {
+                if (ch == '"') { if (i + 1 < line.length() && line.charAt(i + 1) == '"') { sb.append('"'); i++; } else q = false; }
+                else sb.append(ch);
+            } else if (ch == '"' && sb.length() == 0) q = true;
+            else if (ch == ',') { out.add(sb.toString()); sb.setLength(0); }
+            else sb.append(ch);
+        }
+        out.add(sb.toString());
+        return out.toArray(new String[0]);
+    }
+
+    private static String cell(String[] f, Integer i) {
+        return i == null || i >= f.length || f[i] == null ? "" : f[i].trim();
+    }
+
     // ================================================================ budget control
     public Map<String, Object> setBudget(Ctx c, Map<String, Object> in) {
         c.needApprove();

@@ -5,7 +5,10 @@ import com.pomgmt.core.Core;
 import com.pomgmt.core.Ctx;
 import com.pomgmt.core.DbException;
 import com.pomgmt.core.U;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -30,14 +33,33 @@ public class ApiController {
     private static final Map<String, Object> OK = Map.of("ok", true);
 
     private final Core core;
+    private final com.suite.security.LoginSecurity sec;
 
-    public ApiController(Core core) {
+    public ApiController(Core core, com.suite.security.LoginSecurity sec) {
         this.core = core;
+        this.sec = sec;
+    }
+
+    private static String clientIp(HttpServletRequest req) {
+        String a = req.getRemoteAddr();
+        return a == null ? "" : a;
     }
 
     @GetMapping("/ping")
     public Map<String, Object> ping() {
         return OK;
+    }
+
+    /** login captcha (a new picture every call); a blocked IP is told here. {enabled:false} when LOGIN_CAPTCHA=false */
+    @GetMapping("/captcha")
+    public ResponseEntity<Object> captcha(HttpServletRequest req) {
+        return guard(() -> sec.challenge(clientIp(req)));
+    }
+
+    /** footer "Your IP" */
+    @GetMapping("/myip")
+    public ResponseEntity<Object> myIp(HttpServletRequest req) {
+        return guard(() -> Collections.singletonMap("ip", clientIp(req).replaceAll("[^0-9a-fA-F:.%]", "")));
     }
 
     private ResponseEntity<Object> guard(Supplier<Object> work) {
@@ -46,6 +68,12 @@ public class ApiController {
             return ResponseEntity.ok(r == null ? OK : r);
         } catch (ApiException e) {
             return ResponseEntity.status(e.status()).body(Map.of("error", e.getMessage()));
+        } catch (com.suite.security.LoginSecurity.Denied d) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("error", d.getMessage());
+            if (d.blocked) { m.put("blocked", true); m.put("ip", d.ip); }
+            if (d.captcha) m.put("captcha", true);
+            return ResponseEntity.status(d.status).header("Cache-Control", "no-store").body(m);
         } catch (DbException e) {
             LOG.log(Level.WARNING, "database error", e);
             String m = String.valueOf(e.getMessage());
@@ -67,9 +95,20 @@ public class ApiController {
 
     // ---- session
     @PostMapping("/login")
-    public ResponseEntity<Object> login(@RequestBody(required = false) Map<String, Object> b) {
+    public ResponseEntity<Object> login(@RequestBody(required = false) Map<String, Object> b, HttpServletRequest req) {
         Map<String, Object> m = body(b);
-        return guard(() -> core.auth.login(U.s(m.get("user")), U.s(m.get("password"))));
+        String ip = clientIp(req);
+        String user = U.s(m.get("user")) == null ? "" : U.s(m.get("user")).trim().toLowerCase();
+        return guard(() -> {
+            sec.beforeLogin(ip, user, m.get("captchaId") == null ? null : m.get("captchaId").toString(),
+                    m.get("captcha") == null ? null : m.get("captcha").toString());
+            try {
+                return core.auth.login(U.s(m.get("user")), U.s(m.get("password")));
+            } catch (ApiException e) {
+                if (e.status() == 401) sec.credentialsFailed(ip, user);
+                throw e;
+            }
+        });
     }
 
     @GetMapping("/me")
@@ -123,6 +162,11 @@ public class ApiController {
     @PostMapping("/items")
     public ResponseEntity<Object> saveItem(@RequestHeader(value = "X-Auth", required = false) String t, @RequestBody(required = false) Map<String, Object> b) {
         return run(t, c -> core.purchase.saveItem(c, body(b)));
+    }
+
+    @PostMapping("/items/import")
+    public ResponseEntity<Object> importItems(@RequestHeader(value = "X-Auth", required = false) String t, @RequestBody(required = false) Map<String, Object> b) {
+        return run(t, c -> core.purchase.importItems(c, U.str(body(b).get("csv"))));
     }
 
     // ---- budget control

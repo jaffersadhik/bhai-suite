@@ -16,6 +16,12 @@
   <description>Centralized Purchase Order Management System — one entry generates branch-wise POs, budget control, approval, receiving, reports. Spring Boot + MySQL. WAR for Tomcat.</description>
 
   <dependencies>
+    <!-- login captcha + failed-login counting + IP block (shared with MBill / MSchool) -->
+    <dependency>
+      <groupId>com.bhai</groupId>
+      <artifactId>suite-security</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>

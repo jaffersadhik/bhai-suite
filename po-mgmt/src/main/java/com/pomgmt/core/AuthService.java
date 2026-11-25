@@ -27,9 +27,9 @@ public class AuthService {
         return LocalDateTime.now(zone);
     }
 
-    /** first run: admin / admin1234. */
+    /** ensure the admin / admin1234 account exists (create it if missing — also recovers a half-seeded database). */
     public void ensureAdmin() {
-        if (U.lng(db.one("SELECT COUNT(*) AS n FROM users").get("n")) == 0) {
+        if (db.one("SELECT id FROM users WHERE username = 'admin'") == null) {
             createUser("admin", "Administrator", "admin", "admin1234", true);
         }
     }
