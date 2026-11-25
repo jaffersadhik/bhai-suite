@@ -1,0 +1,12 @@
+{
+  "name": "Purchase Order Management",
+  "short_name": "PO Mgmt",
+  "description": "Centralized Purchase Order Management — multi-branch POs, budget control, approval",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0e6b4a",
+  "theme_color": "#0e6b4a",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

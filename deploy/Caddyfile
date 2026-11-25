@@ -16,6 +16,10 @@
 	reverse_proxy app:8083
 }
 
+{$PO_DOMAIN} {
+	reverse_proxy app:8084
+}
+
 {$WEBSITE_DOMAIN} {
 	reverse_proxy app:8082
 }

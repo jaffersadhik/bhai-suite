@@ -42,6 +42,7 @@
     <module>bhai-mobile-billing</module>
     <module>mschool</module>
     <module>mhotel</module>
+    <module>po-mgmt</module>
     <module>website</module>
   </modules>
 

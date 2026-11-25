@@ -70,6 +70,23 @@ services:
         mysql -h mysql -uroot -e "CREATE DATABASE IF NOT EXISTS mhotel CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
         GRANT ALL PRIVILEGES ON mhotel.* TO '$$APP_USER'@'%'; FLUSH PRIVILEGES;"
 
+  # one-shot job: creates schema po_mgmt if missing and grants the SAME app user (DB_USER) full rights on it.
+  po-mgmt-db:
+    image: mysql:8.4
+    restart: "no"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_PWD: ${MYSQL_ROOT_PASSWORD}
+      APP_USER: ${DB_USER:-bmb}
+    entrypoint:
+      - sh
+      - -c
+      - >-
+        mysql -h mysql -uroot -e "CREATE DATABASE IF NOT EXISTS po_mgmt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+        GRANT ALL PRIVILEGES ON po_mgmt.* TO '$$APP_USER'@'%'; FLUSH PRIVILEGES;"
+
   app:
     build:
       context: .
@@ -83,6 +100,8 @@ services:
       mschool-db:
         condition: service_completed_successfully
       mhotel-db:
+        condition: service_completed_successfully
+      po-mgmt-db:
         condition: service_completed_successfully
     environment:
       DB_URL: "jdbc:mysql://mysql:3306/bmb?useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&useSSL=false&allowPublicKeyRetrieval=true"
@@ -100,6 +119,12 @@ services:
       MHOTEL_DB_PASS: ${DB_PASS}
       MHOTEL_ZONE: Asia/Kolkata
       MHOTEL_WEBHOOK_SECRET: ${MHOTEL_WEBHOOK_SECRET:-}            # Swiggy/Zomato webhook shared secret (empty = webhook disabled)
+      # --- Purchase Order Management: own schema "po_mgmt" on the same MySQL, same credentials ---
+      POMGMT_DB_URL: "${POMGMT_DB_URL:-jdbc:mysql://mysql:3306/po_mgmt?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&connectionTimeZone=Asia/Kolkata}"
+      POMGMT_DB_USER: ${DB_USER:-bmb}
+      POMGMT_DB_PASS: ${DB_PASS}
+      POMGMT_ZONE: Asia/Kolkata
+      POMGMT_BUDGET_ENFORCEMENT: ${POMGMT_BUDGET_ENFORCEMENT:-warn}   # off | warn | strict
       # --- login security (captcha + per-IP failure counting + IP block) - same for MBill and MSchool, see SUITE.md "Login security" ---
       LOGIN_CAPTCHA: ${LOGIN_CAPTCHA:-true}                       # false = no captcha (the IP block stays)
       LOGIN_MAX_FAILS: ${LOGIN_MAX_FAILS:-10}                     # more than this many wrong user/password tries from one IP in a day -> IP blocked
@@ -112,6 +137,7 @@ services:
       - "${SCHOOL_PORT:-127.0.0.1:8081}:8081"          # MSchool (localhost only by default; Caddy publishes it with SCHOOL_DOMAIN. Set SCHOOL_PORT=8081 to open it directly)
       - "${WEBSITE_PORT:-127.0.0.1:8082}:8082"         # Meeran Technologies website (localhost only by default; Caddy publishes it with WEBSITE_DOMAIN. Set WEBSITE_PORT=8082 to open it directly)
       - "${HOTEL_PORT:-127.0.0.1:8083}:8083"           # mHotel (localhost only by default; Caddy publishes it with HOTEL_DOMAIN. Set HOTEL_PORT=8083 to open it directly)
+      - "${PO_PORT:-127.0.0.1:8084}:8084"              # Purchase Order Management (localhost only by default; Caddy publishes it with PO_DOMAIN. Set PO_PORT=8084 to open it directly)
     volumes:
       - "${CTL_DIR:-./ctl}:/ctl"                       # build info + rollback requests (deploy/oracle scripts)
 
