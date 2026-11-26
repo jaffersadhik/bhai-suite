@@ -187,6 +187,11 @@ public class ApiController {
         return run(t, c -> Map.of("budgets", core.purchase.listBudgets(period, branch)));
     }
 
+    @DeleteMapping("/budget/{id}")
+    public ResponseEntity<Object> deleteBudget(@RequestHeader(value = "X-Auth", required = false) String t, @PathVariable("id") long id) {
+        return run(t, c -> core.purchase.deleteBudget(c, id));
+    }
+
     @GetMapping("/budget/balance")
     public ResponseEntity<Object> balance(@RequestHeader(value = "X-Auth", required = false) String t,
                                           @RequestParam("item") String item, @RequestParam("branch") String branch,

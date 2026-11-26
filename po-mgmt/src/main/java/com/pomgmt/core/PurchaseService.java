@@ -273,6 +273,16 @@ public class PurchaseService {
         return new ArrayList<>(db.query(sql.toString(), args.toArray()));
     }
 
+    /** soft-delete an approved budget (hidden from the list; revision history kept). */
+    public Map<String, Object> deleteBudget(Ctx c, long id) {
+        c.needApprove();
+        Map<String, Object> b = db.one("SELECT * FROM budgets WHERE id = ?", id);
+        if (b == null) throw new ApiException(404, "Budget கிடைக்கவில்லை");
+        db.update("UPDATE budgets SET status = 'deleted' WHERE id = ?", id);
+        audit("budget", id, "delete", c, U.str(b.get("period")) + " qty=" + U.str(b.get("budget_qty")));
+        return obj("budgets", listBudgets("", ""));
+    }
+
     public Map<String, Object> budgetBalance(Ctx c, String itemRef, String branchRef, String period) {
         Map<String, Object> b = branch(branchRef);
         Map<String, Object> it = item(itemRef);
