@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  *        admin (full), management (view reports).
  */
 public class AuthService {
-    static final List<String> ROLES = List.of("purchase_executive", "purchase_manager", "approver", "admin", "management");
+    static final List<String> ROLES = List.of("purchase_executive", "purchase_manager", "approver", "admin", "management", "system");
     private static final Logger LOG = LoggerFactory.getLogger(AuthService.class);
 
     private final Db db;
@@ -30,17 +30,20 @@ public class AuthService {
         return LocalDateTime.now(zone);
     }
 
-    /** ensure the admin / admin1234 account exists (create it if missing — also recovers a half-seeded database). */
+    /** ensure the bootstrap accounts exist: system / system1234 (user management) and admin / admin1234. */
     public void ensureAdmin() {
+        if (db.one("SELECT id FROM users WHERE username = 'system'") == null) {
+            createUser("system", "System", "system", "system1234", true, null);
+        }
         if (db.one("SELECT id FROM users WHERE username = 'admin'") == null) {
-            createUser("admin", "Administrator", "admin", "admin1234", true);
+            createUser("admin", "Administrator", "admin", "admin1234", true, null);
         }
     }
 
-    public long createUser(String username, String fullName, String role, String password, boolean active) {
+    public long createUser(String username, String fullName, String role, String password, boolean active, Long createdBy) {
         String salt = U.salt();
-        return db.insert("INSERT INTO users (username, full_name, role, pass_salt, pass_hash, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                username.toLowerCase().trim(), fullName, role, salt, U.sha256(salt + password), active ? 1 : 0, now());
+        return db.insert("INSERT INTO users (username, full_name, role, pass_salt, pass_hash, active, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                username.toLowerCase().trim(), fullName, role, salt, U.sha256(salt + password), active ? 1 : 0, createdBy, now());
     }
 
     public Map<String, Object> login(String username, String password) {
@@ -121,9 +124,13 @@ public class AuthService {
     }
 
     public List<Object> users(Ctx c) {
-        c.needAdmin();
+        c.needManageUsers();
+        // system sees everyone; an admin sees only the users they created (their own hierarchy), never system users
+        List<Map<String, Object>> rows = c.system()
+                ? db.query("SELECT id, username, full_name, role, active FROM users ORDER BY role, username")
+                : db.query("SELECT id, username, full_name, role, active FROM users WHERE created_by = ? AND role <> 'system' ORDER BY role, username", c.userId());
         List<Object> out = new ArrayList<>();
-        for (Map<String, Object> r : db.query("SELECT id, username, full_name, role, active FROM users ORDER BY role, username")) {
+        for (Map<String, Object> r : rows) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", U.lng(r.get("id")));
             m.put("username", U.str(r.get("username")));
@@ -136,13 +143,17 @@ public class AuthService {
     }
 
     public void saveUser(Ctx c, Map<String, Object> in) {
-        c.needAdmin();
+        c.needManageUsers();
         long id = U.lng(in.get("id"));
         String username = U.clip(in.get("username"), 30).toLowerCase();
         String name = U.clip(in.get("name"), 60);
         String role = U.str(in.get("role"));
         if (!ROLES.contains(role)) {
             throw new ApiException(400, "Role: " + String.join(" / ", ROLES));
+        }
+        // only a system user may create or assign the 'system' user type
+        if ("system".equals(role) && !c.system()) {
+            throw new ApiException(403, "System user type-ஐ உருவாக்க அனுமதி இல்லை");
         }
         if (username.isEmpty() || name.isEmpty()) {
             throw new ApiException(400, "பயனர் பெயர் மற்றும் முழு பெயர் தேவை");
@@ -153,8 +164,15 @@ public class AuthService {
             if (pw.length() < 6) {
                 throw new ApiException(400, "கடவுச்சொல் குறைந்தது 6 எழுத்து");
             }
-            createUser(username, name, role, pw, active);
+            createUser(username, name, role, pw, active, c.userId());
         } else {
+            // an admin may only edit users in their own hierarchy (and never a system user); system may edit anyone
+            if (!c.system()) {
+                Map<String, Object> t = db.one("SELECT created_by, role FROM users WHERE id = ?", id);
+                if (t == null || U.lng(t.get("created_by")) != c.userId() || "system".equals(U.str(t.get("role")))) {
+                    throw new ApiException(403, "இந்த பயனரை திருத்த அனுமதி இல்லை");
+                }
+            }
             db.update("UPDATE users SET username = ?, full_name = ?, role = ?, active = ? WHERE id = ?",
                     username, name, role, active ? 1 : 0, id);
             String pw = U.str(in.get("password"));
@@ -169,9 +187,16 @@ public class AuthService {
     }
 
     public void deleteUser(Ctx c, long id) {
-        c.needAdmin();
+        c.needManageUsers();
         if (id == c.userId()) {
             throw new ApiException(400, "உங்கள் சொந்த கணக்கை நீக்க முடியாது");
+        }
+        // an admin may only delete users in their own hierarchy (and never a system user); system may delete anyone
+        if (!c.system()) {
+            Map<String, Object> t = db.one("SELECT created_by, role FROM users WHERE id = ?", id);
+            if (t == null || U.lng(t.get("created_by")) != c.userId() || "system".equals(U.str(t.get("role")))) {
+                throw new ApiException(403, "இந்த பயனரை நீக்க அனுமதி இல்லை");
+            }
         }
         db.update("DELETE FROM sessions WHERE user_id = ?", id);
         db.update("DELETE FROM users WHERE id = ?", id);

@@ -572,6 +572,9 @@ public class PurchaseService {
         o.put("canCreate", c.canCreate());
         o.put("canApprove", c.canApprove());
         o.put("isAdmin", c.admin());
+        o.put("isSystem", c.system());
+        o.put("canManageUsers", c.canManageUsers());
+        o.put("canAssignSystem", c.system());
         o.put("budgetEnforcement", enforcement);
         return o;
     }

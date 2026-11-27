@@ -7,8 +7,24 @@ public record Ctx(long userId, String role, String name, String token) {
         return "admin".equals(role);
     }
 
+    /** top-level user-management-only role: can manage users (incl. admins) but has no PO / budget powers. */
+    public boolean system() {
+        return "system".equals(role);
+    }
+
     public boolean management() {
         return "management".equals(role);
+    }
+
+    /** admin or system may manage users. */
+    public boolean canManageUsers() {
+        return admin() || system();
+    }
+
+    public void needManageUsers() {
+        if (!canManageUsers()) {
+            throw new ApiException(403, "User management அனுமதி இல்லை (Admin / System only)");
+        }
     }
 
     /** admin, purchase_executive or purchase_manager may create / edit purchase entries. */

@@ -37,10 +37,13 @@ public class Seed {
 
         for (String[] b : BRANCHES)
             db.insert("INSERT INTO branches (code, name, address, active) VALUES (?, ?, ?, 1)", b[0], b[1], b[2]);
+        // demo users belong to the bootstrap admin's hierarchy so the admin sees them
+        Map<String, Object> adm = db.one("SELECT id FROM users WHERE username = 'admin'");
+        Long adminId = adm == null ? null : U.lng(adm.get("id"));
         for (String[] u : USERS) {
             String salt = U.salt();
-            db.insert("INSERT INTO users (username, full_name, role, pass_salt, pass_hash, active, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)",
-                    u[0], u[1], u[2], salt, U.sha256(salt + "demo1234"), now());
+            db.insert("INSERT INTO users (username, full_name, role, pass_salt, pass_hash, active, created_by, created_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
+                    u[0], u[1], u[2], salt, U.sha256(salt + "demo1234"), adminId, now());
         }
         long abc = db.insert("INSERT INTO suppliers (name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
                 + "VALUES ('ABC Garments','33ABCDE1234F1Z5','Tiruppur','Mr. Anand','9840011111','30 days credit',30,?)", now());
