@@ -36,21 +36,21 @@ public class PurchaseService {
         return LocalDate.now(zone);
     }
 
-    // ---------------------------------------------------------------- lookups
-    private Map<String, Object> branch(Object codeOrId) {
-        Map<String, Object> r = db.one("SELECT * FROM branches WHERE code = ? OR id = ?", U.str(codeOrId), U.lng(codeOrId));
+    // ---------------------------------------------------------------- lookups (all tenant-scoped)
+    private Map<String, Object> branch(Object codeOrId, long t) {
+        Map<String, Object> r = db.one("SELECT * FROM branches WHERE (code = ? OR id = ?) AND tenant_id = ?", U.str(codeOrId), U.lng(codeOrId), t);
         if (r == null) throw new ApiException(404, "Branch இல்லை: " + codeOrId);
         return r;
     }
 
-    private Map<String, Object> supplier(long id) {
-        Map<String, Object> r = db.one("SELECT * FROM suppliers WHERE id = ?", id);
+    private Map<String, Object> supplier(long id, long t) {
+        Map<String, Object> r = db.one("SELECT * FROM suppliers WHERE id = ? AND tenant_id = ?", id, t);
         if (r == null) throw new ApiException(404, "Supplier இல்லை");
         return r;
     }
 
-    private Map<String, Object> item(Object idOrCode) {
-        Map<String, Object> r = db.one("SELECT * FROM items WHERE id = ? OR item_code = ?", U.lng(idOrCode), U.str(idOrCode));
+    private Map<String, Object> item(Object idOrCode, long t) {
+        Map<String, Object> r = db.one("SELECT * FROM items WHERE (id = ? OR item_code = ?) AND tenant_id = ?", U.lng(idOrCode), U.str(idOrCode), t);
         if (r == null) throw new ApiException(404, "Item இல்லை: " + idOrCode);
         return r;
     }
@@ -72,13 +72,14 @@ public class PurchaseService {
     }
 
     // ================================================================ masters
-    public List<Object> branches() {
-        return new ArrayList<>(db.query("SELECT id, code, name, type, address, active FROM branches ORDER BY id"));
+    public List<Object> branches(long t) {
+        return new ArrayList<>(db.query("SELECT id, code, name, type, address, active FROM branches WHERE tenant_id = ? ORDER BY id", t));
     }
 
     /** branch management: add or edit a branch (admin only). type = warehouse / branch / shop. */
     public Map<String, Object> saveBranch(Ctx c, Map<String, Object> in) {
         c.needAdmin();
+        long t = c.tenant();
         long id = U.lng(in.get("id"));
         String code = U.clip(in.get("code"), 8).toUpperCase().trim();
         String name = U.clip(in.get("name"), 60);
@@ -93,21 +94,21 @@ public class PurchaseService {
             throw new ApiException(400, "கிளை code மற்றும் பெயர் தேவை");
         }
         if (id == 0) {
-            if (db.one("SELECT id FROM branches WHERE code = ?", code) != null) {
+            if (db.one("SELECT id FROM branches WHERE code = ? AND tenant_id = ?", code, t) != null) {
                 throw new ApiException(400, "இந்த code ஏற்கனவே உள்ளது: " + code);
             }
-            db.insert("INSERT INTO branches (code, name, type, address, active) VALUES (?, ?, ?, ?, ?)",
-                    code, name, type, address, active ? 1 : 0);
+            db.insert("INSERT INTO branches (tenant_id, code, name, type, address, active) VALUES (?, ?, ?, ?, ?, ?)",
+                    t, code, name, type, address, active ? 1 : 0);
         } else {
-            db.update("UPDATE branches SET code = ?, name = ?, type = ?, address = ?, active = ? WHERE id = ?",
-                    code, name, type, address, active ? 1 : 0, id);
+            db.update("UPDATE branches SET code = ?, name = ?, type = ?, address = ?, active = ? WHERE id = ? AND tenant_id = ?",
+                    code, name, type, address, active ? 1 : 0, id, t);
         }
-        return obj("branches", branches());
+        return obj("branches", branches(t));
     }
 
-    public List<Object> suppliers() {
+    public List<Object> suppliers(long t) {
         List<Object> out = new ArrayList<>();
-        for (Map<String, Object> s : db.query("SELECT * FROM suppliers ORDER BY name")) {
+        for (Map<String, Object> s : db.query("SELECT * FROM suppliers WHERE tenant_id = ? ORDER BY name", t)) {
             Map<String, Object> m = new LinkedHashMap<>(s);
             m.put("agencies", db.query("SELECT id, name, location FROM agencies WHERE supplier_id = ?", U.lng(s.get("id"))));
             out.add(m);
@@ -117,35 +118,37 @@ public class PurchaseService {
 
     public Map<String, Object> saveSupplier(Ctx c, Map<String, Object> in) {
         c.needCreate();
+        long t = c.tenant();
         long id = U.lng(in.get("id"));
         String name = U.clip(in.get("name"), 100);
         if (name.isEmpty()) throw new ApiException(400, "Supplier பெயர் தேவை");
         if (id == 0) {
-            db.insert("INSERT INTO suppliers (name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    name, U.clip(in.get("gstin"), 20), U.clip(in.get("address"), 200), U.clip(in.get("contactPerson"), 60),
+            db.insert("INSERT INTO suppliers (tenant_id, name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    t, name, U.clip(in.get("gstin"), 20), U.clip(in.get("address"), 200), U.clip(in.get("contactPerson"), 60),
                     U.digits(in.get("mobile")), U.clip(in.get("paymentTerms"), 60), U.intv(in.get("creditDays")), now());
         } else {
-            db.update("UPDATE suppliers SET name=?, gstin=?, address=?, contact_person=?, mobile=?, payment_terms=?, credit_days=? WHERE id=?",
+            db.update("UPDATE suppliers SET name=?, gstin=?, address=?, contact_person=?, mobile=?, payment_terms=?, credit_days=? WHERE id=? AND tenant_id=?",
                     name, U.clip(in.get("gstin"), 20), U.clip(in.get("address"), 200), U.clip(in.get("contactPerson"), 60),
-                    U.digits(in.get("mobile")), U.clip(in.get("paymentTerms"), 60), U.intv(in.get("creditDays")), id);
+                    U.digits(in.get("mobile")), U.clip(in.get("paymentTerms"), 60), U.intv(in.get("creditDays")), id, t);
         }
-        return obj("suppliers", suppliers());
+        return obj("suppliers", suppliers(t));
     }
 
     public Map<String, Object> addAgency(Ctx c, Map<String, Object> in) {
         c.needCreate();
+        long t = c.tenant();
         long sid = U.lng(in.get("supplierId"));
-        supplier(sid);
+        supplier(sid, t);
         String name = U.clip(in.get("name"), 100);
         if (name.isEmpty()) throw new ApiException(400, "Agency பெயர் தேவை");
         db.insert("INSERT INTO agencies (supplier_id, name, location) VALUES (?, ?, ?)", sid, name, U.clip(in.get("location"), 60));
-        return obj("suppliers", suppliers());
+        return obj("suppliers", suppliers(t));
     }
 
-    public List<Object> items() {
+    public List<Object> items(long t) {
         List<Object> out = new ArrayList<>();
-        for (Map<String, Object> it : db.query("SELECT * FROM items WHERE active = 1 ORDER BY item_code")) {
+        for (Map<String, Object> it : db.query("SELECT * FROM items WHERE active = 1 AND tenant_id = ? ORDER BY item_code", t)) {
             Map<String, Object> m = new LinkedHashMap<>(it);
             List<String> sizes = new ArrayList<>();
             for (Map<String, Object> z : db.query("SELECT size FROM item_sizes WHERE item_id = ? ORDER BY sort_order", U.lng(it.get("id"))))
@@ -158,22 +161,23 @@ public class PurchaseService {
 
     public Map<String, Object> saveItem(Ctx c, Map<String, Object> in) {
         c.needCreate();
+        long t = c.tenant();
         long id = U.lng(in.get("id"));
         String code = U.clip(in.get("itemCode"), 40), desc = U.clip(in.get("description"), 120);
         if (code.isEmpty() || desc.isEmpty()) throw new ApiException(400, "Item code மற்றும் description தேவை");
         double gst = U.dbl(in.get("gstPct"));
         long iid;
         if (id == 0) {
-            if (db.one("SELECT id FROM items WHERE item_code = ?", code) != null)
+            if (db.one("SELECT id FROM items WHERE item_code = ? AND tenant_id = ?", code, t) != null)
                 throw new ApiException(400, "Item code ஏற்கனவே உள்ளது: " + code);
-            iid = db.insert("INSERT INTO items (item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)", code, U.clip(in.get("barcode"), 40), U.clip(in.get("category"), 40),
+            iid = db.insert("INSERT INTO items (tenant_id, item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)", t, code, U.clip(in.get("barcode"), 40), U.clip(in.get("category"), 40),
                     U.clip(in.get("brand"), 40), desc, U.clip(in.get("colour"), 30), U.clip(in.get("hsn"), 12), gst);
         } else {
             iid = id;
-            db.update("UPDATE items SET item_code=?, barcode=?, category=?, brand=?, description=?, colour=?, hsn=?, gst_pct=? WHERE id=?",
+            db.update("UPDATE items SET item_code=?, barcode=?, category=?, brand=?, description=?, colour=?, hsn=?, gst_pct=? WHERE id=? AND tenant_id=?",
                     code, U.clip(in.get("barcode"), 40), U.clip(in.get("category"), 40), U.clip(in.get("brand"), 40), desc,
-                    U.clip(in.get("colour"), 30), U.clip(in.get("hsn"), 12), gst, id);
+                    U.clip(in.get("colour"), 30), U.clip(in.get("hsn"), 12), gst, id, t);
             db.update("DELETE FROM item_sizes WHERE item_id = ?", iid);
         }
         Object sizesRaw = in.get("sizes");
@@ -184,12 +188,13 @@ public class PurchaseService {
                 if (!sz.isEmpty()) db.insert("INSERT INTO item_sizes (item_id, size, sort_order) VALUES (?, ?, ?)", iid, sz, i++);
             }
         }
-        return obj("items", items());
+        return obj("items", items(t));
     }
 
     /** bulk item master import from CSV / Excel-exported CSV. Columns: item_code, description, category, brand, colour, hsn, gst, sizes (sizes split by | ; or /). */
     public Map<String, Object> importItems(Ctx c, String csv) {
         c.needCreate();
+        long t = c.tenant();
         if (U.blank(csv)) throw new ApiException(400, "CSV காலியாக உள்ளது");
         String[] lines = csv.replace("\r", "").split("\n");
         if (lines.length < 2) throw new ApiException(400, "Header வரி + குறைந்தது ஒரு item வரி தேவை");
@@ -203,9 +208,9 @@ public class PurchaseService {
             if (lines[r].trim().isEmpty()) continue;
             String[] f = splitCsv(lines[r]);
             String code = cell(f, col.get("item_code"));
-            if (code.isEmpty() || db.one("SELECT id FROM items WHERE item_code = ?", code) != null) { skipped++; continue; }
-            long iid = db.insert("INSERT INTO items (item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
-                    + "VALUES (?, '', ?, ?, ?, ?, ?, ?, 1)", code, cell(f, col.get("category")), cell(f, col.get("brand")),
+            if (code.isEmpty() || db.one("SELECT id FROM items WHERE item_code = ? AND tenant_id = ?", code, t) != null) { skipped++; continue; }
+            long iid = db.insert("INSERT INTO items (tenant_id, item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
+                    + "VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, 1)", t, code, cell(f, col.get("category")), cell(f, col.get("brand")),
                     cell(f, col.get("description")), cell(f, col.get("colour")), cell(f, col.get("hsn")), U.dbl(cell(f, col.get("gst"))));
             int i = 0;
             for (String s : cell(f, col.get("sizes")).split("[|;/]")) {
@@ -214,7 +219,7 @@ public class PurchaseService {
             }
             added++;
         }
-        Map<String, Object> o = obj("items", items());
+        Map<String, Object> o = obj("items", items(t));
         o.put("added", added);
         o.put("skipped", skipped);
         return o;
@@ -244,29 +249,31 @@ public class PurchaseService {
     // ================================================================ budget control
     public Map<String, Object> setBudget(Ctx c, Map<String, Object> in) {
         c.needApprove();
+        long t = c.tenant();
         String period = U.clip(in.get("period"), 40);
         if (period.isEmpty()) throw new ApiException(400, "Budget period தேவை (எ.கா. 2026-Q4)");
-        Map<String, Object> b = branch(in.get("branch"));
-        Map<String, Object> it = item(in.get("item"));
+        Map<String, Object> b = branch(in.get("branch"), t);
+        Map<String, Object> it = item(in.get("item"), t);
         String size = U.clip(in.get("size"), 12);
         int qty = U.intv(in.get("budgetQty"));
         if (qty < 0) throw new ApiException(400, "Budget qty தவறு");
-        Map<String, Object> prev = db.one("SELECT * FROM budgets WHERE period=? AND branch_id=? AND item_id=? AND size=? AND status='approved'",
-                period, U.lng(b.get("id")), U.lng(it.get("id")), size);
+        Map<String, Object> prev = db.one("SELECT * FROM budgets WHERE period=? AND branch_id=? AND item_id=? AND size=? AND status='approved' AND tenant_id=?",
+                period, U.lng(b.get("id")), U.lng(it.get("id")), size, t);
         int rev = prev == null ? 1 : U.intv(prev.get("revision")) + 1;
         if (prev != null) db.update("UPDATE budgets SET status='revised' WHERE id=?", U.lng(prev.get("id")));
-        db.insert("INSERT INTO budgets (period, branch_id, item_id, size, budget_qty, prepared_by, approved_by, status, revision, created_at) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)",
-                period, U.lng(b.get("id")), U.lng(it.get("id")), size, qty, U.clip(in.get("preparedBy"), 40), c.name(), rev, now());
+        db.insert("INSERT INTO budgets (tenant_id, period, branch_id, item_id, size, budget_qty, prepared_by, approved_by, status, revision, created_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)",
+                t, period, U.lng(b.get("id")), U.lng(it.get("id")), size, qty, U.clip(in.get("preparedBy"), 40), c.name(), rev, now());
         audit("budget", 0, prev == null ? "create" : "revise", c, it.get("item_code") + " " + b.get("code") + " " + period + "=" + qty);
-        return obj("budgets", listBudgets(U.str(in.get("period")), ""));
+        return obj("budgets", listBudgets(t, U.str(in.get("period")), ""));
     }
 
-    public List<Object> listBudgets(String period, String branchCode) {
+    public List<Object> listBudgets(long t, String period, String branchCode) {
         StringBuilder sql = new StringBuilder("SELECT bu.id, bu.period, br.code AS branch, it.item_code AS item, it.description, "
                 + "bu.size, bu.budget_qty, bu.revision FROM budgets bu JOIN branches br ON br.id=bu.branch_id "
-                + "JOIN items it ON it.id=bu.item_id WHERE bu.status='approved'");
+                + "JOIN items it ON it.id=bu.item_id WHERE bu.status='approved' AND bu.tenant_id = ?");
         List<Object> args = new ArrayList<>();
+        args.add(t);
         if (!U.blank(period)) { sql.append(" AND bu.period = ?"); args.add(period); }
         if (!U.blank(branchCode)) { sql.append(" AND br.code = ?"); args.add(branchCode); }
         sql.append(" ORDER BY bu.period, br.id, it.item_code");
@@ -276,16 +283,18 @@ public class PurchaseService {
     /** soft-delete an approved budget (hidden from the list; revision history kept). */
     public Map<String, Object> deleteBudget(Ctx c, long id) {
         c.needApprove();
-        Map<String, Object> b = db.one("SELECT * FROM budgets WHERE id = ?", id);
+        long t = c.tenant();
+        Map<String, Object> b = db.one("SELECT * FROM budgets WHERE id = ? AND tenant_id = ?", id, t);
         if (b == null) throw new ApiException(404, "Budget கிடைக்கவில்லை");
-        db.update("UPDATE budgets SET status = 'deleted' WHERE id = ?", id);
+        db.update("UPDATE budgets SET status = 'deleted' WHERE id = ? AND tenant_id = ?", id, t);
         audit("budget", id, "delete", c, U.str(b.get("period")) + " qty=" + U.str(b.get("budget_qty")));
-        return obj("budgets", listBudgets("", ""));
+        return obj("budgets", listBudgets(t, "", ""));
     }
 
     public Map<String, Object> budgetBalance(Ctx c, String itemRef, String branchRef, String period) {
-        Map<String, Object> b = branch(branchRef);
-        Map<String, Object> it = item(itemRef);
+        long t = c.tenant();
+        Map<String, Object> b = branch(branchRef, t);
+        Map<String, Object> it = item(itemRef, t);
         Long bq = budgetQty(U.lng(it.get("id")), U.lng(b.get("id")), period);
         long cq = committedQty(U.lng(it.get("id")), U.lng(b.get("id")), period);
         Map<String, Object> o = new LinkedHashMap<>();
@@ -304,7 +313,8 @@ public class PurchaseService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> createEntry(Ctx c, Map<String, Object> in) {
         c.needCreate();
-        Map<String, Object> sup = supplier(U.lng(in.get("supplierId")));
+        long t = c.tenant();
+        Map<String, Object> sup = supplier(U.lng(in.get("supplierId")), t);
         Long agencyId = U.lng(in.get("agencyId")) == 0 ? null : U.lng(in.get("agencyId"));
         if (agencyId != null && db.one("SELECT id FROM agencies WHERE id=? AND supplier_id=?", agencyId, U.lng(sup.get("id"))) == null)
             throw new ApiException(400, "Agency அந்த supplier-ஐ சேர்ந்தது இல்ல");
@@ -321,14 +331,14 @@ public class PurchaseService {
         List<Object[]> plan = new ArrayList<>();   // [branchRow, List<Object[]{itemRow,size,qty,rate}>, overBudget(boolean)]
         List<String> blocks = new ArrayList<>(), warnings = new ArrayList<>();
         for (Object bc : branchCodes) {
-            Map<String, Object> b = branch(bc);
+            Map<String, Object> b = branch(bc, t);
             double f = factor.containsKey(U.str(b.get("code"))) ? U.dbl(factor.get(U.str(b.get("code")))) : 1.0;
             if (f <= 0) f = 1.0;
             List<Object[]> blines = new ArrayList<>();
             Map<Long, Long> perItem = new LinkedHashMap<>();
             for (Object lo : rawLines) {
                 Map<String, Object> l = (Map<String, Object>) lo;
-                Map<String, Object> it = item(l.get("item"));
+                Map<String, Object> it = item(l.get("item"), t);
                 long q = Math.max(1, Math.round(U.dbl(l.get("qty")) * f));
                 double rate = U.dbl(l.get("rate"));
                 blines.add(new Object[]{it, U.clip(l.get("size"), 12), q, rate});
@@ -368,9 +378,9 @@ public class PurchaseService {
 
         List<Object> made = new ArrayList<>();
         long entryId = db.tx(() -> {
-            long eid = db.insert("INSERT INTO purchase_entries (common_ref, supplier_id, agency_id, period, order_book_ref, order_book_file, ordered_by, remarks, delivery_date, status, created_at) "
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
-                    cref, U.lng(sup.get("id")), agencyId, period, U.clip(in.get("orderBookRef"), 60), U.clip(in.get("orderBookFile"), 255),
+            long eid = db.insert("INSERT INTO purchase_entries (tenant_id, common_ref, supplier_id, agency_id, period, order_book_ref, order_book_file, ordered_by, remarks, delivery_date, status, created_at) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+                    t, cref, U.lng(sup.get("id")), agencyId, period, U.clip(in.get("orderBookRef"), 60), U.clip(in.get("orderBookFile"), 255),
                     c.name(), U.clip(in.get("remarks"), 255), U.clip(in.get("deliveryDate"), 12), now());
             for (int i = 0; i < plan.size(); i++) {
                 Object[] pb = plan.get(i);
@@ -381,9 +391,9 @@ public class PurchaseService {
                 double sub = 0;
                 long tot = 0;
                 for (Object[] bl : blines) sub += U.lng(bl[2]) * U.dbl(bl[3]);
-                long pid = db.insert("INSERT INTO purchase_orders (po_number, entry_id, branch_id, status, ordered_by, over_budget, exception_reason, subtotal, created_at) "
-                        + "VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)",
-                        pono, eid, U.lng(b.get("id")), c.name(), over ? 1 : 0, over ? excReason : "", U.money(sub), now());
+                long pid = db.insert("INSERT INTO purchase_orders (tenant_id, po_number, entry_id, branch_id, status, ordered_by, over_budget, exception_reason, subtotal, created_at) "
+                        + "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)",
+                        t, pono, eid, U.lng(b.get("id")), c.name(), over ? 1 : 0, over ? excReason : "", U.money(sub), now());
                 for (Object[] bl : blines) {
                     Map<String, Object> it = (Map<String, Object>) bl[0];
                     long q = U.lng(bl[2]);
@@ -414,14 +424,15 @@ public class PurchaseService {
     }
 
     // ================================================================ list / detail / approve / receive
-    public Map<String, Object> listPos(String status, String branch, String commonRef) {
+    public Map<String, Object> listPos(long t, String status, String branch, String commonRef) {
         StringBuilder sql = new StringBuilder("SELECT p.id, p.po_number, e.common_ref, br.code AS branch, s.name AS supplier, p.status, "
                 + "p.subtotal, p.over_budget, p.ordered_by, p.approved_by, "
                 + "(SELECT COALESCE(SUM(qty),0) FROM po_lines WHERE po_id=p.id) AS total_qty, "
                 + "(SELECT COALESCE(SUM(received_qty),0) FROM po_lines WHERE po_id=p.id) AS received_qty "
                 + "FROM purchase_orders p JOIN purchase_entries e ON e.id=p.entry_id JOIN branches br ON br.id=p.branch_id "
-                + "JOIN suppliers s ON s.id=e.supplier_id WHERE 1=1");
+                + "JOIN suppliers s ON s.id=e.supplier_id WHERE p.tenant_id = ?");
         List<Object> args = new ArrayList<>();
+        args.add(t);
         if (!U.blank(status)) { sql.append(" AND p.status = ?"); args.add(status); }
         if (!U.blank(branch)) { sql.append(" AND br.code = ?"); args.add(branch); }
         if (!U.blank(commonRef)) { sql.append(" AND e.common_ref = ?"); args.add(commonRef); }
@@ -429,11 +440,11 @@ public class PurchaseService {
         return obj("purchaseOrders", new ArrayList<>(db.query(sql.toString(), args.toArray())));
     }
 
-    public Map<String, Object> poDetail(String poNumber) {
+    public Map<String, Object> poDetail(long t, String poNumber) {
         Map<String, Object> p = db.one("SELECT p.*, e.common_ref, e.order_book_ref, e.delivery_date, e.remarks, e.period, "
                 + "s.name AS supplier, br.code AS branch, br.name AS branch_name FROM purchase_orders p "
                 + "JOIN purchase_entries e ON e.id=p.entry_id JOIN suppliers s ON s.id=e.supplier_id "
-                + "JOIN branches br ON br.id=p.branch_id WHERE p.po_number = ?", poNumber);
+                + "JOIN branches br ON br.id=p.branch_id WHERE p.po_number = ? AND p.tenant_id = ?", poNumber, t);
         if (p == null) throw new ApiException(404, "PO இல்லை: " + poNumber);
         Map<String, Object> o = new LinkedHashMap<>(p);
         o.put("lines", db.query("SELECT l.id, it.item_code, it.description, l.size, l.qty, l.rate, l.amount, l.received_qty, "
@@ -444,9 +455,10 @@ public class PurchaseService {
 
     public Map<String, Object> approvePo(Ctx c, Map<String, Object> in) {
         c.needApprove();
+        long t = c.tenant();
         String pono = U.str(in.get("poNumber"));
         String decision = U.str(in.get("decision"));
-        Map<String, Object> p = db.one("SELECT * FROM purchase_orders WHERE po_number = ?", pono);
+        Map<String, Object> p = db.one("SELECT * FROM purchase_orders WHERE po_number = ? AND tenant_id = ?", pono, t);
         if (p == null) throw new ApiException(404, "PO இல்லை: " + pono);
         if (!U.str(p.get("status")).equals("pending") && !U.str(p.get("status")).equals("draft"))
             throw new ApiException(409, "PO '" + p.get("status") + "' — pending/draft மட்டுமே approve/reject செய்யலாம்");
@@ -461,25 +473,27 @@ public class PurchaseService {
             throw new ApiException(400, "decision: approve / reject");
         }
         audit("po", U.lng(p.get("id")), decision, c, pono);
-        return poDetail(pono);
+        return poDetail(t, pono);
     }
 
     public Map<String, Object> cancelPo(Ctx c, String poNumber, String reason) {
         c.needCreate();
-        Map<String, Object> p = db.one("SELECT * FROM purchase_orders WHERE po_number = ?", poNumber);
+        long t = c.tenant();
+        Map<String, Object> p = db.one("SELECT * FROM purchase_orders WHERE po_number = ? AND tenant_id = ?", poNumber, t);
         if (p == null) throw new ApiException(404, "PO இல்லை");
         if (U.str(p.get("status")).equals("completed") || U.str(p.get("status")).equals("cancelled"))
             throw new ApiException(409, "PO '" + p.get("status") + "' — ரத்து செய்ய முடியாது");
         db.update("UPDATE purchase_orders SET status='cancelled', reject_reason=? WHERE id=?", U.clip(reason, 200), U.lng(p.get("id")));
         audit("po", U.lng(p.get("id")), "cancel", c, poNumber + " " + reason);
-        return poDetail(poNumber);
+        return poDetail(t, poNumber);
     }
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> receiveGoods(Ctx c, Map<String, Object> in) {
         c.needCreate();
+        long t = c.tenant();
         String pono = U.str(in.get("poNumber"));
-        Map<String, Object> p = db.one("SELECT * FROM purchase_orders WHERE po_number = ?", pono);
+        Map<String, Object> p = db.one("SELECT * FROM purchase_orders WHERE po_number = ? AND tenant_id = ?", pono, t);
         if (p == null) throw new ApiException(404, "PO இல்லை");
         if (!List.of("approved", "sent", "partial").contains(U.str(p.get("status"))))
             throw new ApiException(409, "Approved/sent/partial PO-க்கு மட்டுமே receive செய்யலாம்");
@@ -498,40 +512,40 @@ public class PurchaseService {
         String status = U.lng(agg.get("r")) >= U.lng(agg.get("q")) ? "completed" : "partial";
         db.update("UPDATE purchase_orders SET status=? WHERE id=?", status, U.lng(p.get("id")));
         audit("po", U.lng(p.get("id")), "receive", c, pono + " " + agg.get("r") + "/" + agg.get("q"));
-        return poDetail(pono);
+        return poDetail(t, pono);
     }
 
     // ================================================================ reports + dashboard
-    public Map<String, Object> report(String report, String period) {
+    public Map<String, Object> report(long t, String report, String period) {
         List<Map<String, Object>> rows;
         switch (report) {
             case "supplier_wise" -> rows = db.query("SELECT s.name AS supplier, COUNT(DISTINCT p.id) AS pos, COALESCE(SUM(l.qty),0) AS qty, "
                     + "COALESCE(SUM(l.amount),0) AS value FROM purchase_orders p JOIN purchase_entries e ON e.id=p.entry_id "
-                    + "JOIN suppliers s ON s.id=e.supplier_id JOIN po_lines l ON l.po_id=p.id WHERE p.status IN " + COMMITTED + " GROUP BY s.name ORDER BY value DESC");
+                    + "JOIN suppliers s ON s.id=e.supplier_id JOIN po_lines l ON l.po_id=p.id WHERE p.tenant_id = ? AND p.status IN " + COMMITTED + " GROUP BY s.name ORDER BY value DESC", t);
             case "item_wise" -> rows = db.query("SELECT it.item_code, it.description, COALESCE(SUM(l.qty),0) AS qty, COALESCE(SUM(l.amount),0) AS value "
-                    + "FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id JOIN items it ON it.id=l.item_id WHERE p.status IN " + COMMITTED + " GROUP BY it.item_code, it.description ORDER BY qty DESC");
+                    + "FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id JOIN items it ON it.id=l.item_id WHERE p.tenant_id = ? AND p.status IN " + COMMITTED + " GROUP BY it.item_code, it.description ORDER BY qty DESC", t);
             case "branch_wise" -> rows = db.query("SELECT br.code AS branch, br.name, COUNT(DISTINCT p.id) AS pos, COALESCE(SUM(l.qty),0) AS qty, "
                     + "COALESCE(SUM(l.amount),0) AS value FROM purchase_orders p JOIN branches br ON br.id=p.branch_id JOIN po_lines l ON l.po_id=p.id "
-                    + "WHERE p.status IN " + COMMITTED + " GROUP BY br.code, br.name ORDER BY br.id");
+                    + "WHERE p.tenant_id = ? AND p.status IN " + COMMITTED + " GROUP BY br.code, br.name ORDER BY br.id", t);
             case "size_wise" -> rows = db.query("SELECT l.size, COALESCE(SUM(l.qty),0) AS qty FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id "
-                    + "WHERE p.status IN " + COMMITTED + " GROUP BY l.size ORDER BY l.size");
+                    + "WHERE p.tenant_id = ? AND p.status IN " + COMMITTED + " GROUP BY l.size ORDER BY l.size", t);
             case "rate_comparison" -> rows = db.query("SELECT it.item_code, s.name AS supplier, MIN(l.rate) AS min_rate, MAX(l.rate) AS max_rate, "
                     + "ROUND(AVG(l.rate),2) AS avg_rate FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id JOIN purchase_entries e ON e.id=p.entry_id "
-                    + "JOIN suppliers s ON s.id=e.supplier_id JOIN items it ON it.id=l.item_id GROUP BY it.item_code, s.name ORDER BY it.item_code, avg_rate");
+                    + "JOIN suppliers s ON s.id=e.supplier_id JOIN items it ON it.id=l.item_id WHERE p.tenant_id = ? GROUP BY it.item_code, s.name ORDER BY it.item_code, avg_rate", t);
             case "ordered_vs_received" -> rows = db.query("SELECT p.po_number, br.code AS branch, COALESCE(SUM(l.qty),0) AS ordered, "
                     + "COALESCE(SUM(l.received_qty),0) AS received, COALESCE(SUM(l.qty-l.received_qty),0) AS pending, p.status "
-                    + "FROM purchase_orders p JOIN branches br ON br.id=p.branch_id JOIN po_lines l ON l.po_id=p.id WHERE p.status IN " + COMMITTED
-                    + " GROUP BY p.po_number, br.code, p.status HAVING pending > 0 ORDER BY p.po_number");
-            case "user_wise" -> rows = db.query("SELECT ordered_by AS user, COUNT(*) AS pos FROM purchase_orders GROUP BY ordered_by ORDER BY pos DESC");
-            case "approval" -> rows = db.query("SELECT status, COUNT(*) AS pos FROM purchase_orders GROUP BY status ORDER BY status");
-            case "cancelled" -> rows = db.query("SELECT po_number, reject_reason, ordered_by FROM purchase_orders WHERE status='cancelled' ORDER BY id DESC");
+                    + "FROM purchase_orders p JOIN branches br ON br.id=p.branch_id JOIN po_lines l ON l.po_id=p.id WHERE p.tenant_id = ? AND p.status IN " + COMMITTED
+                    + " GROUP BY p.po_number, br.code, p.status HAVING pending > 0 ORDER BY p.po_number", t);
+            case "user_wise" -> rows = db.query("SELECT ordered_by AS user, COUNT(*) AS pos FROM purchase_orders WHERE tenant_id = ? GROUP BY ordered_by ORDER BY pos DESC", t);
+            case "approval" -> rows = db.query("SELECT status, COUNT(*) AS pos FROM purchase_orders WHERE tenant_id = ? GROUP BY status ORDER BY status", t);
+            case "cancelled" -> rows = db.query("SELECT po_number, reject_reason, ordered_by FROM purchase_orders WHERE tenant_id = ? AND status='cancelled' ORDER BY id DESC", t);
             case "budget_vs_ordered" -> {
                 rows = db.query("SELECT bu.period, br.code AS branch, it.item_code AS item, bu.budget_qty, "
                         + "(SELECT COALESCE(SUM(l.qty),0) FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id JOIN purchase_entries e ON e.id=p.entry_id "
                         + " WHERE l.item_id=bu.item_id AND p.branch_id=bu.branch_id AND e.period=bu.period AND p.status IN " + COMMITTED + ") AS committed "
-                        + "FROM budgets bu JOIN branches br ON br.id=bu.branch_id JOIN items it ON it.id=bu.item_id WHERE bu.status='approved'"
+                        + "FROM budgets bu JOIN branches br ON br.id=bu.branch_id JOIN items it ON it.id=bu.item_id WHERE bu.status='approved' AND bu.tenant_id = ?"
                         + (U.blank(period) ? "" : " AND bu.period = ?") + " ORDER BY bu.period, br.id",
-                        U.blank(period) ? new Object[]{} : new Object[]{period});
+                        U.blank(period) ? new Object[]{t} : new Object[]{t, period});
                 for (Map<String, Object> r : rows) {
                     long bq = U.lng(r.get("budget_qty")), cq = U.lng(r.get("committed"));
                     r.put("balance", bq - cq);
@@ -549,26 +563,28 @@ public class PurchaseService {
     }
 
     public Map<String, Object> dashboard(Ctx c) {
+        long t = c.tenant();
         String today = today().toString();
         Map<String, Object> o = new LinkedHashMap<>();
-        o.put("todayEntries", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_entries WHERE created_at LIKE ?", today + "%").get("n")));
-        o.put("openPos", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_orders WHERE status IN " + COMMITTED).get("n")));
-        o.put("pendingApprovals", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_orders WHERE status='pending'").get("n")));
-        o.put("overBudgetPos", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_orders WHERE over_budget=1 AND status IN " + COMMITTED).get("n")));
-        o.put("committedQty", U.lng(db.one("SELECT COALESCE(SUM(l.qty),0) AS q FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id WHERE p.status IN " + COMMITTED).get("q")));
-        o.put("committedValue", U.round2(U.dbl(db.one("SELECT COALESCE(SUM(l.amount),0) AS v FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id WHERE p.status IN " + COMMITTED).get("v"))));
-        o.put("branches", U.lng(db.one("SELECT COUNT(*) AS n FROM branches").get("n")));
-        o.put("suppliers", U.lng(db.one("SELECT COUNT(*) AS n FROM suppliers").get("n")));
-        o.put("items", U.lng(db.one("SELECT COUNT(*) AS n FROM items").get("n")));
+        o.put("todayEntries", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_entries WHERE tenant_id = ? AND created_at LIKE ?", t, today + "%").get("n")));
+        o.put("openPos", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_orders WHERE tenant_id = ? AND status IN " + COMMITTED, t).get("n")));
+        o.put("pendingApprovals", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_orders WHERE tenant_id = ? AND status='pending'", t).get("n")));
+        o.put("overBudgetPos", U.lng(db.one("SELECT COUNT(*) AS n FROM purchase_orders WHERE tenant_id = ? AND over_budget=1 AND status IN " + COMMITTED, t).get("n")));
+        o.put("committedQty", U.lng(db.one("SELECT COALESCE(SUM(l.qty),0) AS q FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id WHERE p.tenant_id = ? AND p.status IN " + COMMITTED, t).get("q")));
+        o.put("committedValue", U.round2(U.dbl(db.one("SELECT COALESCE(SUM(l.amount),0) AS v FROM po_lines l JOIN purchase_orders p ON p.id=l.po_id WHERE p.tenant_id = ? AND p.status IN " + COMMITTED, t).get("v"))));
+        o.put("branches", U.lng(db.one("SELECT COUNT(*) AS n FROM branches WHERE tenant_id = ?", t).get("n")));
+        o.put("suppliers", U.lng(db.one("SELECT COUNT(*) AS n FROM suppliers WHERE tenant_id = ?", t).get("n")));
+        o.put("items", U.lng(db.one("SELECT COUNT(*) AS n FROM items WHERE tenant_id = ?", t).get("n")));
         return o;
     }
 
     /** bootstrap for the app. */
     public Map<String, Object> data(Ctx c) {
+        long t = c.tenant();
         Map<String, Object> o = new LinkedHashMap<>();
-        o.put("branches", branches());
-        o.put("suppliers", suppliers());
-        o.put("items", items());
+        o.put("branches", branches(t));
+        o.put("suppliers", suppliers(t));
+        o.put("items", items(t));
         o.put("canCreate", c.canCreate());
         o.put("canApprove", c.canApprove());
         o.put("isAdmin", c.admin());

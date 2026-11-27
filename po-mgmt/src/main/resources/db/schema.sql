@@ -25,17 +25,19 @@ CREATE TABLE IF NOT EXISTS sessions (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS branches (
-  id       BIGINT       NOT NULL AUTO_INCREMENT,
+  id        BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id BIGINT       NOT NULL DEFAULT 0,
   code     VARCHAR(8)   NOT NULL,
   name     VARCHAR(60)  NOT NULL,
   address  VARCHAR(200) NOT NULL DEFAULT '',
   active   TINYINT(1)   NOT NULL DEFAULT 1,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_branch_code (code)
+  UNIQUE KEY uk_branch_code (tenant_id, code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS suppliers (
   id             BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id      BIGINT       NOT NULL DEFAULT 0,
   name           VARCHAR(100) NOT NULL,
   gstin          VARCHAR(20)  NOT NULL DEFAULT '',
   address        VARCHAR(200) NOT NULL DEFAULT '',
@@ -58,6 +60,7 @@ CREATE TABLE IF NOT EXISTS agencies (
 
 CREATE TABLE IF NOT EXISTS items (
   id          BIGINT        NOT NULL AUTO_INCREMENT,
+  tenant_id   BIGINT        NOT NULL DEFAULT 0,
   item_code   VARCHAR(40)   NOT NULL,
   barcode     VARCHAR(40)   NOT NULL DEFAULT '',
   category    VARCHAR(40)   NOT NULL DEFAULT '',
@@ -68,7 +71,7 @@ CREATE TABLE IF NOT EXISTS items (
   gst_pct     DECIMAL(5,2)  NOT NULL DEFAULT 5,
   active      TINYINT(1)    NOT NULL DEFAULT 1,
   PRIMARY KEY (id),
-  UNIQUE KEY uk_item_code (item_code)
+  UNIQUE KEY uk_item_code (tenant_id, item_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS item_sizes (
@@ -83,6 +86,7 @@ CREATE TABLE IF NOT EXISTS item_sizes (
 -- approved purchase budgets: qty by period + branch + item (size optional); revisions keep history
 CREATE TABLE IF NOT EXISTS budgets (
   id          BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id   BIGINT       NOT NULL DEFAULT 0,
   period      VARCHAR(40)  NOT NULL,
   branch_id   BIGINT       NOT NULL,
   item_id     BIGINT       NOT NULL,
@@ -100,6 +104,7 @@ CREATE TABLE IF NOT EXISTS budgets (
 -- parent purchase entry: one entry -> many branch POs, linked by common_ref
 CREATE TABLE IF NOT EXISTS purchase_entries (
   id              BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id       BIGINT       NOT NULL DEFAULT 0,
   common_ref      VARCHAR(20)  NOT NULL,
   supplier_id     BIGINT       NOT NULL,
   agency_id       BIGINT       NULL,
@@ -118,6 +123,7 @@ CREATE TABLE IF NOT EXISTS purchase_entries (
 -- child branch PO
 CREATE TABLE IF NOT EXISTS purchase_orders (
   id               BIGINT        NOT NULL AUTO_INCREMENT,
+  tenant_id        BIGINT        NOT NULL DEFAULT 0,
   po_number        VARCHAR(24)   NOT NULL,
   entry_id         BIGINT        NOT NULL,
   branch_id        BIGINT        NOT NULL,

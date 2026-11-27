@@ -1,7 +1,8 @@
 package com.pomgmt.core;
 
-/** Who is calling, resolved from the X-Auth token. Roles per the spec. */
-public record Ctx(long userId, String role, String name, String token) {
+/** Who is calling, resolved from the X-Auth token. Roles per the spec.
+ *  tenant = the owning admin's id (admin: own id; operational user: the admin who created them; system: 0 = all). */
+public record Ctx(long userId, String role, String name, String token, long tenant) {
 
     public boolean admin() {
         return "admin".equals(role);

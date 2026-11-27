@@ -5,10 +5,11 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
-/** Demo data — runs once, only when the branches table is empty. */
+/** Demo data — runs once, only when the branches table is empty. All demo data belongs to the bootstrap admin's tenant. */
 public class Seed {
     private final Db db;
     private final ZoneId zone;
+    private long tenant;   // bootstrap admin id = tenant that owns the demo data
 
     public Seed(Db db, ZoneId zone) {
         this.db = db;
@@ -35,25 +36,27 @@ public class Seed {
     public void run() {
         if (db.one("SELECT id FROM branches LIMIT 1") != null) return;
 
-        for (String[] b : BRANCHES)
-            db.insert("INSERT INTO branches (code, name, address, active) VALUES (?, ?, ?, 1)", b[0], b[1], b[2]);
-        // demo users belong to the bootstrap admin's hierarchy so the admin sees them
+        // the demo data (and demo users) belong to the bootstrap admin's tenant so that admin sees it
         Map<String, Object> adm = db.one("SELECT id FROM users WHERE username = 'admin'");
+        tenant = adm == null ? 0 : U.lng(adm.get("id"));
         Long adminId = adm == null ? null : U.lng(adm.get("id"));
+
+        for (String[] b : BRANCHES)
+            db.insert("INSERT INTO branches (tenant_id, code, name, address, active) VALUES (?, ?, ?, ?, 1)", tenant, b[0], b[1], b[2]);
         for (String[] u : USERS) {
             String salt = U.salt();
             db.insert("INSERT INTO users (username, full_name, role, pass_salt, pass_hash, active, created_by, created_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)",
                     u[0], u[1], u[2], salt, U.sha256(salt + "demo1234"), adminId, now());
         }
-        long abc = db.insert("INSERT INTO suppliers (name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
-                + "VALUES ('ABC Garments','33ABCDE1234F1Z5','Tiruppur','Mr. Anand','9840011111','30 days credit',30,?)", now());
+        long abc = db.insert("INSERT INTO suppliers (tenant_id, name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
+                + "VALUES (?, 'ABC Garments','33ABCDE1234F1Z5','Tiruppur','Mr. Anand','9840011111','30 days credit',30,?)", tenant, now());
         db.insert("INSERT INTO agencies (supplier_id, name, location) VALUES (?, 'ABC Tiruppur Agency', 'Tiruppur')", abc);
         db.insert("INSERT INTO agencies (supplier_id, name, location) VALUES (?, 'ABC Chennai Agency', 'Chennai')", abc);
-        long xyz = db.insert("INSERT INTO suppliers (name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
-                + "VALUES ('XYZ Textiles','33XYZAB5678K1Z2','Erode','Ms. Priya','9840022222','15 days credit',15,?)", now());
+        long xyz = db.insert("INSERT INTO suppliers (tenant_id, name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
+                + "VALUES (?, 'XYZ Textiles','33XYZAB5678K1Z2','Erode','Ms. Priya','9840022222','15 days credit',15,?)", tenant, now());
         db.insert("INSERT INTO agencies (supplier_id, name, location) VALUES (?, 'XYZ Erode Agency', 'Erode')", xyz);
-        db.insert("INSERT INTO suppliers (name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
-                + "VALUES ('PQR Apparels','33PQRST9012L1Z8','Chennai','Mr. Bala','9840033333','Advance',0,?)", now());
+        db.insert("INSERT INTO suppliers (tenant_id, name, gstin, address, contact_person, mobile, payment_terms, credit_days, created_at) "
+                + "VALUES (?, 'PQR Apparels','33PQRST9012L1Z8','Chennai','Mr. Bala','9840033333','Advance',0,?)", tenant, now());
 
         long shirt = item("SHIRT-001", "Formal Shirt", "Shirts", "Allen", "White", "6205", 5, List.of("S", "M", "L", "XL", "XXL"));
         item("TSHIRT-001", "Round Neck T-Shirt", "T-Shirts", "Ruf&Tuf", "Black", "6109", 5, List.of("S", "M", "L", "XL", "XXL"));
@@ -69,19 +72,19 @@ public class Seed {
         budget("2026-Q4", "R1", "JEANS-001", 200);
 
         // one sample purchase entry PE-0001 -> two branch POs (so reports/dashboard have data)
-        long eid = db.insert("INSERT INTO purchase_entries (common_ref, supplier_id, agency_id, period, order_book_ref, ordered_by, remarks, delivery_date, status, created_at) "
-                + "VALUES ('PE-0001', ?, (SELECT id FROM agencies WHERE name='ABC Tiruppur Agency'), '2026-Q4', 'OB-1001', 'Ravi (Purchase Executive)', 'Season stock', '2026-12-10', 'approved', ?)",
-                abc, now());
+        long eid = db.insert("INSERT INTO purchase_entries (tenant_id, common_ref, supplier_id, agency_id, period, order_book_ref, ordered_by, remarks, delivery_date, status, created_at) "
+                + "VALUES (?, 'PE-0001', ?, (SELECT id FROM agencies WHERE name='ABC Tiruppur Agency'), '2026-Q4', 'OB-1001', 'Ravi (Purchase Executive)', 'Season stock', '2026-12-10', 'approved', ?)",
+                tenant, abc, now());
         int[][] sizes = {{20, 200}, {30, 200}, {25, 200}, {15, 200}, {10, 200}};   // S,M,L,XL,XXL qty/rate
         String[] sl = {"S", "M", "L", "XL", "XXL"};
         String[][] pos = {{"R1", "10001/R1", "60"}, {"R2", "10002/R2", "0"}};
         for (String[] po : pos) {
-            Map<String, Object> br = db.one("SELECT id FROM branches WHERE code = ?", po[0]);
+            Map<String, Object> br = db.one("SELECT id FROM branches WHERE code = ? AND tenant_id = ?", po[0], tenant);
             int sub = 0;
             for (int[] s : sizes) sub += s[0] * s[1];
-            long pid = db.insert("INSERT INTO purchase_orders (po_number, entry_id, branch_id, status, ordered_by, approved_by, approved_at, subtotal, created_at) "
-                    + "VALUES (?, ?, ?, 'approved', 'Ravi (Purchase Executive)', 'Suresh (Approver)', ?, ?, ?)",
-                    po[1], eid, U.lng(br.get("id")), now(), sub, now());
+            long pid = db.insert("INSERT INTO purchase_orders (tenant_id, po_number, entry_id, branch_id, status, ordered_by, approved_by, approved_at, subtotal, created_at) "
+                    + "VALUES (?, ?, ?, ?, 'approved', 'Ravi (Purchase Executive)', 'Suresh (Approver)', ?, ?, ?)",
+                    tenant, po[1], eid, U.lng(br.get("id")), now(), sub, now());
             for (int i = 0; i < sl.length; i++) {
                 int recv = (po[0].equals("R1") && sl[i].equals("S")) ? Integer.parseInt(po[2]) : 0;
                 recv = Math.min(recv, sizes[i][0]);
@@ -94,17 +97,17 @@ public class Seed {
     }
 
     private long item(String code, String desc, String cat, String brand, String colour, String hsn, double gst, List<String> sizes) {
-        long iid = db.insert("INSERT INTO items (item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
-                + "VALUES (?, '', ?, ?, ?, ?, ?, ?, 1)", code, cat, brand, desc, colour, hsn, gst);
+        long iid = db.insert("INSERT INTO items (tenant_id, item_code, barcode, category, brand, description, colour, hsn, gst_pct, active) "
+                + "VALUES (?, ?, '', ?, ?, ?, ?, ?, ?, 1)", tenant, code, cat, brand, desc, colour, hsn, gst);
         int i = 0;
         for (String s : sizes) db.insert("INSERT INTO item_sizes (item_id, size, sort_order) VALUES (?, ?, ?)", iid, s, i++);
         return iid;
     }
 
     private void budget(String period, String bcode, String icode, int qty) {
-        Map<String, Object> b = db.one("SELECT id FROM branches WHERE code = ?", bcode);
-        Map<String, Object> it = db.one("SELECT id FROM items WHERE item_code = ?", icode);
-        db.insert("INSERT INTO budgets (period, branch_id, item_id, size, budget_qty, prepared_by, approved_by, status, revision, created_at) "
-                + "VALUES (?, ?, ?, '', ?, 'mgr1', 'appr1', 'approved', 1, ?)", period, U.lng(b.get("id")), U.lng(it.get("id")), qty, now());
+        Map<String, Object> b = db.one("SELECT id FROM branches WHERE code = ? AND tenant_id = ?", bcode, tenant);
+        Map<String, Object> it = db.one("SELECT id FROM items WHERE item_code = ? AND tenant_id = ?", icode, tenant);
+        db.insert("INSERT INTO budgets (tenant_id, period, branch_id, item_id, size, budget_qty, prepared_by, approved_by, status, revision, created_at) "
+                + "VALUES (?, ?, ?, ?, '', ?, 'mgr1', 'appr1', 'approved', 1, ?)", tenant, period, U.lng(b.get("id")), U.lng(it.get("id")), qty, now());
     }
 }

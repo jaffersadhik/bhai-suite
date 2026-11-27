@@ -481,8 +481,11 @@ const catList=()=>{const s=[...new Set((S.data&&S.data.items||[]).map(x=>(x.cate
 const catOptions=()=>[['',t('All')]].concat(catList().map(c=>[c,c]));
 const itemsInCat=cat=>(S.data&&S.data.items||[]).filter(x=>!cat||(x.category||'').trim()===cat);
 const roleLabel=r=>{const x=PO_ROLES.find(z=>z[0]===r);return x?t(x[1]):r};
-/* role options the current viewer may assign: 'system' only when the viewer is a system user */
-const roleOptionsForViewer=()=>PO_ROLES.filter(r=>r[0]!=='system'||(S.data&&S.data.canAssignSystem));
+/* role options the current viewer may assign: system -> admin/system only; admin -> operational only */
+const roleOptionsForViewer=()=>{
+  if(S.data&&S.data.canAssignSystem)return PO_ROLES.filter(r=>r[0]==='admin'||r[0]==='system');
+  return PO_ROLES.filter(r=>r[0]!=='admin'&&r[0]!=='system');
+};
 const brTypeLabel=tp=>{const x=BR_TYPES.find(z=>z[0]===tp);return x?t(x[1]):(tp||t('Branch'))};
 function sheetEl(inner){const el=document.createElement('div');el.className='sheet';el.onclick=e=>{if(e.target===el)el.remove()};el.innerHTML='<div class="inner"><button class="sheet-x" aria-label="Close">✕</button>'+inner+'</div>';el.querySelector('.sheet-x').onclick=()=>el.remove();document.body.appendChild(el);return el}
 /* attractive confirmation card: icon, meta rows, old -> new value comparison, confirm/cancel */
@@ -502,7 +505,7 @@ function confirmSheet(o){
 
 /* shared user-management panel: filter + list + add, with edit/delete. Used by the admin sheet and the system screen. */
 function userMgmtPanel(scope,users,reload){
-  const opts=roleOptionsForViewer();
+  const present=[...new Set(users.map(u=>u.role))];const opts=PO_ROLES.filter(r=>present.includes(r[0]));
   scope.innerHTML=`<button class="btn full" id="uAdd" style="margin-bottom:10px">➕ ${esc(t('Add user'))}</button>
     <label class="f"><span>${esc(t('Filter by user type'))}</span><select id="uFilter"><option value="">${esc(t('All'))} (${users.length})</option>${opts.map(r=>{const n=users.filter(u=>u.role===r[0]).length;return `<option value="${r[0]}">${esc(t(r[1]))} (${n})</option>`}).join('')}</select></label>
     <div id="uList"></div>`;
@@ -538,12 +541,12 @@ async function systemScreen(){
 }
 function userForm(u,reload){
   reload=reload||usersSheet;
-  const ed=!!u;
+  const ed=!!u;const defRole=(roleOptionsForViewer()[0]||['purchase_executive'])[0];
   const el=sheetEl(`<h3>${ed?esc(t('Edit user')):esc(t('Add user'))}</h3>
     <label class="f"><span>${esc(t('Full name'))}</span><input id="uf_name" value="${ed?esc(u.name):''}"></label>
     <label class="f"><span>${esc(t('Username'))}</span><input id="uf_user" autocapitalize="none" autocorrect="off" ${ed?'disabled style="opacity:.6"':''} value="${ed?esc(u.username):''}"></label>
     <label class="f" style="margin-bottom:4px"><span>${esc(t('User type'))}</span></label>
-    <div id="uf_roles">${roleOptionsForViewer().map(r=>`<label class="urole${((ed?u.role:'purchase_executive')===r[0])?' on':''}"><input type="radio" name="urole" value="${r[0]}" ${((ed?u.role:'purchase_executive')===r[0])?'checked':''}><b>${esc(t(r[1]))}</b><small>${esc(t(r[2]))}</small></label>`).join('')}</div>
+    <div id="uf_roles">${roleOptionsForViewer().map(r=>`<label class="urole${((ed?u.role:defRole)===r[0])?' on':''}"><input type="radio" name="urole" value="${r[0]}" ${((ed?u.role:defRole)===r[0])?'checked':''}><b>${esc(t(r[1]))}</b><small>${esc(t(r[2]))}</small></label>`).join('')}</div>
     <label class="f"><span>${ed?esc(t('New password (leave blank to keep)')):esc(t('Password (6+)'))}</span><div class="pwwrap"><input id="uf_pw" type="password" autocomplete="new-password"><button type="button" class="pweye" id="uf_eye">👁</button></div></label>
     <label class="urow"><input type="checkbox" id="uf_active" ${(!ed||u.active)?'checked':''}> ${esc(t('Active'))}</label>
     <button class="btn full" id="uf_save" style="margin-top:10px">${ed?esc(t('Save')):esc(t('Add user'))}</button>`);

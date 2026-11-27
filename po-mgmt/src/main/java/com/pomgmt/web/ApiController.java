@@ -146,7 +146,7 @@ public class ApiController {
     // ---- masters
     @GetMapping("/suppliers")
     public ResponseEntity<Object> suppliers(@RequestHeader(value = "X-Auth", required = false) String t) {
-        return run(t, c -> Map.of("suppliers", core.purchase.suppliers()));
+        return run(t, c -> Map.of("suppliers", core.purchase.suppliers(c.tenant())));
     }
 
     @PostMapping("/suppliers")
@@ -161,7 +161,7 @@ public class ApiController {
 
     @GetMapping("/items")
     public ResponseEntity<Object> items(@RequestHeader(value = "X-Auth", required = false) String t) {
-        return run(t, c -> Map.of("items", core.purchase.items()));
+        return run(t, c -> Map.of("items", core.purchase.items(c.tenant())));
     }
 
     @PostMapping("/items")
@@ -184,7 +184,7 @@ public class ApiController {
     public ResponseEntity<Object> budgets(@RequestHeader(value = "X-Auth", required = false) String t,
                                           @RequestParam(value = "period", required = false) String period,
                                           @RequestParam(value = "branch", required = false) String branch) {
-        return run(t, c -> Map.of("budgets", core.purchase.listBudgets(period, branch)));
+        return run(t, c -> Map.of("budgets", core.purchase.listBudgets(c.tenant(), period, branch)));
     }
 
     @DeleteMapping("/budget/{id}")
@@ -211,12 +211,12 @@ public class ApiController {
                                           @RequestParam(value = "status", required = false) String status,
                                           @RequestParam(value = "branch", required = false) String branch,
                                           @RequestParam(value = "ref", required = false) String ref) {
-        return run(t, c -> core.purchase.listPos(status, branch, ref));
+        return run(t, c -> core.purchase.listPos(c.tenant(), status, branch, ref));
     }
 
     @GetMapping("/po")
     public ResponseEntity<Object> getPo(@RequestHeader(value = "X-Auth", required = false) String t, @RequestParam("no") String no) {
-        return run(t, c -> core.purchase.poDetail(no));
+        return run(t, c -> core.purchase.poDetail(c.tenant(), no));
     }
 
     @PostMapping("/po/approve")
@@ -240,7 +240,7 @@ public class ApiController {
     public ResponseEntity<Object> report(@RequestHeader(value = "X-Auth", required = false) String t,
                                          @RequestParam("report") String report,
                                          @RequestParam(value = "period", required = false) String period) {
-        return run(t, c -> core.purchase.report(report, period));
+        return run(t, c -> core.purchase.report(c.tenant(), report, period));
     }
 
     // ---- users (admin)

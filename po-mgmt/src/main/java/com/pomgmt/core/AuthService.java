@@ -88,7 +88,11 @@ public class AuthService {
             throw new ApiException(401, "மீண்டும் உள்நுழையவும் (Session expired)");
         }
         db.update("UPDATE sessions SET last_seen = ? WHERE token_hash = ?", now(), U.sha256(token));
-        return new Ctx(U.lng(row.get("id")), U.str(row.get("role")), U.str(row.get("full_name")), token);
+        String role = U.str(row.get("role"));
+        long id = U.lng(row.get("id"));
+        // tenant: admin owns its own id; an operational user inherits the admin who created them; system = 0 (all)
+        long tenant = "admin".equals(role) ? id : ("system".equals(role) ? 0L : U.lng(row.get("created_by")));
+        return new Ctx(id, role, U.str(row.get("full_name")), token, tenant);
     }
 
     public void logout(String token) {
@@ -151,9 +155,13 @@ public class AuthService {
         if (!ROLES.contains(role)) {
             throw new ApiException(400, "Role: " + String.join(" / ", ROLES));
         }
-        // only a system user may create or assign the 'system' user type
-        if ("system".equals(role) && !c.system()) {
-            throw new ApiException(403, "System user type-ஐ உருவாக்க அனுமதி இல்லை");
+        // system creates ONLY admin / system users; admin creates ONLY the operational roles
+        boolean topRole = "admin".equals(role) || "system".equals(role);
+        if (topRole && !c.system()) {
+            throw new ApiException(403, "admin / system user type-ஐ System user மட்டுமே உருவாக்க முடியும்");
+        }
+        if (!topRole && !c.admin()) {
+            throw new ApiException(403, "இந்த user type-ஐ Admin user மட்டுமே உருவாக்க முடியும்");
         }
         if (username.isEmpty() || name.isEmpty()) {
             throw new ApiException(400, "பயனர் பெயர் மற்றும் முழு பெயர் தேவை");
